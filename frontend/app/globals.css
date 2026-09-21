@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/* 디자인 토큰 — docs/ui-ux-spec.md 의 팔레트를 그대로 옮긴 것.
+   테마는 prefers-color-scheme 이 아니라 페이지가 고른다:
+   White Void(1·2번 페이지)는 기본, Deep Data Void(3·4·5번)는 <html data-theme="void">. */
+:root {
+  /* Theme 1 — The White Void */
+  --void-bg: #ffffff;
+  --cabinet-surface: #f8f9fa;
+  --cabinet-shadow-soft: rgba(0, 0, 0, 0.03);
+  --cabinet-shadow-deep: rgba(0, 0, 0, 0.08);
+
+  /* Theme 2 — Deep Data Void */
+  --data-bg: #0a0d14;
+  --data-surface: #121620;
+  --accent: #00e5ff;
+
+  /* 타이포그래피 */
+  --ink-light: #212529;
+  --ink-dark: #e2e8f0;
+
+  /* Concept Serif — 보고서, 점수 인쇄, 라벨지. 아날로그 타자기 무드 */
+  --font-mono-concept: "Fragment Mono", "Courier New", ui-monospace, monospace;
+
+  --background: var(--void-bg);
+  --foreground: var(--ink-light);
+}
+
+:root[data-theme="void"] {
+  --background: var(--data-bg);
+  --foreground: var(--ink-dark);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--cabinet-surface);
+  --color-data-surface: var(--data-surface);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-mono-concept);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), "Pretendard", system-ui, sans-serif;
+}

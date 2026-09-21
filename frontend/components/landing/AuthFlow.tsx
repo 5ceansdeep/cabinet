@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { startChoir } from "@/lib/choir";
 import { thud } from "@/lib/thud";
 import CabinetScene, { type Field, type Phase } from "./CabinetScene";
 import LoadingOverlay from "./LoadingOverlay";
@@ -21,18 +22,9 @@ const FIELDS: Record<"login" | "signup", Field[]> = {
   ],
 };
 
-const LOGS = [
-  "[SYSTEM] 구조적 문장 해석 중...",
-  "[EMBEDDING] 음악 메타데이터 매칭 중...",
-  "[VECTOR] 768차원 벡터 공간 탐색 중...",
-  "[ARCHIVE] 앨범 이미지 색인 중...",
-  "[AUDIO] 청음 음원 버퍼링 중...",
-];
-
 export default function AuthFlow({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("auth");
-  const [logs, setLogs] = useState<string[]>([]);
   const [progress, setProgress] = useState(0);
 
   /* 로딩 — ponytail: 백엔드 메타데이터 로딩이 없어 진행률을 흉내 낸다. 실제 fetch 진행률로 교체 */
@@ -41,16 +33,18 @@ export default function AuthFlow({ mode }: { mode: "login" | "signup" }) {
     let n = 0;
     const id = setInterval(() => {
       n++;
-      setLogs((l) => [...l.slice(-40), `${LOGS[n % LOGS.length]} ${String(n * 7919).slice(-6)}`]);
       setProgress(Math.min(100, n * 2));
       if (n >= 50) {
         clearInterval(id);
         thud(55);
         setPhase("dive");
       }
-    }, 90);
+    }, 120);
     return () => clearInterval(id);
   }, [phase]);
+
+  // 로딩 동안 성스러운 브금 — 로딩이 끝나면 cleanup 으로 페이드아웃
+  useEffect(() => (phase === "loading" ? startChoir() : undefined), [phase]);
 
   useEffect(() => {
     if (phase !== "dive") return;
@@ -77,7 +71,7 @@ export default function AuthFlow({ mode }: { mode: "login" | "signup" }) {
         </nav>
       )}
 
-      {phase === "loading" && <LoadingOverlay logs={logs} progress={progress} />}
+      {phase === "loading" && <LoadingOverlay progress={progress} />}
 
       {/* Diving Link — 서랍의 어두운 속으로 빨려 들어가는 터널 */}
       {phase === "dive" && <div className="absolute inset-0 bg-[#0a0d14] animate-[dive_1.6s_ease-in_forwards]" />}

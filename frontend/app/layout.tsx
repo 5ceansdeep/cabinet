@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Fragment_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
 /* Main Sans-Serif — UI, 인풋, 데이터 수치. Pretendard 는 CSS 폴백 스택에서 받는다. */
 const inter = Inter({
   variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+/* Concept Serif — 보고서, 점수 인쇄, 라벨지 */
+const fragmentMono = Fragment_Mono({
+  variable: "--font-fragment",
+  weight: "400",
   subsets: ["latin"],
 });
 
@@ -15,7 +22,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ko" className={`${inter.variable} h-full antialiased`}>
+    <html lang="ko" className={`${inter.variable} ${fragmentMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

@@ -2,7 +2,7 @@
 
 /* 디자인 토큰 — docs/ui-ux-spec.md 의 팔레트를 그대로 옮긴 것.
    테마는 prefers-color-scheme 이 아니라 페이지가 고른다:
-   White Void(1·2번 페이지)는 기본, Deep Data Void(3·4·5번)는 <html data-theme="void">. */
+   White Void(1·2번 페이지)는 기본, Deep Data Void(3·4·5번)는 페이지 루트에 data-theme="void". */
 :root {
   /* Theme 1 — The White Void */
   --void-bg: #ffffff;
@@ -20,13 +20,13 @@
   --ink-dark: #e2e8f0;
 
   /* Concept Serif — 보고서, 점수 인쇄, 라벨지. 아날로그 타자기 무드 */
-  --font-mono-concept: "Fragment Mono", "Courier New", ui-monospace, monospace;
+  --font-mono-concept: var(--font-fragment), "Courier New", ui-monospace, monospace;
 
   --background: var(--void-bg);
   --foreground: var(--ink-light);
 }
 
-:root[data-theme="void"] {
+[data-theme="void"] {
   --background: var(--data-bg);
   --foreground: var(--ink-dark);
 }
@@ -45,4 +45,38 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-inter), "Pretendard", system-ui, sans-serif;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 1; }
+}
+/* 가운데 서랍 크기에서 화면 전체로 번지는 암흑 */
+@keyframes dive {
+  from { clip-path: inset(40% 42% 40% 42%); opacity: 0; }
+  30% { opacity: 1; }
+  to { clip-path: inset(0); opacity: 1; }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+}
+/* 수백 장의 카드가 촤르르륵 스쳐 지나가다 딱 멈춘다 */
+@keyframes riffle {
+  from { transform: translateY(0); }
+  to { transform: translateY(-85%); }
+}
+/* 슬롯에서 쇽! 튀어나오는 디스크 */
+@keyframes pop {
+  from { opacity: 0; transform: translateY(140px) scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+@keyframes appear {
+  from { opacity: 0; }
 }

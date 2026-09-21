@@ -15,11 +15,14 @@ docs/       스펙 문서
 ## 개발
 
 ```bash
+npm run dev                    # 프론트(:3000) + 백엔드(:4000) 한 번에
+
+# 따로 띄울 때
 # 프론트엔드
 cd frontend && npm run dev     # http://localhost:3000
 
 # 백엔드
-cd backend && npm run start:dev
+cd backend && npm run start:dev  # http://localhost:4000
 ```
 
 ## 스택

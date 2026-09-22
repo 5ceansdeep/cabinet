@@ -18,6 +18,18 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let gen = 0; // 대사마다 번호 — 끊긴 대사의 늦은 콜백은 무시한다
 let current: HTMLAudioElement | null = null;
 let blocked: Job | null = null; // 브라우저가 소리를 막아 못 튼 대사 — 첫 클릭·키 입력 때 다시 튼다
+let muted = false; // 브라우저가 소리를 막고 있는지 — 화면에 "클릭하면 들린다" 안내용
+const mutedListeners = new Set<() => void>();
+const setMuted = (m: boolean) => {
+  if (muted === m) return;
+  muted = m;
+  mutedListeners.forEach((cb) => cb());
+};
+export const isMuted = () => muted;
+export function subscribeMuted(cb: () => void) {
+  mutedListeners.add(cb);
+  return () => mutedListeners.delete(cb);
+}
 const untilKnown = () => performance.now() + MAX_LINE * 1000; // 끝을 알 때까지 잠정
 
 function analyze(src: string, count: number) {
@@ -80,7 +92,8 @@ function play(job: Job, id: number) {
   a.onerror = () => tts(job, id); // 파일이 아직 없으면 기계 음성으로
   a.addEventListener(
     "playing",
-    () =>
+    () => {
+      setMuted(false); // 소리가 났다 — 막힘 풀림
       analyze(src, job.lines)
         .then(({ starts, end }) => {
           if (id !== gen) return;
@@ -91,7 +104,8 @@ function play(job: Job, id: number) {
           if (id !== gen) return;
           job.onStart?.(null);
           a.onended = () => doneAt(id, 0);
-        }),
+        });
+    },
     { once: true },
   );
   a.play().catch((e: Error) => {
@@ -99,6 +113,7 @@ function play(job: Job, id: number) {
     if (e.name === "NotAllowedError") {
       // 아직 소리를 못 낸다(새로 불러온 페이지 등) — 자막만 먼저, 첫 클릭·키 입력 때 이 대사를 다시 튼다
       blocked = job;
+      setMuted(true);
       addEventListener("pointerdown", unblock, { once: true });
       addEventListener("keydown", unblock, { once: true });
       job.onStart?.(null);
@@ -110,6 +125,7 @@ function play(job: Job, id: number) {
 function unblock() {
   removeEventListener("pointerdown", unblock);
   removeEventListener("keydown", unblock);
+  setMuted(false);
   const job = blocked;
   blocked = null;
   // 그사이 다른 대사가 나오고 있지 않을 때만 — 늦게라도 들려준다

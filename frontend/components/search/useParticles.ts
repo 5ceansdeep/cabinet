@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-/* 임베딩 시각화 — 서류 조각과 시안 데이터 입자가 일렁이다 흩어진다.
+/* 임베딩 시각화 — 종이 조각과 그림자색 입자가 일렁이다 흩어진다 (흰 편지 화면용).
    canvasRef 를 전체 화면 캔버스에 달고, scatter(rect) 로 rect 테두리에서 입자를 뿜는다. */
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; rot: number; scrap: boolean };
@@ -34,12 +34,12 @@ export function useParticles() {
           ctx.save();
           ctx.translate(p.x, p.y);
           ctx.rotate(p.rot);
-          ctx.fillStyle = "rgba(226,232,240,.35)";
+          ctx.fillStyle = "rgba(0,0,0,.08)";
           ctx.fillRect(-4, -3, 8, 6);
           ctx.restore();
         } else {
-          ctx.fillStyle = "#00e5ff";
-          ctx.shadowColor = "#00e5ff";
+          ctx.fillStyle = "rgba(0,0,0,.25)";
+          ctx.shadowColor = "rgba(0,0,0,.15)";
           ctx.shadowBlur = 8;
           ctx.beginPath();
           ctx.arc(p.x, p.y, 1.4, 0, Math.PI * 2);

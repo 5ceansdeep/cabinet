@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fragment_Mono, Inter } from "next/font/google";
+import { Fragment_Mono, Inter, Nanum_Myeongjo } from "next/font/google";
 import "./globals.css";
 
 /* Main Sans-Serif — UI, 인풋, 데이터 수치. Pretendard 는 CSS 폴백 스택에서 받는다. */
@@ -15,6 +15,13 @@ const fragmentMono = Fragment_Mono({
   subsets: ["latin"],
 });
 
+/* 편지 — 3번 페이지 편지지. 한글 글리프가 커서 preload 하지 않는다 */
+const nanumMyeongjo = Nanum_Myeongjo({
+  variable: "--font-nanum",
+  weight: ["400", "700"],
+  preload: false,
+});
+
 export const metadata: Metadata = {
   title: "cabinet",
   description: "상황과 감정을 적으면 서류함에서 음악을 건져 올려 주는 아카이브",
@@ -22,7 +29,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ko" className={`${inter.variable} ${fragmentMono.variable} h-full antialiased`}>
+    <html lang="ko" className={`${inter.variable} ${fragmentMono.variable} ${nanumMyeongjo.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

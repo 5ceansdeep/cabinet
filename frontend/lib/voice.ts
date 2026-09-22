@@ -55,6 +55,8 @@ const doneAt = (id: number, sec: number) => {
 // 파일이 없을 때 — 낮고 느린 기계 음성 (한국어 목소리가 있으면 그걸로)
 function tts(job: Job, id: number) {
   if (id !== gen) return;
+  current?.pause(); // 앞 대사 파일의 끝소리도 멈춘다
+  current = null;
   job.onStart?.(null);
   if (typeof speechSynthesis === "undefined") return doneAt(id, 0);
   const u = new SpeechSynthesisUtterance(job.text);
@@ -72,6 +74,7 @@ function play(job: Job, id: number) {
   if (!job.key) return tts(job, id);
   const src = `/voice/${job.key}.mp3`;
   const a = new Audio(src);
+  current?.pause(); // 앞 대사 파일의 남은 끝소리(잔향)까지 멈춘다 — 파일 두 개가 겹치면 엔터로도 앞 것이 안 끊긴다
   current = a;
   busyUntil = untilKnown(); // 말을 언제 마치는지 알 때까지
   a.onerror = () => tts(job, id); // 파일이 아직 없으면 기계 음성으로

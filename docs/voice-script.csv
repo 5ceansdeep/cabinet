@@ -1,0 +1,32 @@
+파일명,ElevenLabs 입력용 SSML 스크립트
+INTRO.mp3,"Is someone there?<break time=""0.5s""/>Heard your footsteps plain as day.<break time=""0.5s""/>Step on over."
+INTRO_SIGNUP.mp3,"A new face, huh?<break time=""0.5s""/>I'll build you a drawer of your own."
+INTRO_FORGOT.mp3,"Lost something?<break time=""0.5s""/>Everything lost ends up in this drawer.<break time=""0.5s""/>Come closer."
+EMAIL.prompt.mp3,"Drop an email where I can reach you.<break time=""0.5s""/>No spam, I promise."
+EMAIL.missing.mp3,No address? How am I supposed to find you?
+EMAIL.invalid.mp3,"I don't recall creating an address format like this.<break time=""0.5s""/>Where'd you leave the @ sign?"
+EMAIL.alreadyExists.mp3,"That address is already in my drawer.<break time=""0.5s""/>You're getting more forgetful than I am."
+PASSWORD_LOGIN.prompt.mp3,"Type in the secret, just between you and me.<break time=""0.5s""/>I'll pretend I'm not looking."
+PASSWORD_LOGIN.missing.mp3,Trying to open the door without a key?
+PASSWORD_LOGIN.incorrect.mp3,"Buzz! Wrong secret.<break time=""0.5s""/>Take your time and jog your memory."
+PASSWORD_SIGNUP.prompt.mp3,"Pick a secret.<break time=""0.5s""/>Make it at least eight characters—rules are rules."
+PASSWORD_SIGNUP.missing.mp3,Trying to lock the door without a key?
+PASSWORD_SIGNUP.invalid.mp3,Even a stray dog could guess that one.
+PASSWORD_CONFIRM.prompt.mp3,"Type it once more.<break time=""0.5s""/>Even I double-check the important stuff."
+PASSWORD_CONFIRM.missing.mp3,"One more time, I said.<break time=""0.5s""/>Just once more will do."
+PASSWORD_CONFIRM.mismatch.mp3,"That doesn't match what you just typed.<break time=""0.5s""/>Forgot already?<break time=""0.5s""/>That's alright, happens to me too."
+NICKNAME.prompt.mp3,What should I call you?
+NICKNAME.missing.mp3,"Without a name, I'll just have to call you 'John Doe'."
+NICKNAME.tooShort.mp3,A single letter is a bit too brief.
+NICKNAME.invalid.mp3,"Letters and numbers are plenty.<break time=""0.5s""/>Leave the decorations at home."
+PASSWORD_RESET.prompt.mp3,"Lost your key again?<break time=""0.5s""/>That's fine, it happens to the best of us.<break time=""0.5s""/>Give me your email first."
+PASSWORD_RESET.sent.mp3,"If that address is in my file cabinet, I've sent over a new key.<break time=""0.5s""/>Hang onto it this time."
+CAPS_LOCK.mp3,"Caps Lock is on!!<break time=""0.5s""/>No need to shout, I can hear you just fine!!"
+COOLDOWN.mp3,"Take your time.<break time=""0.5s""/>I can wait forever.<break time=""0.5s""/>Literally."
+SUBMITTING.mp3,"Sorting out your files.<break time=""0.5s""/>Even miracles require paperwork."
+NO_ACCOUNT.mp3,"Your name isn't in my file cabinet.<break time=""0.5s""/>Shall I build a new drawer for you?"
+ERROR.mp3,"Oops, my hand slipped.<break time=""0.5s""/>Give it another press.<break time=""0.5s""/>Keep it between us."
+LOGIN_SUCCESS_VOICE.mp3,"Welcome back.<break time=""0.5s""/>I kept your spot right where you left it."
+SIGNUP_SUCCESS_VOICE.mp3,"All set!<break time=""0.5s""/>Easier than creating the universe, wasn't it?"
+WELCOME_BACK_VOICE.mp3,"Look who's back.<break time=""0.5s""/>Door's open."
+LOADING.mp3,"Finding what suits your taste.<break time=""0.5s""/>My, these drawers go deep."

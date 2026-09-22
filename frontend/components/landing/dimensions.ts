@@ -38,6 +38,6 @@ export const PRESENT_TOP = screenTop(PRESENT);
 export const CABINET_TOP = screenTop(new Vector3());
 
 // 떠오른 파일의 확대 배율과, 그때 파일 폭이 화면 높이의 몇 vh 인지 — 입력칸 크기를 여기에 맞춘다
-export const PRESENT_SCALE = 2;
+export const PRESENT_SCALE = 1.5;
 const folderW = CABINET.W - 0.3;
 export const CARD_VH = ((folderW * PRESENT_SCALE) / (2 * PRESENT.distanceTo(CAMERA) * Math.tan((15 * Math.PI) / 180))) * 100;

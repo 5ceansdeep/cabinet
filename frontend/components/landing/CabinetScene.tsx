@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { ContactShadows, Environment, Lightformer, RoundedBox } from "@react-three/drei";
 import { Color, type AmbientLight, type DirectionalLight, type Fog, type SpotLight } from "three";
 import { thud } from "@/lib/thud";
-import { cut, speak, warm } from "@/lib/voice";
+import { cut, isMuted, speak, subscribeMuted, warm } from "@/lib/voice";
 import { CABINET, CAMERA, FULL_OPEN, INNER_HALF, LOOK, CARD_VH, PRESENT_TOP, drawerY } from "./dimensions";
 import Drawer from "./Drawer";
 import FileCard from "./FileCard";
@@ -201,6 +201,7 @@ export default function CabinetScene({
     for (const l of upcoming) if (l.voiceKey) chain = chain.then(() => warm(l.voiceKey!, subtitleLines(l.text).length));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const muted = useSyncExternalStore(subscribeMuted, isMuted, () => false); // 브라우저가 소리를 막고 있나
   const said = voiced?.line;
   const timeline = said ? subtitleDelays(said.text, voiced.delays ?? undefined) : [];
 
@@ -337,6 +338,13 @@ export default function CabinetScene({
             <p className="absolute inset-x-0 top-full mt-3 text-center font-mono text-[10px] tracking-[.25em] text-black/30">{LINES.escHint}</p>
           )}
         </form>
+      )}
+
+      {/* 소리가 막혀 있으면 — 클릭 한 번이면 풀린다는 안내 */}
+      {muted && phase === "auth" && (
+        <p className="pointer-events-none absolute inset-x-0 top-8 z-50 text-center font-letter text-sm tracking-wide text-black/55 animate-[appear_.6s_both]">
+          {LINES.soundHint}
+        </p>
       )}
 
       {said && (

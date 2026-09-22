@@ -109,6 +109,7 @@ export const LINES = {
   stale: { text: D.COOLDOWN, voiceKey: "COOLDOWN" },
   capsLock: { text: D.CAPS_LOCK, voiceKey: "CAPS_LOCK" },
   escHint: "ESC — 앞 서류로", // 조작 안내라 페르소나 밖, 읽지 않음
+  soundHint: "자네, 한 번 클릭해 주게. 그래야 내 목소리가 들리지.", // 브라우저가 소리를 막고 있을 때 — 읽지 않음(못 읽음)
   checking: { text: D.SUBMITTING, voiceKey: "SUBMITTING" },
   wrong: { text: D.PASSWORD_LOGIN.incorrect, voiceKey: "PASSWORD_LOGIN.incorrect" },
   noAccount: { text: D.NO_ACCOUNT, voiceKey: "NO_ACCOUNT", link: { href: "/signup", label: D.NO_ACCOUNT_ACTION } },

@@ -39,7 +39,8 @@
   --color-accent: var(--accent);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-mono-concept);
-  --font-letter: var(--font-nanum), "Nanum Myeongjo", serif;}
+  --font-letter: var(--font-nanum), "Nanum Myeongjo", serif;
+  --font-subtitle: var(--font-chosun), "Gulim", sans-serif;}
 
 body {
   background: var(--background);
@@ -47,17 +48,9 @@ body {
   font-family: var(--font-inter), "Pretendard", system-ui, sans-serif;
 }
 
-@keyframes breathe {
-  0%, 100% { opacity: 0.15; }
-  50% { opacity: 1; }
-}
 /* 후광 빛살이 아주 천천히 돈다 — transform(scale)과 겹치지 않게 rotate 속성만 */
 @keyframes turn {
   to { rotate: 360deg; }
-}
-@keyframes fadeinout {
-  0%, 100% { opacity: 0; }
-  30%, 70% { opacity: 1; }
 }
 @keyframes rise {
   from { opacity: 0; transform: translateY(24px) scale(0.97); }
@@ -81,4 +74,9 @@ body {
 }
 @keyframes appear {
   from { opacity: 0; }
+}
+/* 자막 줄 — 높이 0 에서 펼쳐지며 들어와 아래 줄을 밀어낸다 */
+@keyframes subline {
+  from { opacity: 0; max-height: 0; transform: translateY(-6px); }
+  to { opacity: 1; max-height: 4em; transform: none; }
 }

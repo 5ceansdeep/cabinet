@@ -14,7 +14,8 @@ export function Halo({ p, behind }: { p: number; behind?: boolean }) {
   if (behind)
     return (
       <>
-        <div aria-hidden className="absolute inset-0 bg-[#dee2e6] transition-opacity duration-700" style={{ opacity: Math.min(1, p * 4) }} />
+        {/* 방이 어두워진다 — 흰 빛살이 어둠 속에서 빛나도록 */}
+        <div aria-hidden className="absolute inset-0 bg-[#0b0d12] transition-opacity duration-700" style={{ opacity: Math.min(0.94, p * 4) }} />
         <div
           aria-hidden
           className="pointer-events-none absolute left-1/2 -m-[50vmax] size-[100vmax] animate-[turn_90s_linear_infinite] transition-[transform,opacity] duration-700 ease-out"
@@ -38,24 +39,5 @@ export function Halo({ p, behind }: { p: number; behind?: boolean }) {
         background: "radial-gradient(circle, #fff 0 30%, rgba(255,255,255,0) 70%)",
       }}
     />
-  );
-}
-
-/* 헤드폰 안내 — 화면 가운데서 한 번 페이드 인/아웃. 진행률은 아래에 조용히 */
-export default function LoadingOverlay({ progress }: { progress: number }) {
-  return (
-    <>
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 text-black/70 animate-[fadeinout_3.5s_.7s_ease-in-out_both]">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden>
-          <path d="M4 15v-3a8 8 0 0 1 16 0v3" />
-          <rect x="3" y="14" width="4" height="7" rx="1.5" />
-          <rect x="17" y="14" width="4" height="7" rx="1.5" />
-        </svg>
-        <p className="text-sm tracking-wide">Please put on your headphones.</p>
-      </div>
-      <p aria-live="polite" className="absolute inset-x-0 bottom-8 text-center font-mono text-[10px] tracking-[.3em] text-black/40">
-        {progress}%
-      </p>
-    </>
   );
 }

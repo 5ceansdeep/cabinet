@@ -62,10 +62,13 @@ export function labelMaterial(text: string, bg = "#faf8f2") {
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, 512, 128);
     ctx.fillStyle = "rgba(33,37,41,.75)";
-    ctx.font = '600 56px "Courier New", monospace';
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.letterSpacing = "8px";
+    // 긴 라벨("CONFIRM PASSWORD")도 탭 안에 들어가게 글자를 줄인다
+    let size = 58;
+    do ctx.font = `600 ${(size -= 2)}px "Courier New", monospace`;
+    while (ctx.measureText(text).width > 480 && size > 20);
     ctx.fillText(text, 256, 68);
     const map = new CanvasTexture(c);
     map.colorSpace = SRGBColorSpace;

@@ -31,7 +31,11 @@ const probe = new PerspectiveCamera(30, 1);
 probe.position.copy(CAMERA);
 probe.lookAt(LOOK);
 probe.updateMatrixWorld();
-export const PRESENT_TOP = ((1 - PRESENT.clone().project(probe).y) / 2) * 100;
+const screenTop = (p: Vector3) => ((1 - p.clone().project(probe).y) / 2) * 100;
+export const PRESENT_TOP = screenTop(PRESENT);
+
+// 서류함 중심의 화면 세로 위치(%) — 로딩 후광이 여기서 번진다
+export const CABINET_TOP = screenTop(new Vector3());
 
 // 떠오른 파일의 확대 배율과, 그때 파일 폭이 화면 높이의 몇 vh 인지 — 입력칸 크기를 여기에 맞춘다
 export const PRESENT_SCALE = 2;

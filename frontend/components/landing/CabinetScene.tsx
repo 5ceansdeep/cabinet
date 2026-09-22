@@ -3,20 +3,16 @@
 import { useRef, useState, type FormEvent } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { ContactShadows, Environment, Lightformer, RoundedBox } from "@react-three/drei";
-import { Vector3 } from "three";
 import { thud } from "@/lib/thud";
-import { CABINET, CAMERA, FRONT_Z, FULL_OPEN, INNER_HALF, LOOK, CARD_VH, PRESENT_TOP, drawerY } from "./dimensions";
+import { CABINET, CAMERA, FULL_OPEN, INNER_HALF, LOOK, CARD_VH, PRESENT_TOP, drawerY } from "./dimensions";
 import Drawer from "./Drawer";
 import FileCard from "./FileCard";
-import Magic from "./Magic";
 import { materials } from "./materials";
 
 export type Field = { name: string; type: string; label: string };
-export type Phase = "auth" | "loading" | "dive";
+export type Phase = "auth" | "loading";
 
 const { W, H, D, T } = CABINET;
-const v = new Vector3();
-const look = LOOK.clone();
 
 /* 고정 키 라이트 — 왼쪽 위 앞에서 비춰 서랍 틈과 바닥에 부드러운 그림자 */
 function KeyLight() {
@@ -33,15 +29,9 @@ function KeyLight() {
   );
 }
 
-/* 카메라는 서랍 정면에 고정. dive 때만 가운데 서랍 속으로 빨려 들어간다 */
-function Rig({ dive }: { dive: boolean }) {
-  useFrame(({ camera }, dt) => {
-    const k = 1 - Math.exp(-1.8 * dt);
-    const y = drawerY(1);
-    camera.position.lerp(dive ? v.set(0, y + 0.5, FRONT_Z + FULL_OPEN + 1.2) : CAMERA, k);
-    look.lerp(dive ? v.set(0, y - 0.2, FRONT_Z + FULL_OPEN - 0.4) : LOOK, k);
-    camera.lookAt(look);
-  });
+/* 카메라는 서랍 정면에 고정 */
+function Rig() {
+  useFrame(({ camera }) => camera.lookAt(LOOK));
   return null;
 }
 
@@ -89,20 +79,19 @@ export default function CabinetScene({ fields, phase, onDone }: { fields: Field[
     const next = step + 1;
     setStep(next);
     if (next < fields.length) return;
-    // 마지막 파일이 제자리로 들어가면 서랍은 열린 채로 로딩(마법)이 시작된다
+    // 마지막 파일이 제자리로 들어가면 로딩 시작 — 서랍이 닫힌다
     setTimeout(() => onDone(values.current), 700);
   }
 
-  // 다이브: 맨 위 서랍이 쾅 닫히고 가운데 서랍이 거대하게 열린다
-  const dive = phase === "dive";
-  const slide = !dive && open ? FULL_OPEN : 0;
+  // 로딩이 시작되면 서랍이 쾅 닫히고, 그다음 후광이 비친다
+  const slide = phase === "auth" && open ? FULL_OPEN : 0;
   const inputCls =
     "border-b border-black/20 bg-transparent py-1 text-center font-mono text-black/80 outline-none placeholder:text-black/30 focus:border-black/50";
 
   return (
     <>
       <Canvas shadows camera={{ position: CAMERA.toArray(), fov: 30 }} dpr={[1, 1.5]} className="absolute! inset-0">
-        <color attach="background" args={["#ffffff"]} />
+        {/* 배경은 투명 — 로딩 후광(Halo)이 캔버스 뒤에서 서류함을 비춘다. 흰 바탕은 페이지 몫 */}
         <fog attach="fog" args={["#ffffff", 14, 30]} />
         <ambientLight intensity={0.5} />
         {/* 카메라 쪽 보조광 — 눈앞에 떠오른 파일 앞면을 밝힌다 */}
@@ -113,7 +102,7 @@ export default function CabinetScene({ fields, phase, onDone }: { fields: Field[
           <Lightformer intensity={1} position={[-6, 1, 3]} scale={[3, 8, 1]} />
           <Lightformer intensity={1.2} position={[0, -1, 10]} scale={[8, 4, 1]} />
         </Environment>
-        <Rig dive={dive} />
+        <Rig />
 
         <group
           onPointerOver={() => {
@@ -127,9 +116,8 @@ export default function CabinetScene({ fields, phase, onDone }: { fields: Field[
             {fields.map((f, i) => (
               <FileCard key={f.name} slot={i} out={open && i === step} tab={f.label} />
             ))}
-            <Magic active={phase === "loading"} />
           </Drawer>
-          <Drawer y={drawerY(1)} slide={dive ? FULL_OPEN : 0} label="G — M" />
+          <Drawer y={drawerY(1)} slide={0} label="G — M" />
           <Drawer y={drawerY(2)} slide={0} label="N — Z" />
         </group>
 

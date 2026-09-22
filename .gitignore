@@ -25,3 +25,10 @@ coverage/
 .DS_Store
 Thumbs.db
 .vercel
+
+# 작업 컨텍스트는 루트 CONTEXT.md 하나만 — 하위 폴더에 생기는 빈 사본 제외
+/frontend/CONTEXT.md
+/backend/CONTEXT.md
+
+# Claude Code 개인 설정
+.claude/settings.local.json

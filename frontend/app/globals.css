@@ -39,7 +39,7 @@
   --color-accent: var(--accent);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-mono-concept);
-}
+  --font-letter: var(--font-nanum), "Nanum Myeongjo", serif;}
 
 body {
   background: var(--background);
@@ -51,11 +51,13 @@ body {
   0%, 100% { opacity: 0.15; }
   50% { opacity: 1; }
 }
-/* 가운데 서랍 크기에서 화면 전체로 번지는 암흑 */
-@keyframes dive {
-  from { clip-path: inset(40% 42% 40% 42%); opacity: 0; }
-  30% { opacity: 1; }
-  to { clip-path: inset(0); opacity: 1; }
+/* 후광 빛살이 아주 천천히 돈다 — transform(scale)과 겹치지 않게 rotate 속성만 */
+@keyframes turn {
+  to { rotate: 360deg; }
+}
+@keyframes fadeinout {
+  0%, 100% { opacity: 0; }
+  30%, 70% { opacity: 1; }
 }
 @keyframes rise {
   from { opacity: 0; transform: translateY(24px) scale(0.97); }

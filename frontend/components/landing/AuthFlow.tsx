@@ -74,11 +74,13 @@ export default function AuthFlow({ mode }: { mode: Mode }) {
 
     if (mode === "forgot") {
       const r = await requestReset();
+      await whenQuiet(); // "서류 정리 중이네"를 끝까지 듣고 나서 결과로
       setFlow(r.ok ? LINES.resetSent : LINES.server);
       return r.ok ? null : last;
     }
 
     const r = mode === "login" ? await login(email, values.password) : await signup(email, values.nickname, values.password);
+    await whenQuiet(); // "서류 정리 중이네"를 끝까지 듣고 나서 결과(환영·꾸지람)로 — 화면이 목소리를 앞지르지 않게
     if (r.ok) {
       setFlow((mode === "login" ? LINES.welcomeBack : LINES.welcomeNew)(r.nickname));
       setPhase("loading");

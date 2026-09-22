@@ -27,11 +27,13 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
         </div>
       ))}
       {link && linked && (
+        // 자막과 구분되는 버튼 — 흰 알약, 어두운 명조 글씨, 테두리 없는 자막과 달리 얇은 테두리와 그림자
         <Link
           href={link.href}
-          className="pointer-events-auto mt-1 rounded-sm bg-neutral-800/55 px-3 py-0.5 font-mono text-[11px] tracking-[.25em] text-white/85 backdrop-blur-sm underline-offset-4 animate-[appear_.5s_both] hover:underline"
+          className="pointer-events-auto mt-3 inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/90 px-5 py-2 font-letter text-sm tracking-normal text-neutral-800 shadow-[0_4px_16px_rgba(0,0,0,.12)] backdrop-blur-sm transition [text-shadow:none] animate-[appear_.5s_both] hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_6px_20px_rgba(0,0,0,.16)]"
         >
-          {link.label} →
+          {link.label}
+          <span aria-hidden className="text-neutral-400">→</span>
         </Link>
       )}
     </div>

@@ -14,8 +14,8 @@ import type { Track } from "./tracks";
 const GAP = 1.25; // 디스크 사이 간격
 const DEPTH = -2.8; // 가운데 디스크의 깊이
 const THROW_SPEED = 0.35; // 이보다 빠르게 위로 뿌리면 던진 것 (px/ms)
-const MIN_UP = 9; // 살살 뿌려도 이만큼은 솟구친다 (월드 단위/s)
-const TO_WALL = 6.5; // 벽 쪽으로 밀어주는 속도
+const MIN_UP = 12.5; // 살살 뿌려도 이만큼은 솟구친다 (월드 단위/s) — 가파른 포물선
+const TO_WALL = 3.8; // 벽 쪽으로 밀어주는 속도 — 앞으로 덜 뻗고 위로 솟게
 
 function Disk({
   track,
@@ -111,7 +111,7 @@ function Disk({
       track,
       p: [p.x, p.y, p.z],
       // 화면은 아래가 +y, 3D 는 위가 +y — 부호를 뒤집어 위로 솟구치게 한다
-      v: [f.vx * 1000 * perPx * 0.5, Math.max(-f.vy * 1000 * perPx, MIN_UP), -TO_WALL],
+      v: [f.vx * 1000 * perPx * 0.35, Math.max(-f.vy * 1000 * perPx, MIN_UP), -TO_WALL],
       onLanded: onDiscard,
     });
   }
@@ -176,7 +176,7 @@ export default function Deck({
         />
       ))}
       {/* 디스크를 앞에서 비추는 빛 — 라벨이 어둠에 묻히지 않게 */}
-      <pointLight position={[0, 0.8, DEPTH + 2.4]} intensity={7} distance={8} decay={2} color="#ffffff" />
+      <pointLight position={[0, 1.4, DEPTH + 3]} intensity={3.2} distance={9} decay={2} color="#dfe8f2" />
     </>
   );
 }

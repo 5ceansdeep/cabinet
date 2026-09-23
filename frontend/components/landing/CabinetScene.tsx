@@ -97,6 +97,14 @@ function subtitleDelays(text: string, cues?: number[]) {
   });
 }
 
+/* GPU 가 3D 컨텍스트를 끊어도(탭을 오래 열어두거나 개발 중 새로고침이 쌓이면 일어난다) 되살린다.
+   preventDefault 를 하지 않으면 브라우저가 아예 복구를 포기해 화면이 그 자리에서 멎는다 */
+function keepContext({ gl, invalidate }: { gl: { domElement: HTMLCanvasElement }; invalidate: () => void }) {
+  const c = gl.domElement;
+  c.addEventListener("webglcontextlost", (e) => e.preventDefault());
+  c.addEventListener("webglcontextrestored", () => invalidate());
+}
+
 /* 카메라는 서랍 정면에 고정 */
 function Rig() {
   useFrame(({ camera }) => camera.lookAt(LOOK));
@@ -273,7 +281,14 @@ export default function CabinetScene({
 
   return (
     <>
-      <Canvas shadows camera={{ position: CAMERA.toArray(), fov: 30 }} dpr={[1, 1.5]} className="absolute! inset-0">
+      <Canvas
+        // "percentage" — 지금 three 버전엔 PCFSoft 가 없어 어차피 이걸로 떨어진다. 기본값(soft)으로 두면 렌더마다 경고가 찍힌다
+        shadows="percentage"
+        camera={{ position: CAMERA.toArray(), fov: 30 }}
+        dpr={[1, 1.5]}
+        className="absolute! inset-0"
+        onCreated={keepContext}
+      >
         {/* 배경은 투명 — 로딩 후광(Halo)이 캔버스 뒤에서 서류함을 비춘다. 흰 바탕은 페이지 몫 */}
         <fog attach="fog" args={["#ffffff", 14, 30]} />
         <Lights dim={phase === "loading"} />

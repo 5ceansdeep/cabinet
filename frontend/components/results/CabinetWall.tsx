@@ -52,6 +52,19 @@ function Column({ angle }: { angle: number }) {
   );
 }
 
+/* 둘러선 벽만 — 5번 아카이빙 룸에서도 같은 방을 쓴다 */
+export function Wall() {
+  return (
+    <>
+      {Array.from({ length: COLUMNS }, (_, i) => (
+        <Column key={i} angle={(i / COLUMNS) * Math.PI * 2} />
+      ))}
+    </>
+  );
+}
+
+export const WALL_RADIUS = RADIUS;
+
 export default function CabinetWall({
   tracks,
   index,

@@ -2,20 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
-import { createPortal } from "react-dom";
-import { thud } from "@/lib/thud";
+import { tossDisk } from "./flying";
 import type { Track } from "./tracks";
 
-const G = 2600; // 중력 (px/s²)
 const THROW_SPEED = 0.4; // 이보다 빠르게 위로 뿌리면 던진 것으로 본다 (px/ms)
-const WALL_BOUNCE = 0.5; // 뒤 서류함 벽에 부딪혀 튕기는 정도
-const FLOOR_BOUNCE = 0.38;
-
-type Flight = { left: number; top: number; width: number; height: number };
 
 /* 플로피 디스크 — 호버 시 점수 타자기 인쇄, 드래그 360도 회전, 더블클릭 재생, 아래 라벨에서 보고서(5.1)로.
-   위로 홱 뿌리면 손을 떠나 높이 날아간다 — 캐러셀에 잘리지 않게 화면 맨 위 레이어(portal)로 옮겨서,
-   뒤에 선 서류함 벽에 부딪혀 튕기고 바닥에 떨어져 멎으면 목록에서 빠진다(onDiscard) */
+   위로 홱 뿌리면 손을 떠나 배경 3D 장면으로 넘어간다 — 진짜 3D 플로피가 되어 둘러선 서류함 벽에
+   부딪히고, 바닥에 떨어져 멎으면 목록에서 빠진다(onDiscard) */
 export default function Disk({
   track,
   index,
@@ -33,7 +27,6 @@ export default function Disk({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const slot = useRef<HTMLDivElement>(null); // 캐러셀에서 이 디스크가 차지한 자리
-  const fly = useRef<HTMLDivElement>(null); // 날아가는 몸체 (화면 맨 위 레이어)
   const rot = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
   const drag = useRef<{ px: number; py: number } | null>(null);
   const flick = useRef({ vx: 0, vy: 0, t: 0, up: 0 }); // 마지막 손놀림 — 속도(px/ms)와 위로 끌어올린 거리
@@ -42,7 +35,7 @@ export default function Disk({
   const [typed, setTyped] = useState(0);
   const [hover, setHover] = useState(false);
   const [grabbing, setGrabbing] = useState(false);
-  const [flight, setFlight] = useState<Flight | null>(null); // 날아가는 중이면 출발할 때의 화면 자리
+  const [gone, setGone] = useState(false); // 손을 떠났다 — 3D 장면이 맡고 있는 동안 캐러셀에서는 감춘다
   const score = `[의미 유사도: ${track.semantic}% | 분위기 일치도: ${track.mood}%]`;
 
   useEffect(() => () => {
@@ -131,66 +124,21 @@ export default function Disk({
     raf.current = requestAnimationFrame(step);
   }
 
-  /* 던지기 — 화면 맨 위 레이어로 옮겨 포물선으로 날린다.
-     살살 뿌려도 뒤 벽까지는 닿게 초속에 하한을 둔다(화면 높이만큼 오를 속도) */
+  /* 던지기 — 여기서 손을 떠나고, 그다음은 배경 3D 장면(Flights)이 맡는다.
+     납작한 화면 조각이 아니라 진짜 3D 플로피가 되어 둘러선 서류함 벽에 부딪힌다 */
   function launch(vx0: number, vy0: number) {
     cancelAnimationFrame(raf.current);
     const box = slot.current!.getBoundingClientRect();
-    setFlight({ left: box.left, top: box.top, width: box.width, height: box.height });
-    const vy = Math.min(vy0, -Math.sqrt(2 * G * innerHeight * 0.8));
-    requestAnimationFrame(() => run(box, vx0, vy));
-  }
-
-  function run(box: DOMRect, vx0: number, vy0: number) {
-    const el = fly.current;
-    if (!el) return;
-    const ceil = -box.top + 10; // 화면 위 = 뒤에 선 서류함 벽
-    const floor = innerHeight - box.bottom - 6;
-    let x = 0;
-    let y = 0;
-    let vx = vx0;
-    let vy = vy0;
-    let spin = 0;
-    const omega = vx0 * 0.3 + 140;
-    let last = performance.now();
-    let rest = 0; // 바닥에서 잠잠해진 시간(ms)
-    const step = (now: number) => {
-      const dt = Math.min(0.032, (now - last) / 1000);
-      last = now;
-      vy += G * dt;
-      x += vx * dt;
-      y += vy * dt;
-      spin += omega * dt;
-      if (y <= ceil && vy < 0) {
-        y = ceil;
-        vy = -vy * WALL_BOUNCE;
-        vx *= 0.7;
-        thud(120); // 벽에 부딪히는 소리
-      }
-      if (y >= floor) {
-        y = floor;
-        if (vy > 240) {
-          vy = -vy * FLOOR_BOUNCE;
-          vx *= 0.6;
-          thud(55);
-        } else {
-          vy = 0;
-          vx *= 0.82;
-          rest += dt * 1000;
-        }
-      }
-      // 높이 올라갈수록 작아 보이게 — 뒤 서류함 쪽으로 멀어지는 느낌
-      const depth = 1 - Math.min(0.22, (-y / innerHeight) * 0.3);
-      el.style.transform = `translate(${x}px, ${y}px) rotate(${spin}deg) scale(${depth})`;
-      if (rest > 500) {
-        el.style.transition = "opacity .45s";
-        el.style.opacity = "0";
-        setTimeout(onDiscard, 450);
-        return;
-      }
-      raf.current = requestAnimationFrame(step);
-    };
-    raf.current = requestAnimationFrame(step);
+    const cx = box.left + box.width / 2;
+    const cy = box.top + box.height / 2;
+    setGone(true); // 캐러셀의 디스크는 손을 떠났으니 감춘다 (자리는 바닥에 멎을 때까지 남겨 둔다)
+    tossDisk({
+      track,
+      ndc: [(cx / innerWidth) * 2 - 1, -((cy / innerHeight) * 2 - 1)],
+      vx: vx0,
+      vy: vy0,
+      onLanded: onDiscard,
+    });
   }
 
   const face = "absolute inset-0 rounded-[4px] bg-[#1c2230] [backface-visibility:hidden] [clip-path:polygon(0_0,92%_0,100%_7%,100%_100%,0_100%)]";
@@ -198,7 +146,7 @@ export default function Disk({
   const body = (
     <div className="flex flex-col items-center gap-5">
       <div className="[perspective:1000px]">
-        <div className={`transition-transform duration-300 ${hover && !grabbing && !flight ? "-translate-y-3" : ""}`}>
+        <div className={`transition-transform duration-300 ${hover && !grabbing && !gone ? "-translate-y-3" : ""}`}>
           <div
             ref={ref}
             role="button"
@@ -258,19 +206,8 @@ export default function Disk({
       className="flex shrink-0 snap-center flex-col items-center animate-[pop_.7s_cubic-bezier(.3,1.5,.5,1)_both]"
       style={{ animationDelay: `${index * 130}ms` }}
     >
-      {/* 날아가는 동안에도 캐러셀의 자리는 비워 둔다 — 남은 디스크가 갑자기 밀리지 않게 */}
-      <div className={flight ? "invisible" : undefined}>{body}</div>
-      {flight &&
-        createPortal(
-          <div
-            ref={fly}
-            className="pointer-events-none fixed z-50 flex justify-center"
-            style={{ left: flight.left, top: flight.top, width: flight.width, height: flight.height }}
-          >
-            {body}
-          </div>,
-          document.body,
-        )}
+      {/* 3D 로 날아가는 동안에도 캐러셀의 자리는 비워 둔다 — 남은 디스크가 갑자기 밀리지 않게 */}
+      <div className={gone ? "invisible" : undefined}>{body}</div>
     </div>
   );
 }

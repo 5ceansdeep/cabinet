@@ -62,9 +62,10 @@ export default function Results({ query }: { query: string }) {
             <p className="max-w-xl">
               QUERY — <span className="normal-case tracking-normal text-foreground/80">{query || "(empty)"}</span>
             </p>
-            <Link href="/search" className="pointer-events-auto shrink-0 text-accent/80 hover:text-accent">
-              NEW REQUEST
-            </Link>
+            <span className="flex shrink-0 gap-4">
+              <Link href="/archive" className="pointer-events-auto text-accent/80 hover:text-accent">MY CABINET</Link>
+              <Link href="/search" className="pointer-events-auto text-accent/80 hover:text-accent">NEW REQUEST</Link>
+            </span>
           </header>
 
           <div className="flex-1" />

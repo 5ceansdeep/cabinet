@@ -79,9 +79,10 @@ export default function Report({ track, query, no }: { track: Track; query: stri
 
         <footer className="flex items-end justify-between border-t border-[#6b5d3f]/40 pt-4 text-[11px]">
           <p className="max-w-xs leading-5 text-[#6b5d3f]">이 서류는 내가 직접 서랍에서 꺼낸 것이네. 의심은 접어두게.</p>
-          <Link href="/results" className="tracking-[.2em] text-[#6b5d3f] underline-offset-4 hover:underline">
-            ← 서랍으로
-          </Link>
+          <span className="flex gap-4">
+            <Link href="/archive" className="tracking-[.2em] text-[#6b5d3f] underline-offset-4 hover:underline">보관소</Link>
+            <Link href="/results" className="tracking-[.2em] text-[#6b5d3f] underline-offset-4 hover:underline">← 서랍으로</Link>
+          </span>
         </footer>
       </article>
     </main>

@@ -157,10 +157,13 @@ export function cut() {
   busyUntil = 0;
 }
 
-// 기다리는 대사까지 다 말하고 조용해지면 — 화면 전환이 목소리를 앞지르지 않게
-export function whenQuiet(): Promise<void> {
+/* 기다리는 대사까지 다 말하고 조용해지면 — 화면 전환이 목소리를 앞지르지 않게.
+   소리 쪽이 꼬여도(파일이 안 끝나거나 기계 음성이 onend 를 안 주거나) 화면이 갇히지 않게 상한을 둔다 */
+export function whenQuiet(maxMs = MAX_LINE * 1000): Promise<void> {
+  const until = performance.now() + maxMs;
   return new Promise((resolve) => {
-    const check = () => (!pending && performance.now() >= busyUntil ? resolve() : setTimeout(check, 100));
+    const check = () =>
+      (!pending && performance.now() >= busyUntil) || performance.now() >= until ? resolve() : setTimeout(check, 100);
     check();
   });
 }

@@ -4,6 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import { CABINET } from "@/components/landing/dimensions";
 import { materials } from "@/components/landing/materials";
+import Flights from "./Flights";
 
 /* 4번 배경 — 랜딩과 같은 서류함(치수·재료 그대로)이 시야를 빙 둘러 서 있다.
    카메라는 그 한가운데. 어두운 안개에 잠겨 위아래·좌우 끝이 안 보인다.
@@ -63,6 +64,8 @@ export default function CabinetWall() {
         {Array.from({ length: COLUMNS }, (_, i) => (
           <Column key={i} angle={(i / COLUMNS) * Math.PI * 2} />
         ))}
+        {/* 캐러셀에서 위로 던진 디스크가 이 장면 안으로 넘어와 날아다닌다 */}
+        <Flights wallRadius={RADIUS} />
       </Canvas>
       {/* 위아래는 어둠에 잠긴다 — 좌우로는 촘촘히 이어지고 천장·바닥 쪽으로 공간이 열린 느낌 */}
       <div className="absolute inset-0 bg-[linear-gradient(#000_4%,rgba(0,0,0,.75)_18%,transparent_38%,transparent_60%,rgba(0,0,0,.8)_82%,#000_96%)]" />

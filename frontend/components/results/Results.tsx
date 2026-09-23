@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { thud } from "@/lib/thud";
+import CabinetWall from "./CabinetWall";
 import Disk from "./Disk";
 import Riffle from "./Riffle";
 import { TRACKS, type Track } from "./tracks";
@@ -11,6 +12,7 @@ import { TRACKS, type Track } from "./tracks";
 export default function Results({ query }: { query: string }) {
   const [phase, setPhase] = useState<"riffle" | "discs">("riffle");
   const [playing, setPlaying] = useState<number | null>(null);
+  const [kept, setKept] = useState(TRACKS); // 위로 던져 뺀 곡은 여기서 빠진다
   const railRef = useRef<HTMLElement>(null);
 
   /* Bruce Almighty — 촤르르륵 넘어가던 카드가 딱 멈추면 디스크가 튀어나온다 */
@@ -28,10 +30,11 @@ export default function Results({ query }: { query: string }) {
     setPlaying(track.id);
   }
 
-  const nowPlaying = TRACKS.find((t) => t.id === playing);
+  const nowPlaying = kept.find((t) => t.id === playing);
 
   return (
     <main data-theme="void" className="relative flex min-h-screen flex-1 flex-col overflow-hidden bg-background text-foreground">
+      <CabinetWall />
       {phase === "riffle" ? (
         <Riffle />
       ) : (
@@ -47,8 +50,16 @@ export default function Results({ query }: { query: string }) {
 
           <div className="relative flex flex-1 items-center">
             <section ref={railRef} className="flex w-full snap-x snap-mandatory gap-12 overflow-x-auto px-[calc(50vw-120px)] py-16 [scrollbar-width:none]">
-              {TRACKS.map((t, i) => (
-                <Disk key={t.id} track={t} index={i} playing={playing === t.id} query={query} onPlay={() => play(t)} />
+              {kept.map((t, i) => (
+                <Disk
+                  key={t.id}
+                  track={t}
+                  index={i}
+                  playing={playing === t.id}
+                  query={query}
+                  onPlay={() => play(t)}
+                  onDiscard={() => setKept((ts) => ts.filter((x) => x.id !== t.id))}
+                />
               ))}
             </section>
             {[-1, 1].map((dir) => (
@@ -67,7 +78,7 @@ export default function Results({ query }: { query: string }) {
             {nowPlaying ? (
               <span className="text-accent">▶ NOW PLAYING — {nowPlaying.artist} · {nowPlaying.title}</span>
             ) : (
-              "DRAG TO ROTATE · DOUBLE-CLICK TO PLAY"
+              "DRAG TO ROTATE · DOUBLE-CLICK TO PLAY · FLICK UP TO DISCARD"
             )}
           </footer>
         </>

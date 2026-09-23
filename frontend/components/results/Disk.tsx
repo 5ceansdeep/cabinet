@@ -2,18 +2,40 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { thud } from "@/lib/thud";
 import type { Track } from "./tracks";
 
-/* 플로피 디스크 — 호버 시 점수 타자기 인쇄, 드래그 360도 회전, 더블클릭 재생, 아래 라벨에서 보고서(5.1)로 */
-export default function Disk({ track, index, playing, query, onPlay }: { track: Track; index: number; playing: boolean; query: string; onPlay: () => void }) {
+const G = 2800; // 중력 (px/s²)
+const THROW_SPEED = 0.45; // 이보다 빠르게 위로 뿌리면 던진 것으로 본다 (px/ms)
+
+/* 플로피 디스크 — 호버 시 점수 타자기 인쇄, 드래그 360도 회전, 더블클릭 재생, 아래 라벨에서 보고서(5.1)로.
+   위로 홱 뿌리면 손에서 놓여 날아간다 — 중력을 받아 뒤 서류함 벽에 부딪히고 바닥까지 떨어지면 빠진다(onDiscard) */
+export default function Disk({
+  track,
+  index,
+  playing,
+  query,
+  onPlay,
+  onDiscard,
+}: {
+  track: Track;
+  index: number;
+  playing: boolean;
+  query: string;
+  onPlay: () => void;
+  onDiscard: () => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
+  const wrap = useRef<HTMLDivElement>(null); // 던져진 뒤 날아가는 몸체 (pop 애니메이션과 transform 이 겹치지 않게 따로)
   const rot = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
   const drag = useRef<{ px: number; py: number } | null>(null);
+  const flick = useRef({ vx: 0, vy: 0, t: 0, up: 0 }); // 마지막 손놀림 — 속도(px/ms)와 위로 끌어올린 거리
   const raf = useRef(0);
   const typer = useRef<ReturnType<typeof setInterval>>(undefined);
   const [typed, setTyped] = useState(0);
   const [hover, setHover] = useState(false);
   const [grabbing, setGrabbing] = useState(false);
+  const [thrown, setThrown] = useState(false);
   const score = `[의미 유사도: ${track.semantic}% | 분위기 일치도: ${track.mood}%]`;
 
   useEffect(() => () => {
@@ -53,8 +75,17 @@ export default function Disk({ track, index, playing, query, onPlay }: { track: 
   function move(e: PointerEvent) {
     if (!drag.current) return;
     const r = rot.current;
-    r.vy = (e.clientX - drag.current.px) * 0.6;
-    r.vx = -(e.clientY - drag.current.py) * 0.6;
+    const dx = e.clientX - drag.current.px;
+    const dy = e.clientY - drag.current.py;
+    // 손놀림 속도 — 놓는 순간 던질지 판단한다
+    const f = flick.current;
+    const dt = Math.max(1, e.timeStamp - f.t);
+    f.vx = dx / dt;
+    f.vy = dy / dt;
+    f.t = e.timeStamp;
+    f.up = dy < 0 ? f.up - dy : 0; // 방향이 바뀌면 처음부터
+    r.vy = dx * 0.6;
+    r.vx = -dy * 0.6;
     r.x += r.vx;
     r.y += r.vy;
     drag.current = { px: e.clientX, py: e.clientY };
@@ -64,6 +95,8 @@ export default function Disk({ track, index, playing, query, onPlay }: { track: 
     if (!drag.current) return;
     drag.current = null;
     setGrabbing(false);
+    const f = flick.current;
+    if (f.vy < -THROW_SPEED && f.up > 40) return fly(f.vx * 1000, f.vy * 1000);
     const r = rot.current;
     const step = () => {
       if (Math.abs(r.vx) + Math.abs(r.vy) > 0.3) {
@@ -90,10 +123,65 @@ export default function Disk({ track, index, playing, query, onPlay }: { track: 
     raf.current = requestAnimationFrame(step);
   }
 
+  /* 던지기 — 포물선을 그리며 날아가 뒤 서류함 벽(화면 위쪽)에 부딪혀 튕기고, 바닥에 몇 번 구르다 멎으면 목록에서 빠진다 */
+  function fly(vx0: number, vy0: number) {
+    cancelAnimationFrame(raf.current);
+    setThrown(true);
+    const el = wrap.current!;
+    const box = el.getBoundingClientRect();
+    const ceil = -box.top + 12; // 화면 위 = 뒤에 세워진 서류함 벽
+    const floor = innerHeight - box.bottom - 8;
+    let x = 0;
+    let y = 0;
+    let vx = vx0;
+    let vy = vy0;
+    let spin = 0;
+    const omega = vx0 * 0.35 + 120;
+    let last = performance.now();
+    let rest = 0; // 바닥에서 잠잠해진 시간(ms)
+    const step = (now: number) => {
+      const dt = Math.min(0.032, (now - last) / 1000);
+      last = now;
+      vy += G * dt;
+      x += vx * dt;
+      y += vy * dt;
+      spin += omega * dt;
+      if (y < ceil && vy < 0) {
+        // 벽에 부딪힘
+        y = ceil;
+        vy = -vy * 0.45;
+        vx *= 0.7;
+        thud(120);
+      }
+      if (y > floor) {
+        y = floor;
+        if (vy > 260) {
+          vy = -vy * 0.35; // 바닥에서 튕김
+          vx *= 0.6;
+          thud(60);
+        } else {
+          vy = 0;
+          vx *= 0.8;
+          rest += dt * 1000;
+        }
+      }
+      el.style.transform = `translate(${x}px, ${y}px) rotate(${spin}deg)`;
+      if (rest > 450) {
+        el.style.transition = "opacity .4s";
+        el.style.opacity = "0";
+        setTimeout(onDiscard, 400);
+        return;
+      }
+      raf.current = requestAnimationFrame(step);
+    };
+    raf.current = requestAnimationFrame(step);
+  }
+
   const face = "absolute inset-0 rounded-[4px] bg-[#1c2230] [backface-visibility:hidden] [clip-path:polygon(0_0,92%_0,100%_7%,100%_100%,0_100%)]";
 
   return (
-    <div className="flex shrink-0 snap-center flex-col items-center gap-5 animate-[pop_.7s_cubic-bezier(.3,1.5,.5,1)_both]" style={{ animationDelay: `${index * 130}ms` }}>
+    <div className="flex shrink-0 snap-center flex-col items-center animate-[pop_.7s_cubic-bezier(.3,1.5,.5,1)_both]" style={{ animationDelay: `${index * 130}ms` }}>
+      <div ref={wrap} className={`flex flex-col items-center gap-5 ${thrown ? "pointer-events-none relative z-20" : ""}`}>
       <div className="[perspective:1000px]">
         <div className={`transition-transform duration-300 ${hover && !grabbing ? "-translate-y-3" : ""}`}>
           <div
@@ -146,6 +234,7 @@ export default function Disk({ track, index, playing, query, onPlay }: { track: 
           보고서 열람
         </Link>
       </p>
+      </div>
     </div>
   );
 }

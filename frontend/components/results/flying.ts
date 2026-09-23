@@ -2,22 +2,18 @@
 
 import type { Track } from "./tracks";
 
-/* 던져진 디스크를 3D 장면(CabinetWall 의 Canvas)으로 넘기는 통로.
-   DOM 캐러셀에서 손을 떠나는 순간을 여기로 보내면, 장면 안에서 진짜 3D 플로피가 날아간다. */
+/* 손을 떠난 디스크를 물리 담당(Flights)에게 넘기는 통로. 좌표는 전부 월드 단위 */
 
 export type Toss = {
   track: Track;
-  ndc: [number, number]; // 손을 떠난 화면 위치 (-1..1)
-  vx: number; // 화면 기준 초속 (px/s) — 장면에서 월드 단위로 바꾼다
-  vy: number;
-  onLanded: () => void; // 바닥에 멎어 사라지면
+  p: [number, number, number]; // 손을 떠난 자리
+  v: [number, number, number]; // 그때의 속도
+  onLanded: () => void; // 바닥에 멎으면
 };
 
 const listeners = new Set<(t: Toss) => void>();
 
-export function tossDisk(t: Toss) {
-  listeners.forEach((cb) => cb(t));
-}
+export const tossDisk = (t: Toss) => listeners.forEach((cb) => cb(t));
 
 export function onToss(cb: (t: Toss) => void) {
   listeners.add(cb);

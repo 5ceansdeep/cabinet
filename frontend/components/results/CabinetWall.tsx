@@ -4,7 +4,9 @@ import { Canvas } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import { CABINET } from "@/components/landing/dimensions";
 import { materials } from "@/components/landing/materials";
+import Deck from "./Deck";
 import Flights from "./Flights";
+import type { Track } from "./tracks";
 
 /* 4번 배경 — 랜딩과 같은 서류함(치수·재료 그대로)이 시야를 빙 둘러 서 있다.
    카메라는 그 한가운데. 어두운 안개에 잠겨 위아래·좌우 끝이 안 보인다.
@@ -50,9 +52,21 @@ function Column({ angle }: { angle: number }) {
   );
 }
 
-export default function CabinetWall() {
+export default function CabinetWall({
+  tracks,
+  index,
+  playing,
+  onPlay,
+  onDiscard,
+}: {
+  tracks: Track[];
+  index: number;
+  playing: number | null;
+  onPlay: (t: Track) => void;
+  onDiscard: (t: Track) => void;
+}) {
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0">
+    <div className="fixed inset-0">
       <Canvas frameloop="demand" camera={{ position: [0, 0, 0], fov: 62 }} dpr={[1, 1.5]}>
         {/* 검은 공간에 흰 서류함만 떠오른다 — 멀어질수록 어둠에 잠긴다 */}
         <color attach="background" args={["#000000"]} />
@@ -64,11 +78,12 @@ export default function CabinetWall() {
         {Array.from({ length: COLUMNS }, (_, i) => (
           <Column key={i} angle={(i / COLUMNS) * Math.PI * 2} />
         ))}
-        {/* 캐러셀에서 위로 던진 디스크가 이 장면 안으로 넘어와 날아다닌다 */}
+        {/* 결과 디스크(3D)와, 손을 떠나 날아다니는 디스크 */}
+        <Deck tracks={tracks} index={index} playing={playing} onPlay={onPlay} onDiscard={onDiscard} />
         <Flights wallRadius={RADIUS} />
       </Canvas>
       {/* 위아래는 어둠에 잠긴다 — 좌우로는 촘촘히 이어지고 천장·바닥 쪽으로 공간이 열린 느낌 */}
-      <div className="absolute inset-0 bg-[linear-gradient(#000_4%,rgba(0,0,0,.75)_18%,transparent_38%,transparent_60%,rgba(0,0,0,.8)_82%,#000_96%)]" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(#000_4%,rgba(0,0,0,.75)_18%,transparent_38%,transparent_60%,rgba(0,0,0,.8)_82%,#000_96%)]" />
     </div>
   );
 }

@@ -1,10 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import type { Track } from "./tracks";
 
-/* 플로피 디스크 — 호버 시 점수 타자기 인쇄, 드래그 360도 회전, 더블클릭 재생 */
-export default function Disk({ track, index, playing, onPlay }: { track: Track; index: number; playing: boolean; onPlay: () => void }) {
+/* 플로피 디스크 — 호버 시 점수 타자기 인쇄, 드래그 360도 회전, 더블클릭 재생, 아래 라벨에서 보고서(5.1)로 */
+export default function Disk({ track, index, playing, query, onPlay }: { track: Track; index: number; playing: boolean; query: string; onPlay: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const rot = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
   const drag = useRef<{ px: number; py: number } | null>(null);
@@ -138,6 +139,12 @@ export default function Disk({ track, index, playing, onPlay }: { track: Track; 
       <p className="text-center text-sm">
         {track.title}
         <span className="block text-xs text-foreground/50">{track.artist}</span>
+        <Link
+          href={`/report/${track.id}?q=${encodeURIComponent(query)}`}
+          className="mt-2 inline-block font-mono text-[10px] tracking-[.2em] text-accent/70 hover:text-accent"
+        >
+          보고서 열람
+        </Link>
       </p>
     </div>
   );

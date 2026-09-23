@@ -48,7 +48,7 @@ export default function Results({ query }: { query: string }) {
           <div className="relative flex flex-1 items-center">
             <section ref={railRef} className="flex w-full snap-x snap-mandatory gap-12 overflow-x-auto px-[calc(50vw-120px)] py-16 [scrollbar-width:none]">
               {TRACKS.map((t, i) => (
-                <Disk key={t.id} track={t} index={i} playing={playing === t.id} onPlay={() => play(t)} />
+                <Disk key={t.id} track={t} index={i} playing={playing === t.id} query={query} onPlay={() => play(t)} />
               ))}
             </section>
             {[-1, 1].map((dir) => (

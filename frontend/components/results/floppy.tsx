@@ -46,17 +46,17 @@ export function FloppyBody({ map }: { map: CanvasTexture }) {
     <>
       {/* 몸체 — 검은 플라스틱 */}
       <RoundedBox args={[DISK, DISK, 0.07]} radius={0.02} smoothness={3} castShadow>
-        <meshStandardMaterial color="#1c2230" roughness={0.55} />
+        <meshStandardMaterial color="#1c2230" roughness={0.85} />
       </RoundedBox>
       {/* 금속 셔터 */}
       <mesh position={[0, DISK * 0.32, 0.037]}>
         <planeGeometry args={[DISK * 0.46, DISK * 0.3]} />
-        <meshStandardMaterial color="#c9ced6" metalness={0.9} roughness={0.3} />
+        <meshStandardMaterial color="#aab1bb" metalness={0.5} roughness={0.6} />
       </mesh>
       {/* 앨범 커버가 인쇄된 라벨 */}
       <mesh position={[0, -DISK * 0.11, 0.037]}>
         <planeGeometry args={[DISK * 0.78, DISK * 0.62]} />
-        <meshStandardMaterial map={map} roughness={0.85} />
+        <meshStandardMaterial map={map} roughness={1} metalness={0} />
       </mesh>
       {/* 뒷면 — 금속 드라이브 허브 */}
       <mesh position={[0, 0, -0.037]} rotation-y={Math.PI}>

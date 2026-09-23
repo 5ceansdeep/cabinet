@@ -10,7 +10,7 @@ import { onToss, type Toss } from "./flying";
 /* 손을 떠난 디스크 — 중력을 받아 날아가고, 빙 둘러선 서류함 벽(원통)에 부딪혀 튕기고,
    바닥에 떨어져 몇 번 구르다 멎으면 목록에서 빠진다. CabinetWall 의 Canvas 안에서만 쓴다. */
 
-const G = 13; // 중력 (월드 단위/s²)
+const G = 24; // 중력 (월드 단위/s²) — 높이 솟았다가 묵직하게 떨어진다
 const FLOOR = -2.4; // 바닥 높이
 const WALL_BOUNCE = 0.55;
 const FLOOR_BOUNCE = 0.42;
@@ -33,7 +33,7 @@ function Flying({ flight }: { flight: Flight }) {
     <group ref={g} position={flight.p}>
       <FloppyBody map={label.tex} />
       {/* 제 빛을 내어 어둠 속에서도 보이고, 부딪히는 서랍도 잠깐 밝힌다 */}
-      <pointLight position={[0, 0, 0.5]} intensity={9} distance={5} decay={2} color="#e8f4ff" />
+      <pointLight position={[0, 0, 0.5]} intensity={4} distance={4} decay={2} color="#e8f4ff" />
     </group>
   );
 }

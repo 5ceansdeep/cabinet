@@ -68,3 +68,6 @@ export function subscribeSession(cb: () => void) {
   addEventListener("storage", cb);
   return () => removeEventListener("storage", cb);
 }
+
+// 이 브라우저에서 한 번이라도 가입한 적 있나 — 처음 온 사람은 회원가입으로 보낸다
+export const hasAccounts = () => Object.keys(accounts()).length > 0;

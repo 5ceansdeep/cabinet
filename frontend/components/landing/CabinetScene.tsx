@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type
 import { Canvas, useFrame } from "@react-three/fiber";
 import { ContactShadows, Environment, Lightformer, RoundedBox } from "@react-three/drei";
 import { Color, type AmbientLight, type DirectionalLight, type Fog, type SpotLight } from "three";
+import { bark } from "@/lib/bark";
 import { thud } from "@/lib/thud";
 import { cut, isMuted, speak, subscribeMuted, warm } from "@/lib/voice";
 import { CABINET, CAMERA, FULL_OPEN, INNER_HALF, LOOK, CARD_VH, PRESENT_TOP, drawerY } from "./dimensions";
@@ -146,6 +147,8 @@ function Carcass() {
    flow 는 부모가 건네는 흐름 자막(대조 중·실패·환영 등)으로 필드 자막보다 앞선다 */
 export default function CabinetScene({
   fields,
+  drawer,
+  locked = false,
   intro,
   phase,
   flow,
@@ -153,6 +156,8 @@ export default function CabinetScene({
   onDone,
 }: {
   fields: Field[];
+  drawer: number; // 이 페이지가 쓰는 서랍 (0 맨 위, 1 가운데, 2 맨 아래)
+  locked?: boolean; // 이미 등록된 사람 — 인사만 하고 지나가니 서랍이 열리지 않는다
   intro: Line; // 서랍을 열기 전 첫 대사 — 페이지마다 다르다
   phase: Phase;
   flow: Line | null;
@@ -209,8 +214,21 @@ export default function CabinetScene({
     for (const l of upcoming) if (l.voiceKey) chain = chain.then(() => warm(l.voiceKey!, subtitleLines(l.text).length));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 로딩이 시작되면 손가락 커서도 되돌린다
+  useEffect(() => {
+    if (phase !== "auth") document.body.style.cursor = "";
+  }, [phase]);
+
   const muted = useSyncExternalStore(subscribeMuted, isMuted, () => false); // 브라우저가 소리를 막고 있나
   const said = voiced?.line;
+  const waving = said?.voiceKey === "SUBMITTING"; // 대조하는 동안 서랍 속 파일이 파도친다
+
+  // "지나가던 개도 맞히겠네" — 말끝에 개가 짖고 지나간다
+  useEffect(() => {
+    if (said?.voiceKey !== "PASSWORD_SIGNUP.invalid") return;
+    const id = setTimeout(() => bark(), 1800);
+    return () => clearTimeout(id);
+  }, [said?.voiceKey, voiced?.n]);
   const timeline = said ? subtitleDelays(said.text, voiced.delays ?? undefined) : [];
 
   // 한참 손을 놓고 있으면 재촉
@@ -275,6 +293,7 @@ export default function CabinetScene({
   }
 
   // 로딩이 시작되면 서랍이 쾅 닫히고, 그다음 후광이 비친다
+  // 후광이 비치는 동안(로딩)엔 서랍이 닫혀 있고 아무 반응도 하지 않는다 — 들썩임·파일·호버·커서 전부 잠금
   const slide = phase === "auth" && open ? FULL_OPEN : 0;
   const inputCls =
     "border-b border-black/20 bg-transparent py-1 text-center font-mono text-black/80 outline-none placeholder:text-black/30 focus:border-black/50";
@@ -300,22 +319,26 @@ export default function CabinetScene({
         <Rig />
 
         <group
-          // 후광이 비칠 땐(로딩) 서랍 호버를 잠근다
+          // 후광이 비칠 때(로딩)와 재방문 인사 중에는 서랍을 잠근다
           onPointerOver={() => {
-            if (phase !== "auth") return;
+            if (phase !== "auth" || locked) return;
             if (!open) document.body.style.cursor = "pointer";
             setOpen(true);
           }}
           onPointerOut={() => (document.body.style.cursor = "")}
         >
           <Carcass />
-          <Drawer y={drawerY(0)} slide={slide} label="A — F" knock={!open}>
-            {fields.map((f, i) => (
-              <FileCard key={f.name} slot={i} out={open && i === step} tab={f.label} />
-            ))}
-          </Drawer>
-          <Drawer y={drawerY(1)} slide={0} label="G — M" />
-          <Drawer y={drawerY(2)} slide={0} label="N — Z" />
+          {["A — F", "G — M", "N — Z"].map((label, i) =>
+            i === drawer ? (
+              <Drawer key={label} y={drawerY(i)} slide={slide} label={label} knock={!open && phase === "auth" && !locked} wave={waving}>
+                {fields.map((f, j) => (
+                  <FileCard key={f.name} slot={j} out={open && phase === "auth" && j === step} tab={f.label} />
+                ))}
+              </Drawer>
+            ) : (
+              <Drawer key={label} y={drawerY(i)} slide={0} label={label} />
+            ),
+          )}
         </group>
 
         <ContactShadows position={[0, -INNER_HALF - T - 0.04, 0]} opacity={0.45} scale={40} resolution={1024} blur={2.2} far={3} />
@@ -364,7 +387,7 @@ export default function CabinetScene({
 
       {said && (
         // 위쪽을 고정 — 새 줄이 위에 들어오면 먼저 나온 줄은 아래로 밀린다. z-50: 3D 장면·입력 파일·후광 빛보다 늘 위
-        <div key={`subtitle-${voiced.n}`} aria-live="polite" className="pointer-events-none absolute inset-x-0 top-[74%] z-50 px-6 text-center">
+        <div key={`subtitle-${voiced.n}`} aria-live="polite" className="pointer-events-none absolute inset-x-0 top-[78%] z-50 px-6 text-center">
           <Subtitle
             timeline={timeline}
             link={said.link}
@@ -374,7 +397,7 @@ export default function CabinetScene({
       )}
 
       {/* 키보드 사용자용 — 포커스하면 서랍이 열린다 */}
-      {!open && phase === "auth" && (
+      {!open && phase === "auth" && !locked && (
         <button onFocus={() => setOpen(true)} className="sr-only">
           서류함 열기
         </button>

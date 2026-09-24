@@ -32,3 +32,7 @@ Thumbs.db
 
 # Claude Code 개인 설정
 .claude/settings.local.json
+
+# 로컬 SQLite 개발 DB
+*.db
+*.db-journal

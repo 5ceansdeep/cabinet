@@ -1,0 +1,57 @@
+// 서류함의 기록 — 사용자와, 그가 서랍에 넣어 둔 곡들.
+// ponytail: 개발은 SQLite 로 시작한다 (설치할 게 없다). 배포 때 PostgreSQL 로 옮기면 datasource 만 바뀐다.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  nickname  String
+  password  String // bcrypt 해시
+  createdAt DateTime @default(now())
+  shelves   Shelf[]
+}
+
+/// 서랍 하나 = 저장한 플레이리스트. 네임택(tag)과 그때의 요청문을 같이 남긴다
+model Shelf {
+  id        String       @id @default(cuid())
+  tag       String
+  query     String       @default("")
+  createdAt DateTime     @default(now())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tracks    ShelfTrack[]
+
+  @@index([userId, createdAt])
+}
+
+/// 곡 — iTunes(커버·미리듣기)와 유튜브(영상) 정보를 한 번 모아 두고 재사용한다
+model Track {
+  id         String       @id @default(cuid())
+  title      String
+  artist     String
+  artwork    String? // iTunes 앨범 커버 URL
+  previewUrl String? // iTunes 30초 미리듣기
+  videoId    String? // 유튜브 영상 ID — 재생목록에 담을 때 쓴다
+  checkedAt  DateTime? // 영상이 살아 있는지 마지막으로 확인한 때
+  shelves    ShelfTrack[]
+
+  @@unique([title, artist])
+}
+
+/// 서랍에 꽂힌 순서
+model ShelfTrack {
+  shelfId String
+  trackId String
+  order   Int
+  shelf   Shelf  @relation(fields: [shelfId], references: [id], onDelete: Cascade)
+  track   Track  @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@id([shelfId, trackId])
+}

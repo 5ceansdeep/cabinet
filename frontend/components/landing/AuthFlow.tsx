@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { clearSession, getSession, login, requestReset, signup, subscribeSession } from "@/lib/auth";
+import { clearSession, getSession, hasAccounts, login, requestReset, signup, subscribeSession } from "@/lib/auth";
 import { startChoir } from "@/lib/choir";
 import { whenQuiet } from "@/lib/voice";
 import { thud } from "@/lib/thud";
@@ -15,6 +15,7 @@ import { Halo } from "./LoadingOverlay";
 
 type Mode = keyof typeof FIELDS;
 const CLOSE_MS = 700; // 서랍이 닫히는 동안 후광은 기다린다
+const DRAWER: Record<Mode, number> = { login: 0, signup: 0, forgot: 1 }; // 열쇠 찾기는 두 번째 서랍이 덜컹거린다
 const GREET_MS = 2600; // 환영 인사를 들려주고 나서 로딩 문구로
 
 export default function AuthFlow({ mode }: { mode: Mode }) {
@@ -23,6 +24,11 @@ export default function AuthFlow({ mode }: { mode: Mode }) {
   const [phase, setPhase] = useState<Phase>("auth");
   const [progress, setProgress] = useState(0);
   const [flow, setFlow] = useState<Line | null>(null); // 흐름 자막 — 대조 중·실패·환영·로딩
+
+  // 이 브라우저에 계정이 하나도 없으면 — 처음 온 사람이니 회원가입으로
+  useEffect(() => {
+    if (mode === "login" && !getSession() && !hasAccounts()) router.replace("/signup");
+  }, [mode, router]);
 
   // 이미 들어온 적 있으면 인사만 하고 곧장 편지로. "다른 이름으로" 누르면 세션을 지우고 평소대로
   const saved = useSyncExternalStore(subscribeSession, getSession, () => null);
@@ -107,6 +113,8 @@ export default function AuthFlow({ mode }: { mode: Mode }) {
       {phase === "loading" && <Halo behind p={glow} />}
       <CabinetScene
         fields={fields}
+        drawer={DRAWER[mode]}
+        locked={!!returning}
         intro={LINES.intro[mode]}
         phase={phase}
         flow={returning ? LINES.returning(returning) : flow}

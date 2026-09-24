@@ -17,7 +17,6 @@ let playing = ""; // 지금 말하는 대사
 let timer: ReturnType<typeof setTimeout> | undefined;
 let gen = 0; // 대사마다 번호 — 끊긴 대사의 늦은 콜백은 무시한다
 let current: HTMLAudioElement | null = null;
-let blocked: Job | null = null; // 브라우저가 소리를 막아 못 튼 대사 — 첫 클릭·키 입력 때 다시 튼다
 let muted = false; // 브라우저가 소리를 막고 있는지 — 화면에 "클릭하면 들린다" 안내용
 const mutedListeners = new Set<() => void>();
 const setMuted = (m: boolean) => {
@@ -112,7 +111,6 @@ function play(job: Job, id: number) {
     if (e.name === "NotSupportedError" || id !== gen) return; // 파일 없음은 onerror 가 맡는다
     if (e.name === "NotAllowedError") {
       // 아직 소리를 못 낸다(새로 불러온 페이지 등) — 자막만 먼저, 첫 클릭·키 입력 때 이 대사를 다시 튼다
-      blocked = job;
       setMuted(true);
       addEventListener("pointerdown", unblock, { once: true });
       addEventListener("keydown", unblock, { once: true });
@@ -125,21 +123,13 @@ function play(job: Job, id: number) {
 function unblock() {
   removeEventListener("pointerdown", unblock);
   removeEventListener("keydown", unblock);
+  // 자막으로 이미 지나간 대사는 다시 틀지 않는다 — 클릭 다음 대사부터 소리가 난다
   setMuted(false);
-  const job = blocked;
-  blocked = null;
-  // 그사이 다른 대사가 나오고 있지 않을 때만 — 늦게라도 들려준다
-  if (job && !pending && performance.now() >= busyUntil) {
-    playing = job.text;
-    gen++;
-    play(job, gen);
-  }
 }
 
 export function speak(text: string, key?: string, lines = 1, onStart?: Job["onStart"]) {
   // 같은 대사가 지금 나오고 있으면 또 줄 세우지 않는다 (엔터 연타·개발 모드의 이중 실행에 되풀이되지 않게)
   if (text === playing && performance.now() < busyUntil) return;
-  blocked = null; // 새 대사가 왔으면 막혔던 옛 대사는 버린다
   pending = { text, key, lines, onStart };
   next();
 }
@@ -147,7 +137,6 @@ export function speak(text: string, key?: string, lines = 1, onStart?: Job["onSt
 // 지금 대사를 바로 끊는다 (사용자가 엔터를 쳤을 때) — 기다리던 대사도 버린다
 export function cut() {
   gen++;
-  blocked = null;
   current?.pause();
   current = null;
   if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();

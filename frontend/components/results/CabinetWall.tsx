@@ -6,6 +6,7 @@ import { CABINET } from "@/components/landing/dimensions";
 import { materials } from "@/components/landing/materials";
 import Deck from "./Deck";
 import Flights from "./Flights";
+import SaveDrawer from "./SaveDrawer";
 import type { Track } from "./tracks";
 
 /* 4번 배경 — 랜딩과 같은 서류함(치수·재료 그대로)이 시야를 빙 둘러 서 있다.
@@ -69,12 +70,16 @@ export default function CabinetWall({
   tracks,
   index,
   playing,
+  saving = false,
+  tag = "",
   onPlay,
   onDiscard,
 }: {
   tracks: Track[];
   index: number;
   playing: number | null;
+  saving?: boolean; // 서랍에 넣는 중
+  tag?: string; // 네임택에 찍히는 글자 (타자기로 한 글자씩)
   onPlay: (t: Track) => void;
   onDiscard: (t: Track) => void;
 }) {
@@ -92,8 +97,10 @@ export default function CabinetWall({
           <Column key={i} angle={(i / COLUMNS) * Math.PI * 2} />
         ))}
         {/* 결과 디스크(3D)와, 손을 떠나 날아다니는 디스크 */}
-        <Deck tracks={tracks} index={index} playing={playing} onPlay={onPlay} onDiscard={onDiscard} />
+        <Deck tracks={tracks} index={index} playing={playing} saving={saving} onPlay={onPlay} onDiscard={onDiscard} />
         <Flights wallRadius={RADIUS} />
+        {/* 남긴 디스크를 받아 가는 서랍 — 아래에서 올라와 삼키고 닫힌다 */}
+        <SaveDrawer open={saving} tag={tag} />
       </Canvas>
       {/* 위아래는 어둠에 잠긴다 — 좌우로는 촘촘히 이어지고 천장·바닥 쪽으로 공간이 열린 느낌 */}
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(#000_4%,rgba(0,0,0,.75)_18%,transparent_38%,transparent_60%,rgba(0,0,0,.8)_82%,#000_96%)]" />

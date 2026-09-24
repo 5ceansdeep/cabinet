@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import { Vector3, type Group } from "three";
@@ -12,7 +12,7 @@ import { Wall } from "@/components/results/CabinetWall";
 import { FloppyBody, useLabel } from "@/components/results/floppy";
 import type { Track } from "@/components/results/tracks";
 import { thud } from "@/lib/thud";
-import { SHELVES } from "./shelf";
+import { parseShelves, shelvesRaw, subscribeShelves } from "./shelf";
 
 /* 5번 아카이빙 메인 룸 — 나만의 서류함. 서랍 전면에 감정 테마 태그가 네임택으로 붙어 있고,
    서랍을 누르면 앞으로 열리며 카메라가 위로 올라가 안을 내려다본다(Top-down).
@@ -86,6 +86,7 @@ function Drawer({
   tag,
   kept,
   open,
+  fresh,
   onToggle,
   onOpenTrack,
 }: {
@@ -93,13 +94,14 @@ function Drawer({
   tag: string;
   kept: Track[];
   open: boolean;
+  fresh?: boolean; // 방금 저장한 서랍 — 살짝 앞으로 나와 눈에 띈다
   onToggle: () => void;
   onOpenTrack: (t: Track) => void;
 }) {
   const g = useRef<Group>(null!);
   const m = materials();
   useFrame(({ invalidate }, dt) => {
-    const to = open ? OPEN : 0;
+    const to = open ? OPEN : fresh ? 0.18 : 0;
     const z = D / 2 - 0.02 + to;
     if (Math.abs(g.current.position.z - z) > 0.001) {
       g.current.position.z += (z - g.current.position.z) * (1 - Math.exp(-6 * dt));
@@ -148,9 +150,11 @@ function Drawer({
   );
 }
 
-export default function ArchiveRoom() {
+export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
   const [open, setOpen] = useState<number | null>(null);
   const router = useRouter();
+  const raw = useSyncExternalStore(subscribeShelves, shelvesRaw, () => "");
+  const shelves = useMemo(() => parseShelves(raw), [raw]);
   const pitch = H + GAP;
   const drawerY = (i: number) => (1 - i) * pitch;
 
@@ -167,13 +171,14 @@ export default function ArchiveRoom() {
           <Rig open={open !== null} drawerY={open === null ? 0 : drawerY(open)} />
 
           <Carcass />
-          {SHELVES.map((s, i) => (
+          {shelves.slice(0, 3).map((s, i) => (
             <Drawer
-              key={s.tag}
+              key={s.id}
               y={drawerY(i)}
               tag={s.tag}
               kept={s.kept}
               open={open === i}
+              fresh={s.id === fresh}
               onToggle={() => {
                 thud(open === i ? 60 : 120);
                 setOpen(open === i ? null : i);
@@ -196,7 +201,7 @@ export default function ArchiveRoom() {
       <div className="flex-1" />
 
       <footer className="relative px-6 pb-8 text-center font-mono text-[10px] tracking-[.2em] text-foreground/40">
-        {open === null ? "CLICK A DRAWER TO OPEN" : `${SHELVES[open].tag} — ${SHELVES[open].kept.length}장 · CLICK A DISK FOR ITS REPORT`}
+        {open === null ? "CLICK A DRAWER TO OPEN" : `${shelves[open].tag} — ${shelves[open].kept.length}장 · CLICK A DISK FOR ITS REPORT`}
       </footer>
     </main>
   );

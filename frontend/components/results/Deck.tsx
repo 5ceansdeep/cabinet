@@ -18,15 +18,16 @@ function useGauge() {
     const tex = new CanvasTexture(c);
     const draw = (p: number) => {
       ctx.clearRect(0, 0, 256, 256);
-      ctx.lineWidth = 12;
-      ctx.strokeStyle = "rgba(255,255,255,.18)";
+      // 얇은 흰 원 — 바탕은 아주 흐리게, 차오르는 쪽만 또렷하게
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = "rgba(255,255,255,.15)";
       ctx.beginPath();
-      ctx.arc(128, 128, 92, 0, Math.PI * 2);
+      ctx.arc(128, 128, 60, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.strokeStyle = "#00e5ff";
+      ctx.strokeStyle = "rgba(255,255,255,.9)";
       ctx.lineCap = "round";
       ctx.beginPath();
-      ctx.arc(128, 128, 92, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
+      ctx.arc(128, 128, 60, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2);
       ctx.stroke();
       tex.needsUpdate = true;
     };
@@ -112,7 +113,7 @@ function Disk({
       const p = (prog.current = Math.min(1, prog.current + (dt * 1000) / HOLD_MS));
       gauge.draw(p);
       gaugeRef.current.visible = true;
-      gaugeRef.current.scale.setScalar(0.9 + p * 0.15);
+      gaugeRef.current.scale.setScalar(0.95 + p * 0.08);
       if (p >= 1) launch(0); // 다 찼다 — 저절로 날아간다
       invalidate();
     } else if (gaugeRef.current.visible) {
@@ -209,7 +210,7 @@ function Disk({
       <FloppyBody map={label.tex} />
       {/* 꾹 누르는 동안 차오르는 원 게이지 */}
       <mesh ref={gaugeRef} position={[0, 0, 0.35]} visible={false}>
-        <planeGeometry args={[1.3, 1.3]} />
+        <planeGeometry args={[0.62, 0.62]} />
         <meshBasicMaterial map={gauge.tex} transparent depthWrite={false} toneMapped={false} />
       </mesh>
       {/* 재생 중이면 시안 빛을 머금는다 */}

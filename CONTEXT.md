@@ -1,4 +1,4 @@
-# cabinet 작업 컨텍스트 (2026-09-21)
+# cabinet 작업 컨텍스트 (2026-09-24)
 
 ## 목표
 docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전이라 프론트는 가짜 데이터로 띄운다.
@@ -19,14 +19,40 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
 - 공용: `frontend/lib/thud.ts` (Web Audio "탁"), `globals.css` 에 토큰/서랍/키프레임
 - 루트 `npm run dev` (`dev.mjs`) 로 프론트+백엔드 동시 실행, 백엔드 기본 포트 4000
 
+## 백엔드 (NestJS, :4000)
+- **인증**: `POST /auth/signup`, `POST /auth/login`, `GET /auth/me` — bcrypt 해시, JWT 7일.
+  이메일은 검증 전에 공백·대문자를 다듬고, 로그인 실패는 계정 없음/비밀번호 틀림을 구분해 알리지 않는다.
+  JWT 서명 키는 `JwtModule.registerAsync` 로 .env 에서 읽어야 한다 (`register()` 면 모듈이 .env 보다 먼저 평가돼
+  서명 키와 검증 키가 어긋나 /auth/me 가 401)
+- **Swagger**: http://localhost:4000/docs (Authorize 에 토큰)
+- **DB**: Prisma + SQLite(`backend/dev.db`, git 무시). 모델 `User` / `Shelf`(서랍=저장한 목록, 네임택·요청문) /
+  `Track`(커버·미리듣기·videoId) / `ShelfTrack`(순서).
+  Prisma 7 부터 스키마에 `url` 을 못 쓴다 — `prisma.config.ts` + 드라이버 어댑터(`@prisma/adapter-better-sqlite3`),
+  `.env` 도 자동으로 안 읽어서 config 에서 `process.loadEnvFile()` 한다
+- **곡 수집**: `GET /catalog/tracks`, `POST /catalog/collect`, `GET /catalog/budget`
+  - iTunes(키 없음): 커버 600x600 + 30초 미리듣기. kr 0건이면 us 폴백. **간헐적으로 0건을 준다**(재시도·다른 소스 필요)
+  - 영상 ID: MusicBrainz(무료) → 없으면 유튜브 검색(100단위, 하루 상한 `YT_SEARCH_DAILY_LIMIT`). 찾으면 DB 에 영구 보관
+  - 확인: 가짜 곡 6곡 커버·미리듣기 6/6 성공(URL 200), **영상 ID 0/6**
+- **.env** (git 무시, 예시는 `.env.example`): `DATABASE_URL`, `JWT_SECRET`, `PORT`,
+  `LASTFM_API_KEY`(발급 완료), `MUSICBRAINZ_UA`, `YOUTUBE_API_KEY`(미발급)
+
 ## 가짜로 둔 것 (`ponytail:` 주석)
-- 로그인: 백엔드 인증 API 없음, 아무 값이나 통과
+- 프론트 로그인: 아직 `frontend/lib/auth.ts` 의 localStorage 가짜 인증. **백엔드 /auth 가 생겼으니 교체 차례**
+- 저장한 서랍: `components/archive/shelf.ts` 가 localStorage. 백엔드 저장 API 가 생기면 읽기/쓰기만 교체
 - 로딩 진행률: 타이머
 - 결과 트랙: `components/results/tracks.ts` 하드코딩, 앨범 이미지는 그라디언트
 - 미리듣기: 효과음 + NOW PLAYING 표시만, 실제 음원 없음
 
 ## 다음
-- 5번 아카이빙 메인 룸, 5.1 문서 보고서
+- **순서 합의: 화면 목업 완성 → 백엔드·상세 기능** (모바일은 그 뒤)
+- **유튜브 영상 ID 를 어떻게 채울지 — 막힌 지점.** 키 없이 되는 길은 사실상 없다(직접 확인):
+  Odesli(song.link) 공개 API 폐지(401 PUBLIC_API_ACCESS_DEPRECATED), Piped 공개 인스턴스는 HTML 만,
+  Invidious 는 접속 실패/403, Deezer 는 되지만 유튜브 링크가 없다.
+  MusicBrainz 는 한국 인디 곡 자료가 얕다(검정치마 Everything 은 url 관계 없음, 새소년 난춘은 등록 자체가 없음).
+  → 선택지: (1) 유튜브 API 키 발급(재생목록 OAuth 와 같은 Google Cloud 프로젝트라 어차피 필요) (2) yt-dlp 류(약관 위반·취약)
+  (3) 영상 ID 는 재생목록 붙일 때로 미루기. **현재 기본값은 (3)**
+- **Deezer 폴백 제안(미적용)**: iTunes 가 간헐적으로 0건을 주므로, 키 없이 되는 Deezer 로 커버·미리듣기 성공률을 올릴 수 있다
+- 프론트 가짜 인증 → 백엔드 /auth 연결, 서랍 저장 API(`POST /shelves`) 추가
 - 아키비스트 AI 보고서(XAI): 계획은 [docs/ai-report-plan.md](docs/ai-report-plan.md) — 아래 결정으로 문서 갱신 필요
   - 원칙: 숫자는 코드가 계산, LLM은 문장만
   - 1차 특징 = Last.fm 태그 (`track.getTopTags`, 태그별 가중치 0~100. 태그 적으면 `artist.getTopTags` 로 보충). BPM 등 부족한 특징은 2차에 수집
@@ -41,4 +67,6 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
 - 모바일 대응: [docs/mobile-plan.md](docs/mobile-plan.md) — 보류. 목업 완성 후 1단계(뷰포트·dvh·터치 제스처·카메라 화각·성능 단계)부터
 - 재생 슬롯에 밀어 넣기 인터랙션(4번) 미구현
 - 3D 모델: Sketchfab GLB 받으면 `frontend/public/models/` 에. 서랍장 외형만 교체하고 긴 서랍/파일 연출은 유지 (라이선스·출처 표기 확인)
-- 백엔드: 인증(JWT), 벡터 검색, Prisma 스키마 — 아직 없음
+- 백엔드: 검색·추천(자연어 → 태그 → 점수) 아직 없음. 인증·DB·곡 수집은 위 "백엔드" 참고
+- 자연어 처리 안정성: LLM 은 요청문 → 태그 가중치만, 곡 선택은 코드. 온도 0·모델 고정·요청문 정규화 후 해시 캐시로
+  같은 문장이면 같은 결과. 화면에 "요청 해석" 태그를 보여 준다

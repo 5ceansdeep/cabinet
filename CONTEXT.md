@@ -37,7 +37,8 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
     1. 보고서가 디스크 꺼냄: 보고서가 한 줄씩 인쇄되고, 곡 문단이 끝나는 순간 그 디스크가 튀어나옴. Riffle 대신. (제안안)
     2. 요청 해석 먼저, 곡 이유는 라벨지: Riffle 동안 "요청 해석"만 인쇄, 디스크 나온 뒤 라벨지에 이유 한 줄씩
     3. 좌우 분할 동시: 왼쪽 보고서, 오른쪽 캐러셀, 가운데 디스크 문단 강조
-- 스포티파이 연동(믹스 편성 → 플레이리스트 생성, 위로 슬라이드로 곡 빼기): [docs/spotify-playlist-plan.md](docs/spotify-playlist-plan.md). 요약 — 플레이리스트 생성 O, 진짜 크로스페이드 믹싱 X(DRM), 믹싱은 iTunes 30초 미리듣기로. 스포티파이 로그인 강제 안 함(결과 화면에서 "연결"). 개발 모드는 사용자 5명 한도 + 앱 주인 프리미엄 필요
+- 유튜브 재생목록 만들기(미리듣기는 iTunes): [docs/youtube-playlist-plan.md](docs/youtube-playlist-plan.md). 요약 — 검색(100단위)을 피하려 곡↔영상 짝을 MusicBrainz·배치로 미리 DB 에 적재, 재생목록은 로그인 없는 watch_videos 링크(할당량 0)와 OAuth 생성 두 갈래. 스포티파이는 접음(개발 모드 5명 제한)
+- 모바일 대응: [docs/mobile-plan.md](docs/mobile-plan.md) — 보류. 목업 완성 후 1단계(뷰포트·dvh·터치 제스처·카메라 화각·성능 단계)부터
 - 재생 슬롯에 밀어 넣기 인터랙션(4번) 미구현
 - 3D 모델: Sketchfab GLB 받으면 `frontend/public/models/` 에. 서랍장 외형만 교체하고 긴 서랍/파일 연출은 유지 (라이선스·출처 표기 확인)
 - 백엔드: 인증(JWT), 벡터 검색, Prisma 스키마 — 아직 없음

@@ -1,4 +1,4 @@
-import { Controller, Get, Injectable, Module, Query } from '@nestjs/common';
+import { Controller, Get, Injectable, Module, NotFoundException, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Tags } from '../catalog/lastfm.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -26,25 +26,37 @@ export class RecommendService {
 
     const tracks = pool
       .filter((t) => !skip.has(t.id))
-      .map((t) => {
-        const tags = tagsOf.get(t.id)!;
-        return {
-          id: t.id,
-          title: t.title,
-          artist: t.artist,
-          artwork: t.artwork,
-          previewUrl: t.previewUrl,
-          videoId: t.videoId,
-          semantic: Math.max(0, Math.round(cosine(want, tags) * 100)),
-          mood: Math.max(0, Math.round(cosine(want, tags, MOOD) * 100)),
-          matched: Object.keys(asked).filter((k) => tags[k]), // 요청과 겹친 태그 — 보고서의 근거
-        };
-      })
+      .map((t) => scored(t, asked, want))
       .sort((a, b) => b.semantic - a.semantic || b.mood - a.mood)
       .slice(0, limit);
 
     return { interpretation: asked, tracks };
   }
+
+  /** 곡 하나를 요청문에 대 본다 — 보고서 */
+  async one(id: string, query: string) {
+    const t = await this.prisma.track.findUnique({ where: { id } });
+    if (!t) throw new NotFoundException('그런 곡은 서랍에 없네');
+    const asked = interpret(query);
+    return { interpretation: asked, track: scored(t, asked, asked) };
+  }
+}
+
+type Row = { id: string; title: string; artist: string; artwork: string | null; previewUrl: string | null; videoId: string | null; tags: string };
+
+function scored(t: Row, asked: Tags, want: Tags) {
+  const tags = JSON.parse(t.tags) as Tags;
+  return {
+    id: t.id,
+    title: t.title,
+    artist: t.artist,
+    artwork: t.artwork,
+    previewUrl: t.previewUrl,
+    videoId: t.videoId,
+    semantic: Math.max(0, Math.round(cosine(want, tags) * 100)),
+    mood: Math.max(0, Math.round(cosine(want, tags, MOOD) * 100)),
+    matched: Object.keys(asked).filter((k) => tags[k]), // 요청과 겹친 태그 — 보고서의 근거
+  };
 }
 
 @ApiTags('recommend')
@@ -59,6 +71,12 @@ export class RecommendController {
   @ApiQuery({ name: 'thrown', required: false, description: '던져 버린 곡 id(쉼표) — 빼고, 그 곡들 쪽에서 멀어진다' })
   get(@Query('q') q = '', @Query('seen') seen?: string, @Query('thrown') thrown?: string) {
     return this.svc.recommend(q, { seen: ids(seen), thrown: ids(thrown) });
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: '곡 하나를 요청문에 대 보기 — 보고서' })
+  one(@Param('id') id: string, @Query('q') q = '') {
+    return this.svc.one(id, q);
   }
 }
 

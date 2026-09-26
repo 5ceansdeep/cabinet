@@ -40,6 +40,7 @@ model Track {
   previewUrl String? // iTunes 30초 미리듣기
   videoId    String? // 유튜브 영상 ID — 재생목록에 담을 때 쓴다
   checkedAt  DateTime? // 영상이 살아 있는지 마지막으로 확인한 때
+  tags       String       @default("{}") // Last.fm 태그 가중치 JSON {"indie": 100, "dreamy": 42} — SQLite 엔 배열·맵이 없다
   shelves    ShelfTrack[]
 
   @@unique([title, artist])

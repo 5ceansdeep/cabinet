@@ -11,7 +11,7 @@ import { cut, isMuted, speak, subscribeMuted, warm } from "@/lib/voice";
 import { CABINET, CAMERA, FULL_OPEN, INNER_HALF, LOOK, CARD_VH, PRESENT_TOP, drawerY } from "./dimensions";
 import Drawer from "./Drawer";
 import FileCard from "./FileCard";
-import Subtitle from "./Subtitle";
+import Subtitle, { LINE_PACE, subtitleDelays, subtitleLines } from "./Subtitle";
 import { LINES, STALE_MS, type Line } from "./lines";
 import { materials } from "./materials";
 
@@ -71,32 +71,6 @@ function Lights({ dim }: { dim: boolean }) {
       />
     </>
   );
-}
-
-/* 긴 자막은 영화처럼 문장마다 줄을 나눈다 ("- 첫 문장" / "- 다음 문장"). "땡." 같은 짧은 조각은 다음 문장에 붙인다 */
-function subtitleLines(text: string) {
-  if (text.length <= 18) return [text];
-  const parts = text.match(/[^.?!]+[.?!]*/g)?.map((s) => s.trim()).filter(Boolean) ?? [text];
-  return parts.reduce<string[]>((out, s) => {
-    const last = out.at(-1);
-    if (last && last.length < 6) out[out.length - 1] = `${last} ${s}`;
-    else out.push(s);
-    return out;
-  }, []);
-}
-
-/* 줄마다 뜨는 시각(초). 음성 파일이 있으면 그 파일에서 찾은 문장 시작 시각에 맞추고(cues — 문장 수가 줄 수와 같을 때),
-   없으면 앞 줄을 읽을 만큼 글자 수에 비례해 기다린다 */
-const LINE_PACE = 0.09; // 글자당 초
-function subtitleDelays(text: string, cues?: number[]) {
-  const lines = subtitleLines(text);
-  if (cues?.length === lines.length) return lines.map((l, i): [string, number] => [l, Math.max(0, cues[i])]);
-  let chars = 0;
-  return lines.map((l): [string, number] => {
-    const delay = chars * LINE_PACE;
-    chars += l.length;
-    return [l, delay];
-  });
 }
 
 /* GPU 가 3D 컨텍스트를 끊어도(탭을 오래 열어두거나 개발 중 새로고침이 쌓이면 일어난다) 되살린다.

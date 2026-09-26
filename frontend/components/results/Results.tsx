@@ -4,22 +4,49 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveShelf, suggestTag } from "@/components/archive/shelf";
+import { RESULT_DIALOGUE, RESULT_LINES, type Line } from "@/components/landing/lines";
+import Subtitle, { LINE_PACE, subtitleDelays, subtitleLines } from "@/components/landing/Subtitle";
 import { thud } from "@/lib/thud";
+import { speak } from "@/lib/voice";
 import CabinetWall from "./CabinetWall";
+import PlayerBar from "./PlayerBar";
 import Riffle from "./Riffle";
-import { TRACKS, type Track } from "./tracks";
+import { findTracks, type Track } from "./tracks";
+
+const RIFFLE_MS = 1600; // 카드가 촤르르 넘어가는 시간 — 곡 찾기는 그동안 같이 한다
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/* 신의 한마디 — 목소리가 시작될 때 자막 줄을 띄운다 */
+function useSaying(line: Line | null) {
+  const [said, setSaid] = useState<{ line: Line; timeline: [string, number][] } | null>(null);
+  useEffect(() => {
+    if (!line) return;
+    speak(line.text, line.voiceKey, subtitleLines(line.text).length, (delays) =>
+      setSaid({ line, timeline: subtitleDelays(line.text, delays ?? undefined) }),
+    );
+  }, [line]);
+  return line && said?.line === line ? said : null;
+}
+
+// 자막 아래 버튼 — Subtitle 의 링크 버튼과 같은 모양
+const choice =
+  "pointer-events-auto inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/90 px-5 py-2 font-letter text-sm text-neutral-800 shadow-[0_4px_16px_rgba(0,0,0,.12)] backdrop-blur-sm transition animate-[appear_.5s_both] hover:-translate-y-0.5 hover:bg-white";
 
 /* 4·4-1번 페이지 — 서랍 속에서 건져 올린 플로피 디스크들. 디스크도 서류함도 전부 3D 이고,
-   그 위에 얹힌 DOM 은 제목·보고서 링크 같은 글자뿐이다 */
+   그 위에 얹힌 DOM 은 제목·재생바 같은 글자뿐이다 */
 export default function Results({ query }: { query: string }) {
   /* riffle 카드 넘김 → discs 고르기 → saving 서랍이 삼킴 → naming 네임택에 이름 적기 → printing 타자기로 인쇄 */
   const [phase, setPhase] = useState<"riffle" | "discs" | "saving" | "naming" | "printing">("riffle");
   const router = useRouter();
   const [tag, setTag] = useState("");
   const [printed, setPrinted] = useState(0); // 네임택에 찍힌 글자 수
-  const [playing, setPlaying] = useState<number | null>(null);
-  const [kept, setKept] = useState(TRACKS); // 위로 던져 뺀 곡은 여기서 빠진다
-  const [index, setIndex] = useState(Math.floor(TRACKS.length / 2)); // 가운데 앞에 나온 곡
+  const [interpretation, setInterpretation] = useState<string[]>([]); // 요청 해석 — 요청문을 어떤 표식으로 읽었나
+  const [kept, setKept] = useState<Track[]>([]); // 위로 던져 뺀 곡은 여기서 빠진다
+  const [seen, setSeen] = useState<string[]>([]); // 지금까지 보여 준 곡
+  const [thrown, setThrown] = useState<string[]>([]); // 던져 버린 곡
+  const [dry, setDry] = useState(false); // 이 편지로는 더 꺼낼 곡이 없다
+  const [playing, setPlaying] = useState<Track | null>(null); // 드라이브에 꽂힌 디스크
+  const [index, setIndex] = useState(0); // 가운데 앞에 나온 곡 (늘어선 줄 기준)
 
   /* 서랍에 넣는 동안 걸어 둔 타이머들 — 도중에 다른 화면으로 가면 전부 끈다.
      안 끄면 떠난 뒤에도 이름이 마저 찍히고, 서랍이 저장되고, 보관함으로 끌려간다 */
@@ -27,36 +54,60 @@ export default function Results({ query }: { query: string }) {
   useEffect(() => () => timers.current.forEach((id) => clearTimeout(id)), []);
   const later = (fn: () => void, ms: number) => void timers.current.push(setTimeout(fn, ms));
 
-  /* Bruce Almighty — 촤르르륵 넘어가던 카드가 딱 멈추면 디스크가 나온다 */
-  useEffect(() => {
-    const id = setTimeout(() => {
+  /* 서랍을 뒤진다 — 카드가 촤르르 넘어가는 동안 곡을 찾고, 둘 다 끝나면 딱 멈추며 디스크가 나온다 */
+  const digs = useRef(0); // 가장 최근 뒤지기만 반영한다 — 개발 모드의 이중 실행·연타에 늦게 온 결과가 덮어쓰지 않게
+  const dig = useCallback(
+    async (opt: { seen?: string[]; thrown?: string[] } = {}) => {
+      const run = ++digs.current;
+      setPhase("riffle");
+      setPlaying(null);
+      const [found] = await Promise.all([findTracks(query, opt), wait(RIFFLE_MS)]);
+      if (run !== digs.current) return;
       thud(70);
+      setInterpretation(found.interpretation);
+      setKept(found.tracks);
+      setSeen((s) => [...s, ...found.tracks.map((t) => t.id)]);
+      setDry(found.tracks.length === 0);
+      setIndex(Math.floor(found.tracks.length / 2));
       setPhase("discs");
-    }, 1600);
-    return () => clearTimeout(id);
-  }, []);
+    },
+    [query],
+  );
 
-  const move = useCallback((d: number) => setIndex((i) => Math.max(0, Math.min(kept.length - 1, i + d))), [kept.length]);
+  useEffect(() => {
+    dig(); // eslint-disable-line react-hooks/set-state-in-effect -- 처음 한 번 서랍을 뒤진다
+  }, [dig]);
 
-  // 좌우 화살표 키로도 넘긴다
+  const row = kept.filter((t) => t !== playing); // 꽂힌 디스크는 줄에서 빠진다
+  const move = useCallback((d: number) => setIndex((i) => Math.max(0, Math.min(row.length - 1, i + d))), [row.length]);
+
+  function insert(track: Track) {
+    thud(160); // 드라이브에 "탁"
+    setPlaying(track);
+    setIndex((i) => Math.max(0, Math.min(row.length - 2, i)));
+  }
+  const eject = () => {
+    thud(90);
+    setPlaying(null);
+  };
+
+  // 좌우 화살표로 넘기고, 아래 화살표로 가운데 디스크를 꽂고, 위 화살표로 뺀다
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (phase !== "discs" || (e.target as HTMLElement).tagName === "INPUT") return;
       if (e.key === "ArrowLeft") move(-1);
       if (e.key === "ArrowRight") move(1);
+      if (e.key === "ArrowDown" && row[index]) insert(row[index]);
+      if (e.key === "ArrowUp" && playing) eject();
     };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, [move]);
-
-  function play(track: Track) {
-    // ponytail: 음원 없음 — preview URL 받으면 <audio> 로 실제 재생
-    thud(160);
-    setPlaying(track.id);
-  }
+  });
 
   /* 서랍에 넣기 — 디스크가 아래 서랍으로 빨려 들고, 다 삼키면 "탁" 닫히며 네임택을 내민다 */
   function store() {
     setPhase("saving");
+    setPlaying(null);
     setTag(suggestTag(query));
     thud(120);
     later(() => {
@@ -65,28 +116,31 @@ export default function Results({ query }: { query: string }) {
     }, 1400);
   }
 
-  /* 이름을 정했다 — 네임택에 한 글자씩 찍고 보관함으로 */
+  /* 이름을 정했다 — 네임택에 한 글자씩 찍고(그동안 저장), 보관함으로 */
   function print() {
     const name = tag.trim() || suggestTag(query);
     setTag(name);
     setPhase("printing");
-    // 한 글자씩 — 90ms 간격으로 다음 글자를 예약한다(모두 timers 에 걸려 떠나면 같이 꺼진다)
+    // 한 글자씩 — 90ms 간격으로 다음 글자를 예약한다(모두 timers 에 걸려 떠나면 같이 꺼진다).
+    // 저장은 다 찍은 뒤에 — 도중에 떠나면 저장하지 않는다
     const type = (n: number) => {
       setPrinted(n);
       thud(420 + (n % 3) * 40); // 타자기 소리
       if (n < name.length) later(() => type(n + 1), 90);
-      else later(() => router.push(`/archive?new=${saveShelf(name, kept)}`), 900);
+      else later(() => void saveShelf(name, query, kept).then((shelf) => router.push(`/archive?new=${shelf}`)), 900);
     };
     later(() => type(1), 90);
   }
 
   function discard(track: Track) {
+    setThrown((ts) => [...ts, track.id]);
     setKept((ts) => ts.filter((t) => t.id !== track.id));
-    setIndex((i) => Math.max(0, Math.min(kept.length - 2, i)));
+    setIndex((i) => Math.max(0, Math.min(row.length - 2, i)));
   }
 
-  const center = kept[index];
-  const nowPlaying = kept.find((t) => t.id === playing);
+  const empty = phase === "discs" && kept.length === 0;
+  const said = useSaying(empty ? (dry ? RESULT_LINES.dry : RESULT_LINES.empty) : null);
+  const center = row[index];
 
   return (
     <main data-theme="void" className="relative flex min-h-full flex-1 flex-col overflow-hidden bg-background text-foreground">
@@ -95,19 +149,27 @@ export default function Results({ query }: { query: string }) {
       ) : (
         <>
           <CabinetWall
-            tracks={kept}
+            tracks={row}
             index={index}
             playing={playing}
             saving={phase !== "discs"}
             tag={phase === "printing" ? tag.slice(0, printed) : ""}
-            onPlay={play}
+            onInsert={insert}
+            onEject={eject}
             onDiscard={discard}
           />
 
           <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-[10px] tracking-[.2em] text-foreground/50">
-            <p className="max-w-xl">
-              QUERY — <span className="normal-case tracking-normal text-foreground/80">{query || "(empty)"}</span>
-            </p>
+            <div className="max-w-xl space-y-1">
+              <p>
+                QUERY — <span className="normal-case tracking-normal text-foreground/80">{query || "(empty)"}</span>
+              </p>
+              {interpretation.length > 0 && (
+                <p>
+                  요청 해석 — <span className="normal-case tracking-normal text-accent/80">{interpretation.slice(0, 5).join(" · ")}</span>
+                </p>
+              )}
+            </div>
             <span className="flex shrink-0 gap-4">
               {phase === "discs" && kept.length > 0 && (
                 <button onClick={store} className="pointer-events-auto text-accent/80 hover:text-accent">
@@ -121,20 +183,53 @@ export default function Results({ query }: { query: string }) {
 
           <div className="flex-1" />
 
-          {/* 가운데 디스크의 이름표 — 3D 디스크 아래에 놓인다 */}
-          {center && phase === "discs" && (
-            <div className="relative pb-1 text-center">
-              <p className="text-sm">
-                {center.title}
-                <span className="block text-xs text-foreground/50">{center.artist}</span>
-              </p>
-              {/* 보고서 꺼 둠 — 되살릴 때 app/report/[id]/page.tsx 와 같이
-              <Link
-                href={`/report/${center.id}?q=${encodeURIComponent(query)}`}
-                className="mt-2 inline-block font-mono text-[10px] tracking-[.2em] text-accent/70 hover:text-accent"
-              >
-                보고서 열람
-              </Link> */}
+          {/* 전부 던져 버렸다 — 신의 한마디와 두 갈래 */}
+          {empty && said && (
+            <div className="pointer-events-none absolute inset-x-0 top-[38%] flex flex-col items-center px-4">
+              <Subtitle
+                key={said.line.text}
+                timeline={said.timeline}
+                link={said.line.link}
+                linkDelay={said.timeline.at(-1)![1] + said.timeline.at(-1)![0].length * LINE_PACE}
+              />
+              {!dry && (
+                <div className="mt-4 flex flex-wrap justify-center gap-3" style={{ animationDelay: "1.5s" }}>
+                  <button className={choice} onClick={() => dig({ thrown })}>
+                    {RESULT_DIALOGUE.RETRY}
+                  </button>
+                  <button className={choice} onClick={() => dig({ seen })}>
+                    {RESULT_DIALOGUE.MORE}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 가운데 디스크의 이름표 — 3D 디스크와 드라이브 사이, 양옆에 넘기는 화살표 */}
+          {center && phase === "discs" && !playing && (
+            <div className="pointer-events-none absolute inset-x-0 top-[62%] flex items-start justify-center gap-6 text-center">
+              {[-1, 1].map((dir) => (
+                <button
+                  key={dir}
+                  aria-label={dir < 0 ? "이전 디스크" : "다음 디스크"}
+                  onClick={() => move(dir)}
+                  disabled={dir < 0 ? index === 0 : index === row.length - 1}
+                  className={`pointer-events-auto px-3 py-2 font-mono text-accent/60 hover:text-accent disabled:opacity-20 ${dir < 0 ? "order-first" : "order-last"}`}
+                >
+                  {dir < 0 ? "◀" : "▶"}
+                </button>
+              ))}
+              <div className="w-56">
+                <p className="truncate text-sm">{center.title}</p>
+                <p className="truncate text-xs text-foreground/50">{center.artist}</p>
+                {/* 보고서 꺼 둠 — 되살릴 때 app/report/[id]/page.tsx 와 같이
+                <Link
+                  href={`/report/${center.id}?q=${encodeURIComponent(query)}`}
+                  className="pointer-events-auto mt-1 inline-block font-mono text-[10px] tracking-[.2em] text-accent/70 hover:text-accent"
+                >
+                  보고서 열람
+                </Link> */}
+              </div>
             </div>
           )}
 
@@ -160,28 +255,10 @@ export default function Results({ query }: { query: string }) {
             </form>
           )}
 
-          <div className="relative flex items-center justify-center gap-10 pb-2">
-            {phase === "discs" &&
-              [-1, 1].map((dir) => (
-              <button
-                key={dir}
-                aria-label={dir < 0 ? "이전 디스크" : "다음 디스크"}
-                onClick={() => move(dir)}
-                className="px-4 py-2 font-mono text-accent/60 hover:text-accent"
-              >
-                  {dir < 0 ? "◀" : "▶"}
-                </button>
-              ))}
-          </div>
+          <PlayerBar track={phase === "discs" ? playing : null} onEject={eject} />
 
-          <footer className="relative px-6 pb-6 text-center font-mono text-[10px] tracking-[.2em] text-foreground/40" aria-live="polite">
-            {nowPlaying ? (
-              <span className="text-accent">
-                ▶ NOW PLAYING — {nowPlaying.artist} · {nowPlaying.title}
-              </span>
-            ) : (
-              "DRAG TO ROTATE · DOUBLE-CLICK TO PLAY · FLICK UP TO DISCARD"
-            )}
+          <footer className="relative px-6 pb-6 text-center font-mono text-[10px] tracking-[.2em] text-foreground/40">
+            DRAG TO ROTATE · FLICK DOWN TO PLAY · FLICK UP TO DISCARD
           </footer>
         </>
       )}

@@ -84,15 +84,17 @@ export default function CabinetWall({
   playing,
   saving = false,
   tag = "",
-  onPlay,
+  onInsert,
+  onEject,
   onDiscard,
 }: {
   tracks: Track[];
   index: number;
-  playing: number | null;
+  playing: Track | null; // 드라이브에 꽂힌 디스크
   saving?: boolean; // 서랍에 넣는 중
   tag?: string; // 네임택에 찍히는 글자 (타자기로 한 글자씩)
-  onPlay: (t: Track) => void;
+  onInsert: (t: Track) => void;
+  onEject: () => void;
   onDiscard: (t: Track) => void;
 }) {
   return (
@@ -107,13 +109,13 @@ export default function CabinetWall({
         <pointLight position={[0, -0.6, -2]} intensity={16} distance={11} decay={2.4} color="#cfe6f5" />
         <Wall />
         {/* 결과 디스크(3D)와, 손을 떠나 날아다니는 디스크 */}
-        <Deck tracks={tracks} index={index} playing={playing} saving={saving} onPlay={onPlay} onDiscard={onDiscard} />
+        <Deck tracks={tracks} index={index} playing={playing} saving={saving} onInsert={onInsert} onEject={onEject} onDiscard={onDiscard} />
         <Flights wallRadius={RADIUS} />
         {/* 남긴 디스크를 받아 가는 서랍 — 아래에서 올라와 삼키고 닫힌다 */}
         <SaveDrawer open={saving} tag={tag} />
       </Canvas>
       {/* 위아래는 어둠에 잠긴다 — 좌우로는 촘촘히 이어지고 천장·바닥 쪽으로 공간이 열린 느낌 */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(#000_4%,rgba(0,0,0,.75)_18%,transparent_38%,transparent_60%,rgba(0,0,0,.8)_82%,#000_96%)]" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(#000_4%,rgba(0,0,0,.75)_18%,transparent_38%,transparent_70%,rgba(0,0,0,.7)_88%,#000_98%)]" />
     </div>
   );
 }

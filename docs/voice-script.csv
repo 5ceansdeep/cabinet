@@ -30,3 +30,5 @@ LOGIN_SUCCESS_VOICE.mp3,"Welcome back.<break time=""0.5s""/>I kept your spot rig
 SIGNUP_SUCCESS_VOICE.mp3,"All set!<break time=""0.5s""/>Easier than creating the universe, wasn't it?"
 WELCOME_BACK_VOICE.mp3,"Look who's back.<break time=""0.5s""/>Door's open."
 LOADING.mp3,"Finding what suits your taste.<break time=""0.5s""/>My, these drawers go deep."
+RESULT_EMPTY.mp3,"Tossed every last one, huh?<break time=""0.5s""/>My drawers that bad?<break time=""0.5s""/>Fine. I'll dig again."
+RESULT_DRY.mp3,"That letter's all dug out.<break time=""0.5s""/>Write me a new one."

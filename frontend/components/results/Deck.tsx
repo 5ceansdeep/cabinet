@@ -2,9 +2,10 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
+import { RoundedBox } from "@react-three/drei";
 import { CanvasTexture, type Group, type Mesh } from "three";
 import { thud } from "@/lib/thud";
-import { FloppyBody, useLabel } from "./floppy";
+import { DISK, FloppyBody, useLabel } from "./floppy";
 import { MOUTH } from "./SaveDrawer";
 import { tossDisk } from "./flying";
 import type { Track } from "./tracks";
@@ -37,7 +38,8 @@ function useGauge() {
 }
 
 /* 결과 디스크들 — 전부 3D 덩어리. 가운데 곡이 앞으로 나오고 양옆은 뒤로 물러난다.
-   호버하면 들리며 라벨에 점수가 타자기로 찍히고, 잡고 끌면 돌아가고, 위로 홱 뿌리면 손을 떠난다 */
+   호버하면 들리며 라벨에 점수가 타자기로 찍히고, 잡고 끌면 돌아가고, 위로 홱 뿌리면 손을 떠난다.
+   아래로 홱 내리면 밑의 드라이브 슬롯에 꽂혀 재생되고, 꽂힌 디스크를 위로 올리면 빠지며 멈춘다 */
 
 const GAP = 1.25; // 디스크 사이 간격
 const DEPTH = -2.8; // 가운데 디스크의 깊이
@@ -46,22 +48,27 @@ const MIN_UP = 12.5; // 살살 뿌려도 이만큼은 솟구친다 (월드 단�
 const TO_WALL = 3.8; // 벽 쪽으로 밀어주는 속도 — 앞으로 덜 뻗고 위로 솟게
 const HOLD_MS = 900; // 이만큼 가만히 꾹 누르고 있으면 저절로 던져진다
 const HOLD_SLOP = 6; // 이만큼(px) 움직이면 꾹 누르기가 아니라 돌리기 — 게이지를 취소한다
+export const SLOT: [number, number, number] = [0, -1.0, DEPTH]; // 드라이브 — 가운데 디스크 바로 아래
+const SLOT_TOP = SLOT[1] + 0.09;
+const SHOWN = 0.32; // 꽂힌 디스크가 슬롯 위로 드러나는 몫
 
 function Disk({
   track,
   offset,
-  playing,
+  slot,
   perPx,
   swallow,
-  onPlay,
+  onInsert,
+  onEject,
   onDiscard,
 }: {
   track: Track;
   offset: number; // 가운데에서 몇 칸 떨어졌나
-  playing: boolean;
+  slot: boolean; // 드라이브에 꽂혀 재생 중
   perPx: number; // 화면 1px 이 이 깊이에서 몇 월드인가
   swallow: number; // 0 이상이면 서랍으로 빨려 든다 — 값은 순서대로 늦어지는 지연(초)
-  onPlay: () => void;
+  onInsert: () => void;
+  onEject: () => void;
   onDiscard: () => void;
 }) {
   const g = useRef<Group>(null!);
@@ -69,7 +76,7 @@ function Disk({
   const spin = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
   const drag = useRef<{ px: number; py: number } | null>(null);
   const start = useRef({ x: 0, y: 0 }); // 누른 자리 — 여기서 벗어나면 꾹 누르기 취소
-  const flick = useRef({ vx: 0, vy: 0, t: 0, up: 0 });
+  const flick = useRef({ vx: 0, vy: 0, t: 0, up: 0, down: 0 });
   const typed = useRef(0);
   const sank = useRef(Infinity); // 이 디스크가 빨려 들기 시작하는 시각
   const held = useRef(false); // 꾹 누르고 있나
@@ -123,7 +130,9 @@ function Disk({
       prog.current = 0;
       gauge.draw(0);
     }
-    const target = { x: offset * GAP, y: hover ? 0.16 : 0, z: DEPTH - Math.abs(offset) * 0.35 };
+    const target = slot
+      ? { x: SLOT[0], y: SLOT_TOP + DISK * (SHOWN - 0.5), z: SLOT[2] }
+      : { x: offset * GAP, y: hover ? 0.16 : 0, z: DEPTH - Math.abs(offset) * 0.35 };
     const k = 1 - Math.exp(-7 * dt);
     o.position.x += (target.x - o.position.x) * k;
     o.position.y += (target.y - o.position.y) * k;
@@ -150,11 +159,11 @@ function Disk({
   /* 잡기 — 디스크 밖으로 끌고 나가도 끊기지 않게 창 전체에서 손놀림을 듣는다 */
   function down(e: ThreeEvent<PointerEvent>) {
     e.stopPropagation();
-    held.current = true;
+    held.current = !slot; // 꽂힌 디스크는 꾹 눌러도 던져지지 않는다
     prog.current = 0;
     drag.current = { px: e.clientX, py: e.clientY };
     start.current = { x: e.clientX, y: e.clientY };
-    flick.current = { vx: 0, vy: 0, t: e.timeStamp, up: 0 };
+    flick.current = { vx: 0, vy: 0, t: e.timeStamp, up: 0, down: 0 };
     addEventListener("pointermove", move);
     addEventListener("pointerup", up, { once: true });
   }
@@ -171,6 +180,7 @@ function Disk({
     f.vy = dy / dt;
     f.t = e.timeStamp;
     f.up = dy < 0 ? f.up - dy : 0; // 아래로 방향이 바뀌면 처음부터
+    f.down = dy > 0 ? f.down + dy : 0;
     const s = spin.current;
     s.vy = dx * 0.012;
     s.vx = dy * 0.012;
@@ -186,7 +196,10 @@ function Disk({
     if (!drag.current) return;
     drag.current = null;
     const f = flick.current;
+    // 아래로 홱 — 슬롯에 꽂는다
+    if (!slot && f.vy > THROW_SPEED && f.down > 40) return onInsert();
     if (f.vy > -THROW_SPEED || f.up <= 40) return; // 살살 놓았다 — 그냥 제자리로
+    if (slot) return onEject(); // 꽂힌 디스크를 위로 — 빼서 제자리로
     // 화면은 아래가 +y, 3D 는 위가 +y — 부호를 뒤집어 위로 솟구치게 한다
     launch(f.vx * 1000 * perPx * 0.35, Math.max(-f.vy * 1000 * perPx, MIN_UP));
   }
@@ -207,10 +220,6 @@ function Disk({
         document.body.style.cursor = "";
       }}
       onPointerDown={down}
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-        onPlay();
-      }}
     >
       <FloppyBody map={label.tex} />
       {/* 꾹 누르는 동안 차오르는 원 게이지 */}
@@ -219,7 +228,26 @@ function Disk({
         <meshBasicMaterial map={gauge.tex} transparent depthWrite={false} toneMapped={false} />
       </mesh>
       {/* 재생 중이면 시안 빛을 머금는다 */}
-      {playing && <pointLight position={[0, 0, 0.5]} intensity={4} distance={3} color="#00e5ff" />}
+      {slot && <pointLight position={[0, 0, 0.5]} intensity={4} distance={3} color="#00e5ff" />}
+    </group>
+  );
+}
+
+/* 재생 드라이브 — 윗면에 디스크를 꽂는 틈. 재생 중이면 불이 켜진다 */
+function Drive({ on, visible }: { on: boolean; visible: boolean }) {
+  return (
+    <group position={SLOT} visible={visible}>
+      <RoundedBox args={[1.25, 0.18, 0.55]} radius={0.02} smoothness={3}>
+        <meshStandardMaterial color="#20252d" roughness={0.6} metalness={0.4} />
+      </RoundedBox>
+      <mesh position={[0, 0.091, 0]} rotation-x={-Math.PI / 2}>
+        <planeGeometry args={[DISK + 0.06, 0.07]} />
+        <meshBasicMaterial color="#000000" />
+      </mesh>
+      <mesh position={[0.5, 0, 0.276]}>
+        <circleGeometry args={[0.018, 12]} />
+        <meshBasicMaterial color={on ? "#00e5ff" : "#3a414b"} toneMapped={false} />
+      </mesh>
     </group>
   );
 }
@@ -229,38 +257,43 @@ export default function Deck({
   index,
   playing,
   saving = false,
-  onPlay,
+  onInsert,
+  onEject,
   onDiscard,
 }: {
-  tracks: Track[];
+  tracks: Track[]; // 늘어선 디스크 (꽂힌 디스크는 빼고)
   index: number;
-  playing: number | null;
+  playing: Track | null; // 드라이브에 꽂힌 디스크
   saving?: boolean; // 서랍에 넣는 중
-  onPlay: (t: Track) => void;
+  onInsert: (t: Track) => void;
+  onEject: () => void;
   onDiscard: (t: Track) => void;
 }) {
   const { camera, size } = useThree();
   // 이 깊이에서 화면 1px 이 몇 월드인지 — 던지는 손놀림(px/ms)을 월드 속도로 바꿀 때 쓴다
   const h = 2 * Math.abs(DEPTH) * Math.tan(((camera as unknown as { fov: number }).fov * Math.PI) / 360);
   const perPx = h / size.height;
+  // 꽂힌 디스크도 같은 목록에 둔다 — key 가 같아 줄에서 슬롯으로 스르륵 옮겨 간다
+  const all = playing ? [...tracks, playing] : tracks;
 
   return (
     <>
-      {tracks.map((t, i) => (
+      {all.map((t, i) => (
         <Disk
           key={t.id}
           track={t}
           offset={i - index}
-          playing={playing === t.id}
+          slot={t === playing}
           perPx={perPx}
           swallow={saving ? i * 0.12 : -1}
-          onPlay={() => onPlay(t)}
+          onInsert={() => onInsert(t)}
+          onEject={onEject}
           onDiscard={() => onDiscard(t)}
         />
       ))}
+      <Drive on={!!playing} visible={!saving} />
       {/* 디스크를 앞에서 비추는 빛 — 라벨이 어둠에 묻히지 않게 */}
       <pointLight position={[0, 1.4, DEPTH + 3]} intensity={3.2} distance={9} decay={2} color="#dfe8f2" />
     </>
   );
 }
-

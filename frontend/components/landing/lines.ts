@@ -135,3 +135,17 @@ export const NAV = {
 
 // 자동 재촉까지 기다리는 시간
 export const STALE_MS = 30_000;
+
+/* ─ 4번 결과: 꺼낸 디스크를 전부 던져 버렸을 때 ─ */
+export const RESULT_DIALOGUE = {
+  EMPTY: "전부 던져버렸군. 내 서랍이 그렇게 마음에 안 들었나. 좋네, 다시 뒤져보지.",
+  RETRY: "던진 곡은 빼고 다시 찾기", // 던진 곡들 쪽에서 멀어지게 다시 꺼낸다
+  MORE: "같은 편지로 몇 곡 더", // 이어서 더 꺼낸다
+  DRY: "이 편지로 꺼낼 건 다 꺼냈네. 새 편지를 써보게.",
+  DRY_ACTION: "새 편지 쓰기",
+} as const;
+
+export const RESULT_LINES = {
+  empty: { text: RESULT_DIALOGUE.EMPTY, voiceKey: "RESULT_EMPTY" },
+  dry: { text: RESULT_DIALOGUE.DRY, voiceKey: "RESULT_DRY", link: { href: "/search", label: RESULT_DIALOGUE.DRY_ACTION } },
+} satisfies Record<string, Line>;

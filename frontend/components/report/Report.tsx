@@ -61,7 +61,7 @@ export default function Report({ track, query, no }: { track: Track; query: stri
         <dl className="mb-8">
           <Row label="제목">{track.title}</Row>
           <Row label="연주">{track.artist}</Row>
-          <Row label="보관 위치">서랍 {no.slice(0, 7)} · 행잉 폴더 {String(track.id).padStart(3, "0")}</Row>
+          <Row label="보관 위치">서랍 {no.slice(0, 7)} · 행잉 폴더 {track.id.slice(-3).toUpperCase().padStart(3, "0")}</Row>
         </dl>
 
         <section className="mb-8">
@@ -75,6 +75,9 @@ export default function Report({ track, query, no }: { track: Track; query: stri
           <h2 className="text-[11px] tracking-[.2em] text-[#6b5d3f]">대조 결과</h2>
           <Gauge label="의미 유사도" value={track.semantic} />
           <Gauge label="분위기 일치도" value={track.mood} />
+          {!!track.matched?.length && (
+            <p className="pt-1 text-[11px] tracking-[.1em] text-[#6b5d3f]">겹친 표식 — {track.matched.join(" · ")}</p>
+          )}
         </section>
 
         <footer className="flex items-end justify-between border-t border-[#6b5d3f]/40 pt-4 text-[11px]">

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 // import { useRouter } from "next/navigation"; // 보고서 꺼 둠 — 디스크를 눌러 보고서로 갈 때 쓴다
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import { Vector3, type Group } from "three";
 import { CABINET } from "@/components/landing/dimensions";
@@ -12,7 +12,7 @@ import { Wall } from "@/components/results/CabinetWall";
 import { FloppyBody, useLabel } from "@/components/results/floppy";
 import type { Track } from "@/components/results/tracks";
 import { thud } from "@/lib/thud";
-import { parseShelves, shelvesRaw, subscribeShelves } from "./shelf";
+import { parseShelves, shelvesRaw, subscribeShelves, syncShelves } from "./shelf";
 
 /* 5번 아카이빙 메인 룸 — 나만의 서류함. 서랍 전면에 감정 테마 태그가 네임택으로 붙어 있고,
    서랍을 누르면 앞으로 열리며 카메라가 위로 올라가 안을 내려다본다(Top-down).
@@ -45,7 +45,8 @@ function Rig({ open, drawerY }: { open: boolean; drawerY: number }) {
 
 /* 서랍 속에 꽂힌 플로피 한 장 — 종이 파일에 기대어 비스듬히 선다 */
 function Filed({ track, x, onOpen }: { track: Track; x: number; onOpen: () => void }) {
-  const label = useLabel(track);
+  const { invalidate } = useThree();
+  const label = useLabel(track, invalidate); // 커버가 도착하면 다시 그린다
   const [hover, setHover] = useState(false);
   return (
     <group
@@ -168,6 +169,7 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
     setOpen(null);
     setPage(next);
   };
+  useEffect(() => void syncShelves(), []); // 로그인했으면 서버 원본으로 사본을 새로 고친다
   const pitch = H + GAP;
   const drawerY = (i: number) => (1 - i) * pitch;
 

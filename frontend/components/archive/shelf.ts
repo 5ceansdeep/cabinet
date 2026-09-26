@@ -1,19 +1,22 @@
-/* ponytail: 가짜 보관 기록 — 백엔드(저장 API)가 생기면 이 파일의 읽기/쓰기만 fetch 로 바꾸면 된다.
-   서랍 하나 = 감정 테마 태그 하나. 그 안에 건져 올린 곡들이 꽂혀 있다.
-   저장한 서랍은 이 브라우저 localStorage 에 두고, 아래 예시 서랍보다 앞에 놓는다 */
+/* 보관 기록 — 서랍 하나 = 감정 테마 태그 하나. 그 안에 건져 올린 곡들이 꽂혀 있다.
+   로그인했으면 백엔드 /shelves 가 원본이고, 이 브라우저 localStorage 는 화면용 사본이다(없으면 사본이 전부).
+   저장한 서랍은 아래 예시 서랍보다 앞에 놓는다 */
 
+import { api, getToken } from "@/lib/api";
 import { TRACKS, type Track } from "@/components/results/tracks";
 
-export type Shelf = { id: string; tag: string; kept: Track[] };
+export type Shelf = { id: string; tag: string; query: string; kept: Track[] };
 
 const KEY = "cabinet.shelves";
-type Saved = { id: string; tag: string; ids: number[]; at: number };
+const EVENT = "cabinet-shelves"; // 같은 탭 안에서 바뀐 걸 알린다 (storage 이벤트는 다른 탭에만 온다)
+// ids 는 예전 형식(가짜 곡 번호) — 읽을 때만 받아 준다
+type Saved = { id: string; tag: string; query?: string; tracks?: Track[]; ids?: (number | string)[]; at: number };
 
 // 예시 서랍 — 아직 저장한 게 없어도 방이 비어 보이지 않게
 const DEMO: Shelf[] = [
-  { id: "demo-late", tag: "#LATE-NIGHT", kept: TRACKS.slice(0, 3) },
-  { id: "demo-dreamy", tag: "#DREAMY", kept: TRACKS.slice(2, 5) },
-  { id: "demo-2026", tag: "#2026", kept: TRACKS.slice(1, 6) },
+  { id: "demo-late", tag: "#LATE-NIGHT", query: "", kept: TRACKS.slice(0, 3) },
+  { id: "demo-dreamy", tag: "#DREAMY", query: "", kept: TRACKS.slice(2, 5) },
+  { id: "demo-2026", tag: "#2026", query: "", kept: TRACKS.slice(1, 6) },
 ];
 
 function read(): Saved[] {
@@ -23,13 +26,50 @@ function read(): Saved[] {
     return [];
   }
 }
-
-export function saveShelf(tag: string, kept: Track[]) {
-  const shelf: Saved = { id: `s${Date.now().toString(36)}`, tag, ids: kept.map((t) => t.id), at: Date.now() };
+function write(list: Saved[]) {
   try {
-    localStorage.setItem(KEY, JSON.stringify([shelf, ...read()]));
+    localStorage.setItem(KEY, JSON.stringify(list));
   } catch {}
+  dispatchEvent(new Event(EVENT));
+}
+
+type Remote = { id: string; tag: string; query: string; createdAt: string; tracks: { id: string; title: string; artist: string; artwork: string | null; previewUrl: string | null }[] };
+const fromRemote = (s: Remote, scores?: Track[]): Saved => ({
+  id: s.id,
+  tag: s.tag,
+  query: s.query,
+  at: Date.parse(s.createdAt),
+  // 서버는 점수를 모른다 — 방금 저장한 곡이면 화면에 있던 점수를 그대로 둔다
+  tracks: s.tracks.map((t) => {
+    const had = scores?.find((k) => k.title === t.title && k.artist === t.artist);
+    return { semantic: 0, mood: 0, cover: had?.cover ?? TRACKS[0].cover, ...had, ...t };
+  }),
+});
+
+/* 서랍에 넣는다 — 로그인했으면 서버에, 아니면 이 브라우저에만. 새 서랍 id 를 돌려준다 */
+export async function saveShelf(tag: string, query: string, kept: Track[]) {
+  if (getToken()) {
+    const r = await api<Remote>("/shelves", {
+      method: "POST",
+      body: { tag, query, tracks: kept.map((t) => ({ title: t.title, artist: t.artist, artwork: t.artwork ?? undefined, previewUrl: t.previewUrl ?? undefined })) },
+    });
+    if (r.ok) {
+      write([fromRemote(r.data, kept), ...read()]);
+      return r.data.id;
+    }
+  }
+  const shelf: Saved = { id: `s${Date.now().toString(36)}`, tag, query, tracks: kept, at: Date.now() };
+  write([shelf, ...read()]);
   return shelf.id;
+}
+
+/* 서버 원본으로 사본을 새로 고친다 — 보관소에 들어올 때. 방금 저장한 곡의 점수는 사본에서 이어받는다 */
+export async function syncShelves() {
+  if (!getToken()) return;
+  const r = await api<Remote[]>("/shelves");
+  if (!r.ok) return;
+  const local = read();
+  write(r.data.map((s) => fromRemote(s, local.find((l) => l.id === s.id)?.tracks)));
 }
 
 /* 요청문에서 서랍 이름을 지어 준다 — 사용자가 네임택 위에서 고쳐 쓸 수 있게 제안만 한다.
@@ -52,7 +92,7 @@ export function suggestTag(query: string) {
   return `#${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/* 화면에서 읽을 때 — localStorage 를 구독해 저장 즉시 반영한다 (SSR 에선 빈 문자열) */
+/* 화면에서 읽을 때 — 사본을 구독해 저장 즉시 반영한다 (SSR 에선 빈 문자열) */
 export const shelvesRaw = () => {
   try {
     return localStorage.getItem(KEY) ?? "";
@@ -62,7 +102,11 @@ export const shelvesRaw = () => {
 };
 export function subscribeShelves(cb: () => void) {
   addEventListener("storage", cb);
-  return () => removeEventListener("storage", cb);
+  addEventListener(EVENT, cb);
+  return () => {
+    removeEventListener("storage", cb);
+    removeEventListener(EVENT, cb);
+  };
 }
 // 저장해 둔 서랍(최신이 앞) + 예시 서랍
 export function parseShelves(raw: string): Shelf[] {
@@ -72,6 +116,11 @@ export function parseShelves(raw: string): Shelf[] {
   } catch {}
   const mine = saved
     .sort((a, b) => b.at - a.at)
-    .map((s) => ({ id: s.id, tag: s.tag, kept: s.ids.map((id) => TRACKS.find((t) => t.id === id)).filter((t): t is Track => !!t) }));
+    .map((s) => ({
+      id: s.id,
+      tag: s.tag,
+      query: s.query ?? "",
+      kept: s.tracks ?? (s.ids ?? []).map((id) => TRACKS.find((t) => t.id === String(id))).filter((t): t is Track => !!t),
+    }));
   return [...mine, ...DEMO];
 }

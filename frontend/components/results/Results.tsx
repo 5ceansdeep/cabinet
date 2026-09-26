@@ -258,7 +258,7 @@ export default function Results({ query }: { query: string }) {
           <PlayerBar track={phase === "discs" ? playing : null} onEject={eject} />
 
           <footer className="relative px-6 pb-6 text-center font-mono text-[10px] tracking-[.2em] text-foreground/40">
-            DRAG TO ROTATE · FLICK DOWN TO PLAY · FLICK UP TO DISCARD
+            CLICK TO PLAY · DRAG TO ROTATE · FLICK UP TO DISCARD
           </footer>
         </>
       )}

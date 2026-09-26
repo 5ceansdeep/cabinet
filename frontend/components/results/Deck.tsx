@@ -39,7 +39,7 @@ function useGauge() {
 
 /* 결과 디스크들 — 전부 3D 덩어리. 가운데 곡이 앞으로 나오고 양옆은 뒤로 물러난다.
    호버하면 들리며 라벨에 점수가 타자기로 찍히고, 잡고 끌면 돌아가고, 위로 홱 뿌리면 손을 떠난다.
-   아래로 홱 내리면 밑의 드라이브 슬롯에 꽂혀 재생되고, 꽂힌 디스크를 위로 올리면 빠지며 멈춘다 */
+   짧게 한 번 누르면 밑의 드라이브 슬롯에 꽂혀 재생되고, 꽂힌 디스크를 누르거나 위로 올리면 빠지며 멈춘다 */
 
 const GAP = 1.25; // 디스크 사이 간격
 const DEPTH = -2.8; // 가운데 디스크의 깊이
@@ -48,6 +48,7 @@ const MIN_UP = 12.5; // 살살 뿌려도 이만큼은 솟구친다 (월드 단�
 const TO_WALL = 3.8; // 벽 쪽으로 밀어주는 속도 — 앞으로 덜 뻗고 위로 솟게
 const HOLD_MS = 900; // 이만큼 가만히 꾹 누르고 있으면 저절로 던져진다
 const HOLD_SLOP = 6; // 이만큼(px) 움직이면 꾹 누르기가 아니라 돌리기 — 게이지를 취소한다
+const TAP_MS = 300; // 이보다 짧게, 거의 움직이지 않고 떼면 클릭
 export const SLOT: [number, number, number] = [0, -1.0, DEPTH]; // 드라이브 — 가운데 디스크 바로 아래
 const SLOT_TOP = SLOT[1] + 0.09;
 const SHOWN = 0.32; // 꽂힌 디스크가 슬롯 위로 드러나는 몫
@@ -75,8 +76,8 @@ function Disk({
   const label = useLabel(track);
   const spin = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
   const drag = useRef<{ px: number; py: number } | null>(null);
-  const start = useRef({ x: 0, y: 0 }); // 누른 자리 — 여기서 벗어나면 꾹 누르기 취소
-  const flick = useRef({ vx: 0, vy: 0, t: 0, up: 0, down: 0 });
+  const start = useRef({ x: 0, y: 0, t: 0 }); // 누른 자리·때 — 손이 움직이면 꾹 누르기도 클릭도 아니다
+  const flick = useRef({ vx: 0, vy: 0, t: 0, up: 0 });
   const typed = useRef(0);
   const sank = useRef(Infinity); // 이 디스크가 빨려 들기 시작하는 시각
   const held = useRef(false); // 꾹 누르고 있나
@@ -162,8 +163,8 @@ function Disk({
     held.current = !slot; // 꽂힌 디스크는 꾹 눌러도 던져지지 않는다
     prog.current = 0;
     drag.current = { px: e.clientX, py: e.clientY };
-    start.current = { x: e.clientX, y: e.clientY };
-    flick.current = { vx: 0, vy: 0, t: e.timeStamp, up: 0, down: 0 };
+    start.current = { x: e.clientX, y: e.clientY, t: e.timeStamp };
+    flick.current = { vx: 0, vy: 0, t: e.timeStamp, up: 0 };
     addEventListener("pointermove", move);
     addEventListener("pointerup", up, { once: true });
   }
@@ -180,7 +181,6 @@ function Disk({
     f.vy = dy / dt;
     f.t = e.timeStamp;
     f.up = dy < 0 ? f.up - dy : 0; // 아래로 방향이 바뀌면 처음부터
-    f.down = dy > 0 ? f.down + dy : 0;
     const s = spin.current;
     s.vy = dx * 0.012;
     s.vx = dy * 0.012;
@@ -190,14 +190,15 @@ function Disk({
     invalidate();
   }
 
-  function up() {
+  function up(e: PointerEvent) {
     removeEventListener("pointermove", move);
     held.current = false;
     if (!drag.current) return;
     drag.current = null;
+    // 짧게 한 번 — 슬롯에 꽂거나(재생), 꽂힌 디스크면 뺀다(멈춤)
+    const s0 = start.current;
+    if (e.timeStamp - s0.t < TAP_MS && Math.hypot(e.clientX - s0.x, e.clientY - s0.y) < HOLD_SLOP) return slot ? onEject() : onInsert();
     const f = flick.current;
-    // 아래로 홱 — 슬롯에 꽂는다
-    if (!slot && f.vy > THROW_SPEED && f.down > 40) return onInsert();
     if (f.vy > -THROW_SPEED || f.up <= 40) return; // 살살 놓았다 — 그냥 제자리로
     if (slot) return onEject(); // 꽂힌 디스크를 위로 — 빼서 제자리로
     // 화면은 아래가 +y, 3D 는 위가 +y — 부호를 뒤집어 위로 솟구치게 한다

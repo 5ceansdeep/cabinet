@@ -172,7 +172,7 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
   const drawerY = (i: number) => (1 - i) * pitch;
 
   return (
-    <main data-theme="void" className="relative flex min-h-screen flex-1 flex-col overflow-hidden bg-background text-foreground">
+    <main data-theme="void" className="relative flex min-h-full flex-1 flex-col overflow-hidden bg-background text-foreground">
       <div className="fixed inset-0">
         <Canvas frameloop="demand" camera={{ position: FRONT.toArray(), fov: 55 }} dpr={[1, 1.5]}>
           <color attach="background" args={["#000000"]} />

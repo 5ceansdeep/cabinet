@@ -110,7 +110,7 @@ export default function AuthFlow({ mode }: { mode: Mode }) {
   const link = "hover:text-black/70";
 
   return (
-    <main className="relative h-screen overflow-hidden bg-background">
+    <main className="relative h-full overflow-hidden bg-background">
       {phase === "loading" && <Halo behind p={glow} />}
       <CabinetScene
         fields={fields}

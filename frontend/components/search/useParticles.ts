@@ -15,13 +15,14 @@ export function useParticles() {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
     let raf = 0;
+    // 영화 프레임 안이라 창 크기가 아니라 캔버스 자신의 크기로 잡는다
     const resize = () => {
-      canvas.width = innerWidth * devicePixelRatio;
-      canvas.height = innerHeight * devicePixelRatio;
-      ctx.scale(devicePixelRatio, devicePixelRatio);
+      canvas.width = canvas.clientWidth * devicePixelRatio;
+      canvas.height = canvas.clientHeight * devicePixelRatio;
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     };
     const tick = () => {
-      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
       particles.current = particles.current.filter((p) => (p.life -= 0.012) > 0);
       for (const p of particles.current) {
         p.x += p.vx;
@@ -58,8 +59,11 @@ export function useParticles() {
     };
   }, []);
 
-  function scatter(r: DOMRect) {
+  function scatter(box: DOMRect) {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // 폼 위치(화면 좌표)를 캔버스 좌표로 — 영화 프레임만큼 밀려 있다
+    const at = canvasRef.current!.getBoundingClientRect();
+    const r = new DOMRect(box.left - at.left, box.top - at.top, box.width, box.height);
     const cx = r.left + r.width / 2;
     const cy = r.top + r.height / 2;
     for (let i = 0; i < 6; i++) {

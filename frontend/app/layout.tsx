@@ -38,7 +38,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko" className={`${inter.variable} ${fragmentMono.variable} ${nanumMyeongjo.variable} ${chosunGulim.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body>
+        {/* 영화 비율 프레임 — 모든 화면이 이 안에서 돌아간다 (globals.css .cinema) */}
+        <div className="cinema">{children}</div>
+        {/* 자막 띠 — 프레임 아래 검은 영역. 자막은 여기로 옮겨 그린다 */}
+        <div id="cinema-sub" className="cinema-sub" />
+      </body>
     </html>
   );
 }

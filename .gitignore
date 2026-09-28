@@ -30,9 +30,11 @@ Thumbs.db
 /frontend/CONTEXT.md
 /backend/CONTEXT.md
 
-# Claude Code 개인 설정
+# Claude Code 개인 설정 (말투 같은 나만의 지시는 CLAUDE.local.md)
 .claude/settings.local.json
+CLAUDE.local.md
 
 # 로컬 SQLite 개발 DB
 *.db
 *.db-journal
+

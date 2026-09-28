@@ -1,4 +1,4 @@
-# cabinet 작업 컨텍스트 (2026-09-24)
+# cabinet 작업 컨텍스트 (2026-09-28)
 
 ## 목표
 docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전이라 프론트는 가짜 데이터로 띄운다.
@@ -14,8 +14,11 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
 - 안내는 영화 자막 + 목소리(`lib/voice.ts`, Web Speech API — 첫 사용자 입력 전엔 무음). 문구는 전부 `components/landing/lines.ts`(말투 = `docs/voice-persona.md`, 브루스 올마이티의 신 "자네"): 필드별(prompt/missing/invalid/tooShort/mismatch) + 흐름(idle·30초 재촉·CapsLock·대조 중·틀림·계정 없음·이미 가입·서버 오류·환영/재방문·로딩·열쇠 찾기). ESC 로 앞 서류. 회원가입 = 이메일→닉네임(2~12, 한/영/숫자/_)→비밀번호(8자+)→확인. `/forgot` 열쇠 찾기(가입 여부 안 흘림). 가짜 인증 `lib/auth.ts`(localStorage, SHA-256) — 백엔드 생기면 함수 몸통만 fetch 로
 - 3번 키워드 입력: `frontend/app/search/page.tsx` + `components/search/` — 흰 테마 편지지(순백 + 그림자색만, "신" 단어 금지, 명조체 `font-letter` = Nanum Myeongjo. 메일 작성창 버전은 해봤다가 롤백), 그림자색 타이핑 입자, Enter 제출 → `/results?q=` (4번은 아직 다크)
 - 5번 아카이빙 메인 룸: `frontend/app/archive/page.tsx` + `components/archive/` — 감정 테마 태그가 네임택으로 붙은 3단 개인 서류함(4번과 같은 방). 서랍을 누르면 앞으로 열리며 카메라가 위로 올라가 내려다보고, 종이 파일 사이에 꽂힌 플로피를 누르면 5.1 보고서로. 보관 기록은 `components/archive/shelf.ts` 가짜 데이터
-- 5.1 문서 보고서: `frontend/app/report/[id]/page.tsx` + `components/report/Report.tsx` — 빛바랜 종이, 대외비 도장, 요청문 인용, 대조 결과 막대
-- 4번 결과: `frontend/app/results/page.tsx` + `components/results/` — 카드 촤르륵 연출, 플로피 디스크 캐러셀(스냅 스크롤), 호버 타자기 점수, 드래그 360° 회전 + 관성 복귀, 더블클릭 재생(효과음만)
+- 5.1 문서 보고서 (**꺼 둠, 2026-09-28** — 라우트는 notFound, 링크 주석 처리. `grep "보고서 꺼 둠"` 으로 되살림): `frontend/app/report/[id]/page.tsx` + `components/report/Report.tsx` — 빛바랜 종이, 대외비 도장, 요청문 인용, 대조 결과 막대
+- 4번 결과: `frontend/app/results/page.tsx` + `components/results/` — 전부 R3F. 검은 공간에 흰 서류함이 빙 둘러선 방(`CabinetWall`, 보관함과 공유하는 `Wall`) 안에
+  3D 플로피가 줄지어 섬(`Deck`·`floppy.tsx`). 호버 타자기 점수(라벨 텍스처), 드래그 360° 회전, 더블클릭 재생(효과음만),
+  위로 뿌리거나 가만히 꾹 누르면(0.9초, 움직이면 취소) 던져져 벽에 부딪히고 바닥에 멎은 뒤 목록에서 빠짐(`Flights` 물리).
+  "서랍에 넣기" → 디스크가 아래 서랍으로 빨려 들고 네임택에 이름을 찍어 보관함으로(`SaveDrawer`)
 - 공용: `frontend/lib/thud.ts` (Web Audio "탁"), `globals.css` 에 토큰/서랍/키프레임
 - 루트 `npm run dev` (`dev.mjs`) 로 프론트+백엔드 동시 실행, 백엔드 기본 포트 4000
 
@@ -44,13 +47,18 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
 - 미리듣기: 효과음 + NOW PLAYING 표시만, 실제 음원 없음
 
 ## 다음
+- **2026-09-28 리뷰에서 남은 것**(1~4번은 고침): 못 찾은 곡을 MusicBrainz 에 매번 다시 묻는다(`checkedAt` 으로 건너뛰기),
+  `.env` 없으면 `prisma.config.ts` 가 터진다(새로 클론한 사람), 결과 화면 네임택 인쇄 타이머가 페이지를 떠나도 돈다,
+  비밀번호 최대 72자, 로그인 시도 제한, iTunes 결과 아티스트 확인, 네임택 텍스처 캐시가 쌓임, 서랍 이름 제안(`/비/`) 오탐.
+  유튜브 예비 검색(`backend/src/catalog/youtube.ts`)은 키가 없어 안 돈다 — 지울지 사용자 결정 대기
 - **순서 합의: 화면 목업 완성 → 백엔드·상세 기능** (모바일은 그 뒤)
 - **다 던져 버렸을 때 인터랙션 (요청)**: 남긴 곡이 0이 되면 신의 목소리로 한마디 하고 두 갈래를 준다 —
   (1) 방금 던진 곡들을 빼고 다시 찾기(제외 목록을 검색에 넘김) (2) 같은 편지로 몇 곡 더 찾기(이어서 더 꺼내기).
   자막·음성 대사도 새로 필요(`lines.ts` + voice-script.csv)
-- **바이럴용 인증물 (요청 — 아이디어 정리 필요)**: 보관증 이미지 카드(서류 양식 + 도장 + 보관번호 + 곡 목록 + 요청문 한 줄,
-  우하단 워터마크 "CABINET No.XXXX · 날짜"), 공개 서랍 링크 `/shelf/{id}` 와 OG 카드,
-  서랍이 닫히고 네임택이 찍히는 3~5초 클립을 MediaRecorder 로 저장해 공유
+- **바이럴 인증물 — 방향 확정(2026-09-28), 다음 작업**: 인스타그램 스토리 공유용 **재생목록 카드 한 장**.
+  최대한 심플하고 귀엽지만 cabinet 다운 특색(서랍·네임택·플로피). 카드에 만든 재생목록을 쉽게 공유할 수단을 담는다 —
+  읽기 전용 공개 페이지 링크(`/shelf/{id}` 류)를 띄우고, 그 페이지에서 바로 유튜브 재생목록으로 만들 수 있게
+  (`docs/youtube-playlist-plan.md` 의 watch_videos 링크 = 로그인·할당량 없이). 보관증 클립(MediaRecorder)은 보류
 - 결과 디스크 원 게이지: 얇은 흰 원으로 작게 바꿈 (적용 완료)
 - **유튜브 영상 ID 를 어떻게 채울지 — 막힌 지점.** 키 없이 되는 길은 사실상 없다(직접 확인):
   Odesli(song.link) 공개 API 폐지(401 PUBLIC_API_ACCESS_DEPRECATED), Piped 공개 인스턴스는 HTML 만,

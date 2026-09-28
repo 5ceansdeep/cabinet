@@ -62,6 +62,15 @@ export const clearSession = () => {
   save(SESSION, null);
   setToken(null);
 };
+/* 출입증이 아직 유효한지 서버에 확인한다 — 토큰이 있기만 하면 들어온 걸로 보면, 계정이 지워졌거나 서명 키가 바뀐 뒤에도
+   "또 왔군" 하고 들어가 버린다. 401 이면 흔적을 지우고, 서버에 못 닿으면(오프라인) 그대로 둔다 */
+export async function checkSession() {
+  if (!getToken()) return;
+  const r = await api<{ nickname: string }>("/auth/me");
+  if (r.ok) save(SESSION, r.data.nickname);
+  else if (r.status === 401) clearSession();
+}
+
 export function subscribeSession(cb: () => void) {
   addEventListener("storage", cb);
   return () => removeEventListener("storage", cb);

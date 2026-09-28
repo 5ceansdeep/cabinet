@@ -43,8 +43,9 @@ const GAP = 1.25; // 디스크 사이 간격
 const DEPTH = -2.8; // 가운데 디스크의 깊이
 const THROW_SPEED = 0.35; // 이보다 빠르게 위로 뿌리면 던진 것 (px/ms)
 const MIN_UP = 12.5; // 살살 뿌려도 이만큼은 솟구친다 (월드 단위/s) — 가파른 포물선
-const TO_WALL = 3.8;
-const HOLD_MS = 900; // 이만큼 꾹 누르고 있으면 저절로 던져진다 // 벽 쪽으로 밀어주는 속도 — 앞으로 덜 뻗고 위로 솟게
+const TO_WALL = 3.8; // 벽 쪽으로 밀어주는 속도 — 앞으로 덜 뻗고 위로 솟게
+const HOLD_MS = 900; // 이만큼 가만히 꾹 누르고 있으면 저절로 던져진다
+const HOLD_SLOP = 6; // 이만큼(px) 움직이면 꾹 누르기가 아니라 돌리기 — 게이지를 취소한다
 
 function Disk({
   track,
@@ -67,6 +68,7 @@ function Disk({
   const label = useLabel(track);
   const spin = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
   const drag = useRef<{ px: number; py: number } | null>(null);
+  const start = useRef({ x: 0, y: 0 }); // 누른 자리 — 여기서 벗어나면 꾹 누르기 취소
   const flick = useRef({ vx: 0, vy: 0, t: 0, up: 0 });
   const typed = useRef(0);
   const sank = useRef(Infinity); // 이 디스크가 빨려 들기 시작하는 시각
@@ -151,6 +153,7 @@ function Disk({
     held.current = true;
     prog.current = 0;
     drag.current = { px: e.clientX, py: e.clientY };
+    start.current = { x: e.clientX, y: e.clientY };
     flick.current = { vx: 0, vy: 0, t: e.timeStamp, up: 0 };
     addEventListener("pointermove", move);
     addEventListener("pointerup", up, { once: true });
@@ -158,6 +161,8 @@ function Disk({
 
   function move(e: PointerEvent) {
     if (!drag.current) return;
+    // 움직이기 시작했다 — 돌리는 중이지 꾹 누르는 게 아니다. 게이지를 멈춘다
+    if (held.current && Math.hypot(e.clientX - start.current.x, e.clientY - start.current.y) > HOLD_SLOP) held.current = false;
     const dx = e.clientX - drag.current.px;
     const dy = e.clientY - drag.current.py;
     const f = flick.current;

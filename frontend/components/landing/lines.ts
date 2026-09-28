@@ -87,7 +87,8 @@ const D = AUTH_DIALOGUE;
 // voiceKey = AUTH_DIALOGUE 의 묶음 이름. 문구 종류가 붙어 음성 파일이 된다 — 예: EMAIL.prompt.mp3, EMAIL.missing.mp3
 const EMAIL: Field = { name: "email", type: "email", voiceKey: "EMAIL", ...D.EMAIL };
 const PASSWORD: Field = { name: "password", type: "password", voiceKey: "PASSWORD_LOGIN", ...D.PASSWORD_LOGIN };
-const NEW_PASSWORD: Field = { name: "password", type: "password", minLength: 8, voiceKey: "PASSWORD_SIGNUP", ...D.PASSWORD_SIGNUP };
+// 72자까지 — 서버(bcrypt)가 72바이트 뒤를 잘라 버리니 그보다 길게 못 치게 한다
+const NEW_PASSWORD: Field = { name: "password", type: "password", minLength: 8, maxLength: 72, voiceKey: "PASSWORD_SIGNUP", ...D.PASSWORD_SIGNUP };
 const PASSWORD_CONFIRM: Field = { name: "passwordConfirm", type: "password", matches: "password", voiceKey: "PASSWORD_CONFIRM", ...D.PASSWORD_CONFIRM };
 const NICKNAME: Field = { name: "nickname", type: "text", minLength: 2, maxLength: 12, pattern: "[가-힣A-Za-z0-9_]+", voiceKey: "NICKNAME", ...D.NICKNAME };
 

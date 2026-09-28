@@ -9,7 +9,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(config: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: config.get<string>('JWT_SECRET') ?? 'cabinet-dev-secret',
+      secretOrKey: config.getOrThrow<string>('JWT_SECRET'), // 없으면 서버가 켜지지 않는다
     });
   }
 

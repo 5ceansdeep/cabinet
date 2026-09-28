@@ -50,7 +50,7 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   **둘 다 없으면 iTunes 장르**(`catalog/genres.ts`, DRIFT 에서 옮김, 9/28) — 태그가 없으면 추천에서 빠져서. **한계(나중에 문제되면 교체)**:
   미국 스토어는 한국 곡을 거의 다 "K-Pop" 하나로 묶어(발라드·인디 구분 없음) 이 곡들끼리 점수가 같다. 한국 스토어가 0건인 날(간헐 장애)엔
   가수 이름이 영문으로 달라 iTunes 에서도 못 찾아 빈 채로 남는다(예: 너드커넥션). 교체안 = LLM 태깅(가사 LRCLIB 참고, DB 태그 목록 안에서)
-- **곡 풀**: 41곡(9/28). 태그 0개인 곡은 추천에서 빠진다. 9/28 유저·서랍 전부 비움(Track 은 남김), 로컬 JWT_SECRET 새로 만듦
+- **곡 풀**: 88곡(9/28 배치 후). 태그 0개인 곡은 추천에서 빠진다. 9/28 유저·서랍 전부 비움(Track 은 남김), 로컬 JWT_SECRET 새로 만듦
 - **곡 풀 넓히기 — 관리자 배치(9/28 구현)**: `POST /catalog/grow {target}`(관리자, 뒤에서 돎) · `GET /catalog/grow`(진행 상황) · 매일 새벽 4시(서버 시간) 자동.
   검색은 해석 태그·결과 상위 가수만 `SearchLog` 에 남기고 외부 호출 없음. 배치 씨앗 = 최근 7일 검색 태그·가수 + 한국 태그(k-indie 등) + 애플 뮤직 한국 차트.
   후보 = Last.fm 태그 인기곡·비슷한 가수 인기곡·차트를 출처별로 번갈아. 한국 곡만(한글 이름 또는 korean·k-* 태그), 반주(inst·MR·karaoke)는 거르고
@@ -59,7 +59,12 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
 - **영상 ID — 9/28 확정·구현**: 필요할 때 + 밤 배치 ([docs/youtube-playlist-plan.md](docs/youtube-playlist-plan.md) 3장).
   `POST /shelves/:id/playlist` → 모르는 곡만 유튜브 검색 → watch_videos 링크 + 못 찾은 곡 검색 링크. 밤 배치 = 태평양 23:30 남은 몫으로
   서랍에 많이 담긴 곡부터(`catalog/videos.ts`). 수집은 유튜브를 안 부른다. 못 찾은 곡은 30일 재질문 안 함. 보관함에서 서랍 열면
-  "유튜브에서 이어 듣기"(`ListenPanel`). 키 발급·확인 완료(검정치마·새소년 MV 정확히 찾음)
+  "유튜브에서 이어 듣기"(`ListenPanel`). 키 발급·확인 완료(검정치마·새소년 MV 정확히 찾음).
+  영상 고르기 = `pickVideo`(Topic > 가수 채널 > 첫 결과, 라이브·스케치북·커버 제목은 뺌 — 9/28 10CM 그라데이션에 KBS 라이브가 걸려서).
+  **그라데이션의 잘못 저장된 videoId 는 아직 DB 에 남음** — prisma studio 에서 videoId·checkedAt 비우면 다시 찾음
+- **가수 이름 통일(9/28)**: iTunes 가 한국 스토어도 영문명을 줘서(아이유 → "I.U.") 섞이던 것 — `catalog/musicbrainz.ts` 로
+  한국 가수면 한글 이름(없으면 한국어 대표 별칭·하나뿐인 예명, 본명 안 씀). 기존 38곡도 바꿈. 곡 제목 번역(잔나비 "A Thought on an Autumn Night")은 아직.
+  `없는가수zzqx | 없는곡zzqx` 테스트 곡 남아 있음(지울지 사용자 답 대기)
 - **DB 보기**: `cd backend && npx prisma studio --url "file:///Users/5ceansdeep/cabinet/backend/dev.db"`
   (Prisma 7.10 윈도우 버그 — `file:./dev.db` 는 "not supported" 로 거부)
 - **Swagger**: http://localhost:4000/docs (Authorize 에 토큰)
@@ -81,9 +86,12 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
 - 서버가 없을 때 결과 곡: `tracks.ts` 가짜 12곡
 
 ## 다음
-- **바로 다음(급한 순)**: ① `interpret()` 을 LLM 으로 — DB 에 실제 있는 태그 목록을 enum 으로 묶고 온도 0·해시 캐시.
-  같이: 태그 없는 곡 LLM 태깅(가사 LRCLIB 참고) — iTunes 장르 대체. `ANTHROPIC_API_KEY` 필요(사용자가 .env 에)
-  ② 인스타 스토리 재생목록 카드(아래 "바이럴 인증물") ③ 푸시 — 로컬 main 이 원격보다 20커밋 넘게 앞섬(9/28 리베이스 후 안 올림)
+- **바로 다음 — 추천 개편, [docs/recommend-plan.md](docs/recommend-plan.md)(9/28 합의)**: 뜻(태그 코사인) + 분위기(소리 숫자 거리) 두 점수 합산.
+  "안녕하세요"·"집에 가고싶어요"가 같은 결과(둘 다 사전에 안 걸려 기본값)인 게 발단.
+  ① ReccoBeats(키 없음, 미리듣기 올리면 energy·valence 등) 배치로 Track 에 저장 ② **GPT**(사용자 선택 — Claude 아님) 요청 해석 = 태그 + 목표 숫자,
+  `OPENAI_API_KEY`·모델 이름 필요 ③ 점수 합치기 ④ GPT 곡 태깅 + LRCLIB 가사(15곡 중 12곡 있음, 원문 저장 안 함)
+  그다음 인스타 스토리 재생목록 카드(아래 "바이럴 인증물"). 푸시는 9/28 완료
+- DRIFT 곡 가져오기: 이 PC 의 DRIFT DB(prisma dev Postgres)는 곡 4개·한국 곡 0 — 장르별로 모은 건 다른 PC(HKCMC) DB 일 것. 거기서 songs CSV 로 뽑아 와야 함
 - **곡 특징 보강 후보**: 가사 = LRCLIB(무료·키 없음, 한국 곡 있음 — 분석에만, 화면 표시 금지), BPM = Deezer track.bpm(무료),
   키·장조 = iTunes 미리듣기를 직접 분석(librosa/essentia, ai-report-plan 2단계)
 - **정리 대기**: `feat/archive-room` 브랜치(로컬·원격) — 내용은 main 에 다 있음, 지울지 사용자 답 대기

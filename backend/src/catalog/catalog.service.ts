@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { genreTags } from './genres.js';
 import { findOnITunes } from './itunes.js';
 import { fetchTags } from './lastfm.js';
 import { searchBudget } from './youtube.js';
 
-/* 곡 한 장을 갖추는 일 — 앨범 커버와 30초 미리듣기(iTunes), 태그(Last.fm). 한 번 갖춘 곡은 DB 에 남겨 다시 찾지 않는다.
+/* 곡 한 장을 갖추는 일 — 앨범 커버와 30초 미리듣기(iTunes), 태그(Last.fm, 없으면 iTunes 장르). 한 번 갖춘 곡은 DB 에 남겨 다시 찾지 않는다.
    유튜브 영상 ID 는 여기서 찾지 않는다 — 재생목록을 만들 때와 밤 배치(videos.ts)에서만. 안 쓰일 곡에 할당량을 쓰지 않게 */
 @Injectable()
 export class CatalogService {
@@ -19,7 +20,9 @@ export class CatalogService {
     if (have?.artwork && have.previewUrl && hasTags && !force) return have;
 
     const itunes = have?.artwork && have.previewUrl && !force ? null : await findOnITunes(title, artist);
-    const tags = hasTags && !force ? have.tags : JSON.stringify(await fetchTags(title, artist));
+    // 태그: Last.fm 곡 → 가수 → (둘 다 없으면) iTunes 장르. 태그가 없으면 추천에서 빠지니 거칠어도 채운다
+    let tags = hasTags && !force ? have.tags : JSON.stringify(await fetchTags(title, artist));
+    if (tags === '{}') tags = JSON.stringify(genreTags((itunes ?? (await findOnITunes(title, artist)))?.genre));
     const data = {
       tags,
       artwork: itunes?.artwork ?? have?.artwork ?? null,

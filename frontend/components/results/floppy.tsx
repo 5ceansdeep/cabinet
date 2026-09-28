@@ -20,7 +20,7 @@ export function useLabel(track: Track, onArt?: () => void) {
     const tex = new CanvasTexture(c);
     tex.colorSpace = SRGBColorSpace;
     // 점수를 모르면(보관소에 꽂힌 곡) 가수 이름을 찍는다
-    const score = track.semantic || track.mood ? `[의미 유사도: ${track.semantic}% | 분위기 일치도: ${track.mood}%]` : track.artist;
+    const score = track.semantic ? `[일치도: ${track.semantic}%]` : track.artist;
     // 앨범 커버 — 받아지기 전엔 그라디언트, 받으면 그 위에 다시 그린다 (iTunes 커버는 CORS 를 열어 둬 캔버스에 써도 된다)
     const st: { art: HTMLImageElement | null; last: number } = { art: null, last: 0 };
     const draw = (typed: number) => {

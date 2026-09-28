@@ -43,7 +43,7 @@ const fromRemote = (s: Remote, scores?: Track[]): Saved => ({
   // 서버는 점수를 모른다 — 방금 저장한 곡이면 화면에 있던 점수를 그대로 둔다
   tracks: s.tracks.map((t) => {
     const had = scores?.find((k) => k.title === t.title && k.artist === t.artist);
-    return { semantic: 0, mood: 0, cover: had?.cover ?? TRACKS[0].cover, ...had, ...t };
+    return { semantic: 0, cover: had?.cover ?? TRACKS[0].cover, ...had, ...t };
   }),
 });
 

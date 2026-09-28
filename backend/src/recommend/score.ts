@@ -1,17 +1,15 @@
 import type { Tags } from '../catalog/lastfm.js';
 
-/* 태그 가중치끼리 코사인 유사도 (DRIFT recommend.service 의 cosineSimilarity 를 희소 맵으로).
-   pick 을 주면 그 태그들만 놓고 잰다 — 분위기 일치도 */
-export function cosine(a: Tags, b: Tags, pick?: Set<string>): number {
+/* 태그 가중치끼리 코사인 유사도 (DRIFT recommend.service 의 cosineSimilarity 를 희소 맵으로) */
+export function cosine(a: Tags, b: Tags): number {
   let dot = 0;
   let na = 0;
   let nb = 0;
   for (const [t, w] of Object.entries(a)) {
-    if (pick && !pick.has(t)) continue;
     na += w * w;
     dot += w * (b[t] ?? 0);
   }
-  for (const [t, w] of Object.entries(b)) if (!pick || pick.has(t)) nb += w * w;
+  for (const w of Object.values(b)) nb += w * w;
   return na && nb ? dot / Math.sqrt(na * nb) : 0;
 }
 

@@ -1,15 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
 
 export class TrackRefDto {
-  @ApiProperty({ example: 'Everything' }) @IsString() title!: string;
-  @ApiProperty({ example: '검정치마' }) @IsString() artist!: string;
+  @ApiProperty({ example: 'Everything' }) @IsString() @IsNotEmpty() @MaxLength(200) title!: string;
+  @ApiProperty({ example: '검정치마' }) @IsString() @IsNotEmpty() @MaxLength(200) artist!: string;
 }
 
 export class CollectDto {
-  @ApiProperty({ type: [TrackRefDto] })
+  // 한 번에 20곡까지 — MusicBrainz 가 초당 1회라 더 많으면 요청 하나가 몇 분씩 묶인다
+  @ApiProperty({ type: [TrackRefDto], maxItems: 20 })
   @IsArray()
+  @ArrayMaxSize(20)
   @ValidateNested({ each: true })
   @Type(() => TrackRefDto)
   tracks!: TrackRefDto[];

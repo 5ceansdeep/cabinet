@@ -38,3 +38,5 @@ CLAUDE.local.md
 *.db
 *.db-journal
 
+# 유튜브 검색 하루 사용량 (서버가 적어 둔다)
+.yt-budget.json

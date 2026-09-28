@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveShelf, suggestTag } from "@/components/archive/shelf";
 import { thud } from "@/lib/thud";
@@ -20,6 +20,12 @@ export default function Results({ query }: { query: string }) {
   const [playing, setPlaying] = useState<number | null>(null);
   const [kept, setKept] = useState(TRACKS); // 위로 던져 뺀 곡은 여기서 빠진다
   const [index, setIndex] = useState(Math.floor(TRACKS.length / 2)); // 가운데 앞에 나온 곡
+
+  /* 서랍에 넣는 동안 걸어 둔 타이머들 — 도중에 다른 화면으로 가면 전부 끈다.
+     안 끄면 떠난 뒤에도 이름이 마저 찍히고, 서랍이 저장되고, 보관함으로 끌려간다 */
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => timers.current.forEach((id) => clearTimeout(id)), []);
+  const later = (fn: () => void, ms: number) => void timers.current.push(setTimeout(fn, ms));
 
   /* Bruce Almighty — 촤르르륵 넘어가던 카드가 딱 멈추면 디스크가 나온다 */
   useEffect(() => {
@@ -53,7 +59,7 @@ export default function Results({ query }: { query: string }) {
     setPhase("saving");
     setTag(suggestTag(query));
     thud(120);
-    setTimeout(() => {
+    later(() => {
       thud(70);
       setPhase("naming");
     }, 1400);
@@ -64,15 +70,14 @@ export default function Results({ query }: { query: string }) {
     const name = tag.trim() || suggestTag(query);
     setTag(name);
     setPhase("printing");
-    let n = 0;
-    const id = setInterval(() => {
-      setPrinted(++n);
+    // 한 글자씩 — 90ms 간격으로 다음 글자를 예약한다(모두 timers 에 걸려 떠나면 같이 꺼진다)
+    const type = (n: number) => {
+      setPrinted(n);
       thud(420 + (n % 3) * 40); // 타자기 소리
-      if (n >= name.length) {
-        clearInterval(id);
-        setTimeout(() => router.push(`/archive?new=${saveShelf(name, kept)}`), 900);
-      }
-    }, 90);
+      if (n < name.length) later(() => type(n + 1), 90);
+      else later(() => router.push(`/archive?new=${saveShelf(name, kept)}`), 900);
+    };
+    later(() => type(1), 90);
   }
 
   function discard(track: Track) {

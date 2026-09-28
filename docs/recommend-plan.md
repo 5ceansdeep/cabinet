@@ -9,7 +9,9 @@
   "안녕하세요"와 "집에 가고싶어요"가 같은 결과를 낸다.
 - **한국 곡은 태그가 얕다.** Last.fm 에 분위기 태그가 거의 없고, 없으면 iTunes 장르("K-Pop" 하나)로 채워 곡끼리 점수가 같다.
 - **곡 이름 표기가 섞였다.** iTunes 가 날에 따라 영문 가수명·번역 제목을 준다.
-  가수는 MusicBrainz 로 맞췄다(9/28). 제목(잔나비 "A Thought on an Autumn Night")은 아직.
+  가수는 MusicBrainz 로 맞췄다(9/28, `catalog/musicbrainz.ts`). 제목(잔나비 "A Thought on an Autumn Night")은 아직.
+
+곡 DB 는 9/28 부터 원격 Postgres(Neon) — 아래 칸 추가(소리 숫자 등)는 `prisma migrate dev` 로 모든 PC 에 같이 반영된다.
 
 ## 2. 큰 플랫폼은 어떻게 하나 (공개된 일반론)
 

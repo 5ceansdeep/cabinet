@@ -42,7 +42,7 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   JWT 서명 키는 `JwtModule.registerAsync` 로 .env 에서 읽어야 한다 (`register()` 면 모듈이 .env 보다 먼저 평가돼
   서명 키와 검증 키가 어긋나 /auth/me 가 401)
 - **추천**: `GET /recommend?q=&seen=&thrown=` → 요청 해석 태그 + 곡별 의미·분위기 점수 + 겹친 태그, `GET /recommend/:id?q=`.
-  해석 = `recommend/interpret.ts` 한국어 낱말 사전(**LLM 자리 임시**), 점수 = 태그 가중치 코사인(DRIFT 에서 옮김).
+  해석 = `recommend/interpret.ts` 한국어 낱말 사전(**GPT 자리 임시** — 개편안은 docs/recommend-plan.md), 점수 = 태그 가중치 코사인(DRIFT 에서 옮김).
   thrown 은 빼면서 그 곡들 태그 쪽에서 멀어지고, seen 은 빼기만. 한국 곡은 Last.fm 에 분위기 태그가 거의 없어 분위기 일치도는 뺐다(9/28, 점수는 일치도 하나),
   의미 점수도 20~35% — 사전 태그가 DB 에 없는 태그를 많이 내서. LLM + DB 태그 목록 제약으로 풀 예정
 - **서랍**: `GET/POST/DELETE /shelves` (JWT). 곡은 제목·가수로 하나만 둔다
@@ -61,7 +61,7 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   서랍에 많이 담긴 곡부터(`catalog/videos.ts`). 수집은 유튜브를 안 부른다. 못 찾은 곡은 30일 재질문 안 함. 보관함에서 서랍 열면
   "유튜브에서 이어 듣기"(`ListenPanel`). 키 발급·확인 완료(검정치마·새소년 MV 정확히 찾음).
   영상 고르기 = `pickVideo`(Topic > 가수 채널 > 첫 결과, 라이브·스케치북·커버 제목은 뺌 — 9/28 10CM 그라데이션에 KBS 라이브가 걸려서).
-  **그라데이션의 잘못 저장된 videoId 는 아직 DB 에 남음** — prisma studio 에서 videoId·checkedAt 비우면 다시 찾음
+  **그라데이션의 잘못 저장된 videoId 는 아직 DB 에 남음** — Neon 콘솔 Tables(또는 prisma studio)에서 videoId·checkedAt 비우면 다시 찾음
 - **가수 이름 통일(9/28)**: iTunes 가 한국 스토어도 영문명을 줘서(아이유 → "I.U.") 섞이던 것 — `catalog/musicbrainz.ts` 로
   한국 가수면 한글 이름(없으면 한국어 대표 별칭·하나뿐인 예명, 본명 안 씀). 기존 38곡도 바꿈. 곡 제목 번역(잔나비 "A Thought on an Autumn Night")은 아직.
   `없는가수zzqx | 없는곡zzqx` 테스트 곡 남아 있음(지울지 사용자 답 대기)

@@ -65,10 +65,13 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
 - **가수 이름 통일(9/28)**: iTunes 가 한국 스토어도 영문명을 줘서(아이유 → "I.U.") 섞이던 것 — `catalog/musicbrainz.ts` 로
   한국 가수면 한글 이름(없으면 한국어 대표 별칭·하나뿐인 예명, 본명 안 씀). 기존 38곡도 바꿈. 곡 제목 번역(잔나비 "A Thought on an Autumn Night")은 아직.
   `없는가수zzqx | 없는곡zzqx` 테스트 곡 남아 있음(지울지 사용자 답 대기)
-- **DB 보기**: `cd backend && npx prisma studio --url "file:///Users/5ceansdeep/cabinet/backend/dev.db"`
-  (Prisma 7.10 윈도우 버그 — `file:./dev.db` 는 "not supported" 로 거부)
+- **DB 보기**: `cd backend && npx prisma studio` 또는 Neon 콘솔(console.neon.tech, 프로젝트 cabinet)의 Tables
 - **Swagger**: http://localhost:4000/docs (Authorize 에 토큰)
-- **DB**: Prisma + SQLite(`backend/dev.db`, git 무시). 모델 `User` / `Shelf`(서랍=저장한 목록, 네임택·요청문) /
+- **DB — 9/28 Neon(원격 Postgres, 싱가포르)으로 옮김**: 여러 PC 가 같은 곡·서랍을 본다. 다른 PC 도 `backend/.env` 의 `DATABASE_URL` 을 같은 direct 주소로
+  (Neon 콘솔 Connect → Connection pooling 끄고 복사). 어댑터 `@prisma/adapter-pg`, 마이그레이션은 Postgres 용 init 하나로 새로 시작(SQLite 것은 삭제).
+  dev.db 의 전 테이블을 그대로 복사함(곡 89·유저 1·서랍 1). `backend/dev.db` 는 옛 사본 — 더 안 씀. 테스트 계정도 모든 PC 에 보이니 쓰고 지운다.
+  pg 가 `sslmode=require` 에 보안 경고를 띄움 — .env 주소를 `sslmode=verify-full` 로 바꾸면 사라짐(동작은 같음).
+  모델 `User` / `Shelf`(서랍=저장한 목록, 네임택·요청문) /
   `Track`(커버·미리듣기·videoId) / `ShelfTrack`(순서).
   Prisma 7 부터 스키마에 `url` 을 못 쓴다 — `prisma.config.ts` + 드라이버 어댑터(`@prisma/adapter-better-sqlite3`),
   `.env` 도 자동으로 안 읽어서 config 에서 `process.loadEnvFile()` 한다

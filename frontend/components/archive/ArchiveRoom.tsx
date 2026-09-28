@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation"; // 보고서 꺼 둠 — 디스크를 눌러 보고서로 갈 때 쓴다
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Canvas, useFrame, type ThreeEvent } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
@@ -153,7 +153,7 @@ function Drawer({
 
 export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
   const [open, setOpen] = useState<number | null>(null);
-  const router = useRouter();
+  // const router = useRouter(); // 보고서 꺼 둠
   const raw = useSyncExternalStore(subscribeShelves, shelvesRaw, () => "");
   const shelves = useMemo(() => parseShelves(raw), [raw]);
   // 서류함은 3단이라 서랍 3개씩 넘겨 본다 — 4번째로 저장한 서랍부터는 다음 칸에
@@ -200,7 +200,9 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
                 thud(open === i ? 60 : 120);
                 setOpen(open === i ? null : i);
               }}
-              onOpenTrack={(t) => router.push(`/report/${t.id}`)}
+              // 보고서 꺼 둠 — 되살릴 때 app/report/[id]/page.tsx 와 같이
+              // onOpenTrack={(t) => router.push(`/report/${t.id}`)}
+              onOpenTrack={() => {}}
             />
           ))}
         </Canvas>
@@ -233,7 +235,7 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
       )}
 
       <footer className="relative px-6 pb-8 text-center font-mono text-[10px] tracking-[.2em] text-foreground/40">
-        {openShelf ? `${openShelf.tag} — ${openShelf.kept.length}장 · CLICK A DISK FOR ITS REPORT` : "CLICK A DRAWER TO OPEN"}
+        {openShelf ? `${openShelf.tag} — ${openShelf.kept.length}장` : "CLICK A DRAWER TO OPEN"}
       </footer>
     </main>
   );

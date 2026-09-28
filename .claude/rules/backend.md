@@ -6,6 +6,7 @@ paths:
 # 백엔드 (NestJS + Prisma 7)
 
 - 비밀값은 `config.getOrThrow()` 로 읽는다. 코드에 기본값을 적지 않는다 — 없으면 서버가 켜지지 않아야 한다.
+- 배포 서버의 비밀값(`JWT_SECRET` 등)은 로컬과 다른 값으로 새로 만든다. 로컬 키를 그대로 옮기지 않는다.
 - `.env` 에 새 키를 쓰면 `.env.example` 에도 설명과 함께 추가한다.
 - JWT 모듈은 `JwtModule.registerAsync` (register() 면 .env 보다 먼저 평가돼 서명·검증 키가 어긋난다).
 - Prisma 7: 스키마에 `url` 을 못 쓴다 — `prisma.config.ts` + 드라이버 어댑터. `.env` 도 자동으로 안 읽는다.

@@ -30,7 +30,7 @@ Thumbs.db
 /frontend/CONTEXT.md
 /backend/CONTEXT.md
 
-# Claude Code 개인 설정 (말투 같은 나만의 지시는 CLAUDE.local.md)
+# Claude Code 이 PC 전용 설정 (공용 규칙·말투는 CLAUDE.md)
 .claude/settings.local.json
 CLAUDE.local.md
 

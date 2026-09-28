@@ -20,6 +20,7 @@ import { parseShelves, shelvesRaw, subscribeShelves } from "./shelf";
 
 const { W, H, D, T, GAP } = CABINET;
 const OPEN = 1.5; // 서랍이 빠지는 거리
+const PER_PAGE = 3; // 서류함 한 짝에 서랍 3개
 const FRONT = new Vector3(0, 0, 3.2); // 서류함을 정면에서
 const LOOK_FRONT = new Vector3(0, 0, 0);
 const TOP = new Vector3(0, 2.3, 2.1); // 열린 서랍을 내려다보는 자리
@@ -155,6 +156,18 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
   const router = useRouter();
   const raw = useSyncExternalStore(subscribeShelves, shelvesRaw, () => "");
   const shelves = useMemo(() => parseShelves(raw), [raw]);
+  // 서류함은 3단이라 서랍 3개씩 넘겨 본다 — 4번째로 저장한 서랍부터는 다음 칸에
+  const [page, setPage] = useState(0);
+  const pages = Math.max(1, Math.ceil(shelves.length / PER_PAGE));
+  const shown = shelves.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+  const openShelf = open === null ? null : shown[open];
+  const turn = (d: number) => {
+    const next = Math.max(0, Math.min(pages - 1, page + d));
+    if (next === page) return;
+    thud(90);
+    setOpen(null);
+    setPage(next);
+  };
   const pitch = H + GAP;
   const drawerY = (i: number) => (1 - i) * pitch;
 
@@ -171,7 +184,11 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
           <Rig open={open !== null} drawerY={open === null ? 0 : drawerY(open)} />
 
           <Carcass />
-          {shelves.slice(0, 3).map((s, i) => (
+          {/* 마지막 칸에서 서랍이 모자라면 이름 없는 빈 서랍으로 채운다 — 구멍 뚫린 서류함이 되지 않게 */}
+          {Array.from({ length: PER_PAGE - shown.length }, (_, k) => (
+            <Drawer key={`empty-${k}`} y={drawerY(shown.length + k)} tag=" " kept={[]} open={false} onToggle={() => {}} onOpenTrack={() => {}} />
+          ))}
+          {shown.map((s, i) => (
             <Drawer
               key={s.id}
               y={drawerY(i)}
@@ -200,8 +217,23 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
 
       <div className="flex-1" />
 
+      {pages > 1 && (
+        /* 다른 서랍 칸으로 — 위가 최근에 넣은 것 */
+        <nav className="absolute top-1/2 right-6 flex -translate-y-1/2 flex-col items-center gap-3 font-mono text-[10px] tracking-[.2em] text-accent/70">
+          <button aria-label="최근 서랍" disabled={page === 0} onClick={() => turn(-1)} className="px-3 py-2 hover:text-accent disabled:opacity-20">
+            ▲
+          </button>
+          <span className="text-foreground/40">
+            {page + 1}/{pages}
+          </span>
+          <button aria-label="지난 서랍" disabled={page === pages - 1} onClick={() => turn(1)} className="px-3 py-2 hover:text-accent disabled:opacity-20">
+            ▼
+          </button>
+        </nav>
+      )}
+
       <footer className="relative px-6 pb-8 text-center font-mono text-[10px] tracking-[.2em] text-foreground/40">
-        {open === null ? "CLICK A DRAWER TO OPEN" : `${shelves[open].tag} — ${shelves[open].kept.length}장 · CLICK A DISK FOR ITS REPORT`}
+        {openShelf ? `${openShelf.tag} — ${openShelf.kept.length}장 · CLICK A DISK FOR ITS REPORT` : "CLICK A DRAWER TO OPEN"}
       </footer>
     </main>
   );

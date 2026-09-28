@@ -41,7 +41,7 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   서명 키와 검증 키가 어긋나 /auth/me 가 401)
 - **추천**: `GET /recommend?q=&seen=&thrown=` → 요청 해석 태그 + 곡별 의미·분위기 점수 + 겹친 태그, `GET /recommend/:id?q=`.
   해석 = `recommend/interpret.ts` 한국어 낱말 사전(**LLM 자리 임시**), 점수 = 태그 가중치 코사인(DRIFT 에서 옮김).
-  thrown 은 빼면서 그 곡들 태그 쪽에서 멀어지고, seen 은 빼기만. 한국 곡은 Last.fm 에 분위기 태그가 거의 없어 분위기 일치도 대부분 0,
+  thrown 은 빼면서 그 곡들 태그 쪽에서 멀어지고, seen 은 빼기만. 한국 곡은 Last.fm 에 분위기 태그가 거의 없어 분위기 일치도는 뺐다(9/28, 점수는 일치도 하나),
   의미 점수도 20~35% — 사전 태그가 DB 에 없는 태그를 많이 내서. LLM + DB 태그 목록 제약으로 풀 예정
 - **서랍**: `GET/POST/DELETE /shelves` (JWT). 곡은 제목·가수로 하나만 둔다
 - **곡 태그**: Last.fm `track.getTopTags`(3개 미만이면 `artist.getTopTags` 로 보충) → `Track.tags` JSON. 수집(`/catalog/collect`) 때 같이

@@ -2,7 +2,7 @@ import { Controller, Get, Injectable, Module, NotFoundException, Param, Query } 
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Tags } from '../catalog/lastfm.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { interpret, MOOD } from './interpret.js';
+import { interpret } from './interpret.js';
 import { cosine, push } from './score.js';
 
 /* 요청문 → 태그(해석) → 갖춰 둔 곡마다 태그 겹침 점수 → 상위 몇 곡.
@@ -27,7 +27,7 @@ export class RecommendService {
     const tracks = pool
       .filter((t) => !skip.has(t.id))
       .map((t) => scored(t, asked, want))
-      .sort((a, b) => b.semantic - a.semantic || b.mood - a.mood)
+      .sort((a, b) => b.semantic - a.semantic)
       .slice(0, limit);
 
     return { interpretation: asked, tracks };
@@ -54,7 +54,6 @@ function scored(t: Row, asked: Tags, want: Tags) {
     previewUrl: t.previewUrl,
     videoId: t.videoId,
     semantic: Math.max(0, Math.round(cosine(want, tags) * 100)),
-    mood: Math.max(0, Math.round(cosine(want, tags, MOOD) * 100)),
     matched: Object.keys(asked).filter((k) => tags[k]), // 요청과 겹친 태그 — 보고서의 근거
   };
 }

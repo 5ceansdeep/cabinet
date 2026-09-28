@@ -8,10 +8,6 @@ describe('score', () => {
     expect(cosine({}, { jazz: 100 })).toBe(0);
   });
 
-  it('pick 이면 그 태그만 본다', () => {
-    const pick = new Set(['sad']);
-    expect(cosine({ sad: 100, rock: 100 }, { sad: 10, jazz: 90 }, pick)).toBeCloseTo(1);
-  });
 
   it('던진 곡의 태그는 요청에서 깎인다', () => {
     const q = push({ indie: 100, sad: 100 }, [{ sad: 100 }]);

@@ -37,8 +37,3 @@ export function interpret(query: string): Tags {
   return Object.keys(out).length ? out : { ...FALLBACK };
 }
 
-/* 분위기 태그 — "분위기 일치도"는 이 태그들끼리만 잰다 */
-export const MOOD = new Set([
-  'chill', 'sad', 'happy', 'energetic', 'romantic', 'dark', 'melancholy', 'upbeat', 'aggressive', 'dreamy',
-  'atmospheric', 'mellow', 'emotional', 'beautiful', 'fun', 'party', 'night', 'summer', 'winter', 'love', 'nostalgic',
-]);

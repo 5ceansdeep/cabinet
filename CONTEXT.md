@@ -21,6 +21,13 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
   "서랍에 넣기" → 디스크가 아래 서랍으로 빨려 들고 네임택에 이름을 찍어 보관함으로(`SaveDrawer`)
 - 공용: `frontend/lib/thud.ts` (Web Audio "탁"), `globals.css` 에 토큰/서랍/키프레임
 - 루트 `npm run dev` (`dev.mjs`) 로 프론트+백엔드 동시 실행, 백엔드 기본 포트 4000
+- **영화 비율 프레임(9/28)**: 모든 화면이 2.39:1 `.cinema` 프레임 안(layout.tsx·globals.css, 비율은 `--cinema`). 프레임 안에선 vh 대신 cqh·cqmax,
+  안쪽 fixed 는 프레임 기준. 랜딩 자막은 portal 로 프레임 아래 검은 띠 `#cinema-sub`. 세로 화면은 전체 화면(모바일 때 다시)
+- **Claude Code 설정(9/28)**: `.claude/rules`(주제별·paths), `skills`(visual-check·backend-smoke), `hooks`(.env·db 수정, 강제 푸시·클로드 서명·
+  로컬 작성자 없음·.env/db·puppeteer 커밋 차단), `agents/test-runner`. 말투도 CLAUDE.md(모든 PC 공통)
+- **9/28 리뷰 수정**: JWT 키 필수, 곡 수집 관리자 전용(`ADMIN_EMAILS`)·20곡 제한, 로그인 튕김, 돌리다 던져짐, 보관함 3개씩 넘겨 보기,
+  비밀번호 72바이트, 로그인 5회 실패 15분 잠금, 유튜브 사용량 파일(`.yt-budget.json`), iTunes 가수 번호 매칭(6/6), `.env` 있을 때만 읽기,
+  서랍 저장 타이머 정리, 네임택 텍스처, 서랍 이름 제안 오탐, 5.1 보고서 꺼 둠
 
 ## 백엔드 (NestJS, :4000)
 - **인증**: `POST /auth/signup`, `POST /auth/login`, `GET /auth/me` — bcrypt 해시, JWT 7일.
@@ -34,10 +41,10 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
   `.env` 도 자동으로 안 읽어서 config 에서 `process.loadEnvFile()` 한다
 - **곡 수집**: `GET /catalog/tracks`, `POST /catalog/collect`, `GET /catalog/budget`
   - iTunes(키 없음): 커버 600x600 + 30초 미리듣기. kr 0건이면 us 폴백. **간헐적으로 0건을 준다**(재시도·다른 소스 필요)
-  - 영상 ID: MusicBrainz(무료) → 없으면 유튜브 검색(100단위, 하루 상한 `YT_SEARCH_DAILY_LIMIT`). 찾으면 DB 에 영구 보관
+  - 영상 ID: 유튜브 검색만(100단위, 하루 상한 `YT_SEARCH_DAILY_LIMIT`). 찾으면 DB 에 영구 보관
   - 확인: 가짜 곡 6곡 커버·미리듣기 6/6 성공(URL 200), **영상 ID 0/6**
 - **.env** (git 무시, 예시는 `.env.example`): `DATABASE_URL`, `JWT_SECRET`, `PORT`,
-  `LASTFM_API_KEY`(발급 완료), `MUSICBRAINZ_UA`, `YOUTUBE_API_KEY`(미발급)
+  `LASTFM_API_KEY`(발급 완료), `YOUTUBE_API_KEY`(미발급)
 
 ## 가짜로 둔 것 (`ponytail:` 주석)
 - 프론트 로그인: 아직 `frontend/lib/auth.ts` 의 localStorage 가짜 인증. **백엔드 /auth 가 생겼으니 교체 차례**
@@ -47,6 +54,9 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
 - 미리듣기: 효과음 + NOW PLAYING 표시만, 실제 음원 없음
 
 ## 다음
+- **바로 다음 작업**: 인스타 스토리용 재생목록 카드(아래 "바이럴 인증물"). 계획 먼저 볼지 바로 만들지 사용자 답 대기
+- **정리 대기**: `feat/archive-room` 브랜치(로컬·원격) — 내용은 main 에 다 있음, 지울지 사용자 답 대기
+- 자막 띠 위 반투명 회색 박스 유지 여부, 넓은 프레임에서 랜딩 서류함이 작아 보임(카메라 조정 여부) — 사용자 답 대기
 - **파이프라인 확정(2026-09-28)** — 스포티파이는 전부 뺀다(개발 모드 5명 제한 + 정책상 다른 서비스로 넘기기·AI 입력 금지):
   1. LLM = 의도 파서만. 요청문 → 태그 JSON. **DB 에 실제 있는 태그 목록 안에서만** 고르게 출력 형식을 묶는다
      (자유 키워드 "비오는날" 은 곡의 Last.fm 태그 "rainy" 와 글자가 달라 점수가 0 이 된다). 곡은 지어내지 않는다
@@ -54,11 +64,11 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
   3. DB 는 관리자 배치로 미리 채운다: 곡 정보·표지·30초 미리듣기 = iTunes(가수 번호로 매칭), 영상 ID = 유튜브 Data API 로 곡당 1회 → 영구 저장.
      요청할 때는 유튜브 호출 0
   4. 출구 = watch_videos?video_ids=… 익명 링크(로그인·할당량 0, 공식 문서엔 없는 주소라 깨질 수 있음) + 인스타 카드
-  - 할 일: 유튜브 API 키 발급(사용자, Google Cloud), 수집에서 MusicBrainz 빼기, 애플 표지·미리듣기 출처 표시 조건 원문 확인
-- **2026-09-28 리뷰에서 남은 것**(1~4번은 고침): 못 찾은 곡을 MusicBrainz 에 매번 다시 묻는다(`checkedAt` 으로 건너뛰기),
+  - 할 일: 유튜브 API 키 발급(사용자, Google Cloud), 애플 표지·미리듣기 출처 표시 조건 원문 확인
+- **2026-09-28 리뷰에서 남은 것**(1~4번은 고침): 못 찾은 곡을 유튜브 검색에 매번 다시 묻는다(`checkedAt` 으로 건너뛰기 — 이제 100 단위씩 날아감),
   `.env` 없으면 `prisma.config.ts` 가 터진다(새로 클론한 사람), 결과 화면 네임택 인쇄 타이머가 페이지를 떠나도 돈다,
   비밀번호 최대 72자, 로그인 시도 제한, iTunes 결과 아티스트 확인, 네임택 텍스처 캐시가 쌓임, 서랍 이름 제안(`/비/`) 오탐.
-  유튜브 예비 검색(`backend/src/catalog/youtube.ts`)은 키가 없어 안 돈다 — 지울지 사용자 결정 대기
+  유튜브 검색(`backend/src/catalog/youtube.ts`)이 영상 ID 의 유일한 길 — 키 없으면 안 돈다. MusicBrainz 는 9/28 수집에서 뺌
 - **순서 합의: 화면 목업 완성 → 백엔드·상세 기능** (모바일은 그 뒤)
 - **다 던져 버렸을 때 인터랙션 (요청)**: 남긴 곡이 0이 되면 신의 목소리로 한마디 하고 두 갈래를 준다 —
   (1) 방금 던진 곡들을 빼고 다시 찾기(제외 목록을 검색에 넘김) (2) 같은 편지로 몇 곡 더 찾기(이어서 더 꺼내기).
@@ -86,7 +96,7 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
     1. 보고서가 디스크 꺼냄: 보고서가 한 줄씩 인쇄되고, 곡 문단이 끝나는 순간 그 디스크가 튀어나옴. Riffle 대신. (제안안)
     2. 요청 해석 먼저, 곡 이유는 라벨지: Riffle 동안 "요청 해석"만 인쇄, 디스크 나온 뒤 라벨지에 이유 한 줄씩
     3. 좌우 분할 동시: 왼쪽 보고서, 오른쪽 캐러셀, 가운데 디스크 문단 강조
-- 유튜브 재생목록 만들기(미리듣기는 iTunes): [docs/youtube-playlist-plan.md](docs/youtube-playlist-plan.md). 요약 — 검색(100단위)을 피하려 곡↔영상 짝을 MusicBrainz·배치로 미리 DB 에 적재, 재생목록은 로그인 없는 watch_videos 링크(할당량 0)와 OAuth 생성 두 갈래. 스포티파이는 데모 저장까지 전부 뺌(9/28)
+- 유튜브 재생목록 만들기(미리듣기는 iTunes): [docs/youtube-playlist-plan.md](docs/youtube-playlist-plan.md). 요약 — 검색(100단위)을 피하려 곡↔영상 짝을 관리자 배치(유튜브 검색 곡당 1회)로 미리 DB 에 적재, 재생목록은 로그인 없는 watch_videos 링크(할당량 0)와 OAuth 생성 두 갈래. 스포티파이는 데모 저장까지 전부 뺌(9/28)
 - 모바일 대응: [docs/mobile-plan.md](docs/mobile-plan.md) — 보류. 목업 완성 후 1단계(뷰포트·dvh·터치 제스처·카메라 화각·성능 단계)부터
 - 재생 슬롯에 밀어 넣기 인터랙션(4번) 미구현
 - 3D 모델: Sketchfab GLB 받으면 `frontend/public/models/` 에. 서랍장 외형만 교체하고 긴 서랍/파일 연출은 유지 (라이선스·출처 표기 확인)

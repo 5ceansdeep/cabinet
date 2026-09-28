@@ -1,4 +1,4 @@
-/* 유튜브 검색 폴백 — MusicBrainz 에서 못 찾은 곡만. search.list 는 한 번에 100 단위(하루 10,000)라
+/* 유튜브 검색 — 곡의 영상 ID 를 찾는다. search.list 는 한 번에 100 단위(하루 10,000)라
    반드시 캐시(Track.videoId)와 하루 상한을 함께 쓴다. 키가 없으면 그냥 건너뛴다 (키: Google Cloud Console → YouTube Data API v3) */
 
 import { readFileSync, writeFileSync } from 'node:fs';

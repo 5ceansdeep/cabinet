@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
@@ -21,8 +21,9 @@ export class AuthController {
   @ApiOperation({ summary: '서랍 열기 — 로그인' })
   @ApiResponse({ status: 201, type: TokenDto })
   @ApiResponse({ status: 401, description: '이메일이나 비밀번호가 틀림' })
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto);
+  @ApiResponse({ status: 429, description: '같은 곳에서 같은 이메일로 5번 틀림 — 15분 뒤에 다시' })
+  login(@Body() dto: LoginDto, @Ip() ip: string) {
+    return this.auth.login(dto, ip);
   }
 
   @Get('me')

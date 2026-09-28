@@ -24,13 +24,6 @@ function read(): Saved[] {
   }
 }
 
-export function loadShelves(): Shelf[] {
-  const saved = read()
-    .sort((a, b) => b.at - a.at)
-    .map((s) => ({ id: s.id, tag: s.tag, kept: s.ids.map((id) => TRACKS.find((t) => t.id === id)).filter((t): t is Track => !!t) }));
-  return [...saved, ...DEMO];
-}
-
 export function saveShelf(tag: string, kept: Track[]) {
   const shelf: Saved = { id: `s${Date.now().toString(36)}`, tag, ids: kept.map((t) => t.id), at: Date.now() };
   try {
@@ -70,6 +63,7 @@ export function subscribeShelves(cb: () => void) {
   addEventListener("storage", cb);
   return () => removeEventListener("storage", cb);
 }
+// 저장해 둔 서랍(최신이 앞) + 예시 서랍
 export function parseShelves(raw: string): Shelf[] {
   let saved: Saved[] = [];
   try {

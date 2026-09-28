@@ -71,3 +71,12 @@ export function subscribeSession(cb: () => void) {
 
 // 이 브라우저에서 한 번이라도 가입한 적 있나 — 처음 온 사람은 회원가입으로 보낸다
 export const hasAccounts = () => Object.keys(accounts()).length > 0;
+
+/* 회원가입으로 보내는 건 이 브라우저에서 딱 한 번만 — 두 번째부터는 로그인 화면에 머문다.
+   안 그러면 다른 기기에서 가입했거나 저장소를 지운 사람은 "로그인" 을 눌러도 계속 가입 화면으로 튕긴다 */
+const SENT = "cabinet.sentToSignup";
+export function sendToSignupOnce() {
+  if (load(SENT)) return false;
+  save(SENT, "1");
+  return true;
+}

@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { clearSession, getSession, hasAccounts, login, requestReset, signup, subscribeSession } from "@/lib/auth";
+import { clearSession, getSession, hasAccounts, login, requestReset, sendToSignupOnce, signup, subscribeSession } from "@/lib/auth";
 import { startChoir } from "@/lib/choir";
 import { whenQuiet } from "@/lib/voice";
 import { thud } from "@/lib/thud";
@@ -27,7 +27,8 @@ export default function AuthFlow({ mode }: { mode: Mode }) {
 
   // 이 브라우저에 계정이 하나도 없으면 — 처음 온 사람이니 회원가입으로
   useEffect(() => {
-    if (mode === "login" && !getSession() && !hasAccounts()) router.replace("/signup");
+    // 단 한 번만 — 가입 화면에서 "로그인" 을 눌러 돌아오면 여기 머문다
+    if (mode === "login" && !getSession() && !hasAccounts() && sendToSignupOnce()) router.replace("/signup");
   }, [mode, router]);
 
   // 이미 들어온 적 있으면 인사만 하고 곧장 편지로. "다른 이름으로" 누르면 세션을 지우고 평소대로

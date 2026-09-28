@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import type { Group } from "three";
 import { CABINET } from "@/components/landing/dimensions";
-import { labelMaterial, materials } from "@/components/landing/materials";
+import { liveLabel, materials } from "@/components/landing/materials";
 
 /* 남긴 디스크를 받아 가는 서랍 — 화면 아래에서 스르륵 올라와 열려 있다가, 다 삼키면 "탁" 닫히고 내려간다.
    디스크가 빨려 드는 자리(MOUTH)는 Deck 이 목표 지점으로 쓴다 */
@@ -17,6 +17,12 @@ export default function SaveDrawer({ open, tag }: { open: boolean; tag: string }
   const g = useRef<Group>(null!);
   const m = materials();
   const { invalidate } = useThree();
+  // 네임택 — 타자기로 한 글자씩 찍히니 캔버스 하나를 다시 칠한다 (글자마다 새 재료를 만들면 쌓인다)
+  const label = useMemo(() => liveLabel(), []);
+  useEffect(() => {
+    label.draw(tag || " ");
+    invalidate();
+  }, [label, tag, invalidate]);
 
   useFrame((_, dt) => {
     const to = open ? MOUTH[1] : MOUTH[1] - 1.4; // 닫히면 화면 밖으로 내려간다
@@ -40,7 +46,7 @@ export default function SaveDrawer({ open, tag }: { open: boolean; tag: string }
       {/* 전면 + 네임택 + 손잡이 */}
       <RoundedBox args={[W - 0.04, H, 0.05]} radius={0.012} smoothness={3} material={m.steel} />
       <RoundedBox args={[0.5, 0.14, 0.012]} radius={0.004} position={[0, H * 0.27, 0.03]} material={m.metal} />
-      <mesh position={[0, H * 0.27, 0.037]} material={labelMaterial(tag || " ")}>
+      <mesh position={[0, H * 0.27, 0.037]} material={label.mat}>
         <planeGeometry args={[0.44, 0.1]} />
       </mesh>
       <RoundedBox args={[0.46, 0.05, 0.06]} radius={0.02} smoothness={4} position={[0, -H * 0.24, 0.05]} material={m.metal} />

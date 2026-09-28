@@ -51,30 +51,49 @@ let cache: ReturnType<typeof build> | undefined;
 export const materials = () => (cache ??= build());
 
 /* 인쇄된 라벨 — 글자를 캔버스에 찍어 텍스처로. Html 과 달리 서랍에 가려진다 */
+function paintLabel(ctx: CanvasRenderingContext2D, text: string, bg: string) {
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 512, 128);
+  ctx.fillStyle = "rgba(33,37,41,.75)";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.letterSpacing = "8px";
+  // 긴 라벨("CONFIRM PASSWORD")도 탭 안에 들어가게 글자를 줄인다
+  let size = 58;
+  do ctx.font = `600 ${(size -= 2)}px "Courier New", monospace`;
+  while (ctx.measureText(text).width > 480 && size > 20);
+  ctx.fillText(text, 256, 68);
+}
+
+function labelCanvas(bg: string) {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 128;
+  const ctx = c.getContext("2d")!;
+  const map = new CanvasTexture(c);
+  map.colorSpace = SRGBColorSpace;
+  map.anisotropy = 8;
+  const mat = new MeshPhysicalMaterial({ map, roughness: 0.9 });
+  const draw = (text: string) => {
+    paintLabel(ctx, text, bg);
+    map.needsUpdate = true;
+  };
+  return { mat, draw };
+}
+
+// 글자가 고정된 라벨 — 같은 글자면 재료를 돌려 쓴다
 const labels = new Map<string, MeshPhysicalMaterial>();
 export function labelMaterial(text: string, bg = "#faf8f2") {
   let mat = labels.get(text + bg);
   if (!mat) {
-    const c = document.createElement("canvas");
-    c.width = 512;
-    c.height = 128;
-    const ctx = c.getContext("2d")!;
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, 512, 128);
-    ctx.fillStyle = "rgba(33,37,41,.75)";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.letterSpacing = "8px";
-    // 긴 라벨("CONFIRM PASSWORD")도 탭 안에 들어가게 글자를 줄인다
-    let size = 58;
-    do ctx.font = `600 ${(size -= 2)}px "Courier New", monospace`;
-    while (ctx.measureText(text).width > 480 && size > 20);
-    ctx.fillText(text, 256, 68);
-    const map = new CanvasTexture(c);
-    map.colorSpace = SRGBColorSpace;
-    map.anisotropy = 8;
-    mat = new MeshPhysicalMaterial({ map, roughness: 0.9 });
+    const l = labelCanvas(bg);
+    l.draw(text);
+    mat = l.mat;
     labels.set(text + bg, mat);
   }
   return mat;
 }
+
+// 글자가 바뀌는 라벨(타자기로 한 글자씩 찍는 네임택) — 캔버스 하나를 다시 칠한다.
+// labelMaterial 로 찍으면 글자 수만큼 재료가 캐시에 쌓여 사라지지 않는다
+export const liveLabel = (bg = "#faf8f2") => labelCanvas(bg);

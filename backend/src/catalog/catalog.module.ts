@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CatalogController } from './catalog.controller.js';
 import { CatalogService } from './catalog.service.js';
+import { VideoService } from './videos.js';
 
-@Module({ controllers: [CatalogController], providers: [CatalogService], exports: [CatalogService] })
+@Module({ controllers: [CatalogController], providers: [CatalogService, VideoService], exports: [CatalogService, VideoService] })
 export class CatalogModule {}

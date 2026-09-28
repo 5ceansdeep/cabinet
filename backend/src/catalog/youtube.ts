@@ -6,12 +6,16 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const DAILY_LIMIT = Number(process.env.YT_SEARCH_DAILY_LIMIT ?? 60); // 60회 = 6,000 단위
 
 /* 오늘 쓴 횟수는 파일에 적어 둔다 — 메모리에만 두면 개발 서버가 파일 저장마다 재시작하면서 0 으로 돌아가 상한이 안 먹는다.
-   ponytail: 서버가 여러 대면 파일을 따로 가진다 — 그땐 DB 로. 유튜브 할당량은 태평양 시간 자정에 풀리지만 여기선 서버 날짜로 센다 */
+   날짜는 태평양 시간으로 센다 — 유튜브 할당량이 그 자정에 풀린다.
+   ponytail: 서버가 여러 대면 파일을 따로 가진다 — 그땐 DB 로 */
 const FILE = '.yt-budget.json';
 type Budget = { day: string; used: number };
 
+export const PT = 'America/Los_Angeles';
+const ptDay = () => new Date().toLocaleDateString('en-CA', { timeZone: PT });
+
 function load(): Budget {
-  const today = new Date().toDateString();
+  const today = ptDay();
   try {
     const b = JSON.parse(readFileSync(FILE, 'utf8')) as Budget;
     if (b.day === today) return b;
@@ -34,7 +38,8 @@ function spend() {
 
 type Item = { id: { videoId: string }; snippet: { title: string; channelTitle: string } };
 
-export async function searchVideoId(title: string, artist: string): Promise<string | null> {
+/** 영상 ID 찾기 — { id } 는 검색했다는 뜻(못 찾았으면 id: null), null 은 검색을 못 했다(키 없음·오늘 상한·오류) */
+export async function searchVideoId(title: string, artist: string): Promise<{ id: string | null } | null> {
   const key = process.env.YOUTUBE_API_KEY;
   if (!key || searchBudget().left <= 0) return null;
 
@@ -46,12 +51,13 @@ export async function searchVideoId(title: string, artist: string): Promise<stri
     maxResults: '5',
     key,
   });
-  const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
+  const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`).catch(() => null);
+  if (!res) return null;
   spend();
-  if (!res.ok) return null;
+  if (!res.ok) return null; // 403(할당량 초과·키 문제) 등 — 못 찾은 게 아니라 못 물어본 것
   const json = (await res.json()) as { items?: Item[] };
   const items = json.items ?? [];
   // 공식 음원(아티스트 - Topic 채널)을 먼저, 없으면 첫 결과
-  const official = items.find((i) => /- Topic$/.test(i.snippet.channelTitle) || i.snippet.channelTitle.includes(artist));
-  return (official ?? items[0])?.id.videoId ?? null;
+  const official = items.find((i) => i.snippet.channelTitle.endsWith('- Topic') || i.snippet.channelTitle.includes(artist));
+  return { id: (official ?? items[0])?.id.videoId ?? null };
 }

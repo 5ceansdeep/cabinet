@@ -4,7 +4,7 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 import { CatalogService } from './catalog.service.js';
 import { CollectDto, TrackDto } from './dto.js';
 
-/* 수집은 외부 API 할당량(유튜브 하루 검색 상한)을 쓰므로 관리자만.
+/* 수집은 외부 API(iTunes·Last.fm)를 몰아 부르므로 관리자만.
    관리자 = .env 의 ADMIN_EMAILS(쉼표로 여러 개). 비어 있으면 아무도 못 부른다 */
 const isAdmin = (email: string) =>
   (process.env.ADMIN_EMAILS ?? '')
@@ -34,7 +34,7 @@ export class CatalogController {
   @Post('collect')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: '곡 정보 수집 (관리자) — 커버·미리듣기(iTunes) + 유튜브 영상 ID(유튜브 검색)' })
+  @ApiOperation({ summary: '곡 정보 수집 (관리자) — 커버·미리듣기(iTunes) + 태그(Last.fm). 영상 ID 는 재생목록·밤 배치에서' })
   @ApiResponse({ status: 201, type: [TrackDto] })
   @ApiResponse({ status: 403, description: 'ADMIN_EMAILS 에 없는 계정' })
   collect(@Body() dto: CollectDto, @Req() req: { user: { email: string } }) {

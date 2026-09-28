@@ -1,7 +1,7 @@
 # cabinet 작업 컨텍스트 (2026-09-28)
 
 ## 목표
-docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전이라 프론트는 가짜 데이터로 띄운다.
+docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백엔드(인증·추천·서랍)에 붙었고, 서버가 없으면 가짜 데이터로 돈다.
 
 ## 구조
 `app/` 은 라우트 + 페이지 상태 흐름만. UI 조각은 `components/<페이지>/`, 공용 유틸은 `lib/`.
@@ -11,14 +11,19 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
 - 음성은 영어(ElevenLabs, `docs/voice-script.csv`), 자막은 한국어. 음성 파일(29개, `public/voice/`)에서 말소리 사이 가장 긴 쉼 N−1개(N=자막 줄 수, 잔향 때문에 최고 음량 15% 미만을 쉼으로 봄)를 찾아(`lib/cues.ts`) 자막 줄을 음성 문장에 맞춰 띄움. 대사는 끊지 않고 대기열로 이어 재생(엔터만 예외 — `cut()` 으로 즉시 끊고 자막도 지움. 말 끝 = 분석한 마지막 말소리, 파일 끝 공백은 안 기다림, 기다리는 중엔 최신 1개만), 자막은 그 대사 소리가 시작될 때 바뀜. 페이지 떠나도 끝까지 나옴, `/search` 이동은 `whenQuiet()` 뒤. 첫 대사는 페이지별(`LINES.intro` — INTRO / INTRO_SIGNUP / INTRO_FORGOT)
 - 자막 표시(`components/landing/Subtitle.tsx`): 위쪽 고정(top 74%), 새 줄이 위에 펼쳐지며 먼저 나온 줄을 아래로 밀어냄. 로딩(후광) 중엔 서랍 호버·키보드 열기 잠금
 - 자막: 줄마다 반투명 회색 박스 + 흰 조선굴림체(`app/fonts/ChosunGu.woff`, `font-subtitle`), 긴 문장은 문장별로 줄 나눠 "- " 시작(`subtitleLines`). 음성 파일 `public/voice/{키}.mp3`(없으면 기계 음성), 키 목록은 docs/voice-persona.md 4번
-- 안내는 영화 자막 + 목소리(`lib/voice.ts`, Web Speech API — 첫 사용자 입력 전엔 무음). 문구는 전부 `components/landing/lines.ts`(말투 = `docs/voice-persona.md`, 브루스 올마이티의 신 "자네"): 필드별(prompt/missing/invalid/tooShort/mismatch) + 흐름(idle·30초 재촉·CapsLock·대조 중·틀림·계정 없음·이미 가입·서버 오류·환영/재방문·로딩·열쇠 찾기). ESC 로 앞 서류. 회원가입 = 이메일→닉네임(2~12, 한/영/숫자/_)→비밀번호(8자+)→확인. `/forgot` 열쇠 찾기(가입 여부 안 흘림). 가짜 인증 `lib/auth.ts`(localStorage, SHA-256) — 백엔드 생기면 함수 몸통만 fetch 로
+- 안내는 영화 자막 + 목소리(`lib/voice.ts`, Web Speech API — 첫 사용자 입력 전엔 무음). 문구는 전부 `components/landing/lines.ts`(말투 = `docs/voice-persona.md`, 브루스 올마이티의 신 "자네"): 필드별(prompt/missing/invalid/tooShort/mismatch) + 흐름(idle·30초 재촉·CapsLock·대조 중·틀림·계정 없음·이미 가입·서버 오류·환영/재방문·로딩·열쇠 찾기). ESC 로 앞 서류. 회원가입 = 이메일→닉네임(2~12, 한/영/숫자/_)→비밀번호(8자+)→확인. `/forgot` 열쇠 찾기(가입 여부 안 흘림). 인증은 백엔드 /auth (`lib/auth.ts` → `lib/api.ts`, JWT 는 localStorage `cabinet.token`). 로그인 실패는 계정 유무 구분 없이 "비밀이 틀렸네"
 - 3번 키워드 입력: `frontend/app/search/page.tsx` + `components/search/` — 흰 테마 편지지(순백 + 그림자색만, "신" 단어 금지, 명조체 `font-letter` = Nanum Myeongjo. 메일 작성창 버전은 해봤다가 롤백), 그림자색 타이핑 입자, Enter 제출 → `/results?q=` (4번은 아직 다크)
-- 5번 아카이빙 메인 룸: `frontend/app/archive/page.tsx` + `components/archive/` — 감정 테마 태그가 네임택으로 붙은 3단 개인 서류함(4번과 같은 방). 서랍을 누르면 앞으로 열리며 카메라가 위로 올라가 내려다보고, 종이 파일 사이에 꽂힌 플로피를 누르면 5.1 보고서로. 보관 기록은 `components/archive/shelf.ts` 가짜 데이터
+- 5번 아카이빙 메인 룸: `frontend/app/archive/page.tsx` + `components/archive/` — 감정 테마 태그가 네임택으로 붙은 3단 개인 서류함(4번과 같은 방). 서랍을 누르면 앞으로 열리며 카메라가 위로 올라가 내려다보고, 서랍 3개씩 넘겨 봄. 보관 기록은 `components/archive/shelf.ts` — 로그인했으면 백엔드 /shelves 가 원본(보관함 들어올 때 동기화), localStorage 는 사본
 - 5.1 문서 보고서 (**꺼 둠, 2026-09-28** — 라우트는 notFound, 링크 주석 처리. `grep "보고서 꺼 둠"` 으로 되살림): `frontend/app/report/[id]/page.tsx` + `components/report/Report.tsx` — 빛바랜 종이, 대외비 도장, 요청문 인용, 대조 결과 막대
 - 4번 결과: `frontend/app/results/page.tsx` + `components/results/` — 전부 R3F. 검은 공간에 흰 서류함이 빙 둘러선 방(`CabinetWall`, 보관함과 공유하는 `Wall`) 안에
-  3D 플로피가 줄지어 섬(`Deck`·`floppy.tsx`). 호버 타자기 점수(라벨 텍스처), 드래그 360° 회전, 더블클릭 재생(효과음만),
+  3D 플로피가 줄지어 섬(`Deck`·`floppy.tsx`). 곡은 백엔드 /recommend(없으면 `tracks.ts` 가짜 12곡), 라벨·재생바에 iTunes 커버.
+  호버 타자기 점수(라벨 텍스처), 드래그 360° 회전, **짧게 클릭 → 아래 드라이브 슬롯에 꽂혀 재생**(꽂힌 디스크 클릭·↑ 키 = 빼기, ↓ 키 = 꽂기),
+  하단 재생바(`PlayerBar` — 커버·재생/멈춤·진행 막대·꺼내기, iTunes 30초 미리듣기). 헤더에 "요청 해석" 태그.
   위로 뿌리거나 가만히 꾹 누르면(0.9초, 움직이면 취소) 던져져 벽에 부딪히고 바닥에 멎은 뒤 목록에서 빠짐(`Flights` 물리).
-  "서랍에 넣기" → 디스크가 아래 서랍으로 빨려 들고 네임택에 이름을 찍어 보관함으로(`SaveDrawer`)
+  **다 던지면**: 신의 대사(RESULT_EMPTY) + "던진 곡은 빼고 다시 찾기"(thrown) / "같은 편지로 몇 곡 더"(seen), 더 없으면 RESULT_DRY → 새 편지.
+  두 대사 음성은 녹음 전(기계 음성), voice-script.csv 에 추가해 둠.
+  "서랍에 넣기" → 디스크가 아래 서랍으로 빨려 들고 네임택에 이름을 찍은 뒤 저장해 보관함으로(`SaveDrawer`)
+- 성능: 둘러선 벽을 InstancedMesh 로(메시 1,100여 개 → 5개) — 결과·보관함 첫 화면이 늦던 원인
 - 공용: `frontend/lib/thud.ts` (Web Audio "탁"), `globals.css` 에 토큰/서랍/키프레임
 - 루트 `npm run dev` (`dev.mjs`) 로 프론트+백엔드 동시 실행, 백엔드 기본 포트 4000
 - **영화 비율 프레임(9/28)**: 모든 화면이 2.39:1 `.cinema` 프레임 안(layout.tsx·globals.css, 비율은 `--cinema`). 프레임 안에선 vh 대신 cqh·cqmax,
@@ -34,6 +39,15 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
   이메일은 검증 전에 공백·대문자를 다듬고, 로그인 실패는 계정 없음/비밀번호 틀림을 구분해 알리지 않는다.
   JWT 서명 키는 `JwtModule.registerAsync` 로 .env 에서 읽어야 한다 (`register()` 면 모듈이 .env 보다 먼저 평가돼
   서명 키와 검증 키가 어긋나 /auth/me 가 401)
+- **추천**: `GET /recommend?q=&seen=&thrown=` → 요청 해석 태그 + 곡별 의미·분위기 점수 + 겹친 태그, `GET /recommend/:id?q=`.
+  해석 = `recommend/interpret.ts` 한국어 낱말 사전(**LLM 자리 임시**), 점수 = 태그 가중치 코사인(DRIFT 에서 옮김).
+  thrown 은 빼면서 그 곡들 태그 쪽에서 멀어지고, seen 은 빼기만. 한국 곡은 Last.fm 에 분위기 태그가 거의 없어 분위기 일치도 대부분 0,
+  의미 점수도 20~35% — 사전 태그가 DB 에 없는 태그를 많이 내서. LLM + DB 태그 목록 제약으로 풀 예정
+- **서랍**: `GET/POST/DELETE /shelves` (JWT). 곡은 제목·가수로 하나만 둔다
+- **곡 태그**: Last.fm `track.getTopTags`(3개 미만이면 `artist.getTopTags` 로 보충) → `Track.tags` JSON. 수집(`/catalog/collect`) 때 같이
+- **곡 풀**: 약 38곡(커버·미리듣기·태그). 태그 0개인 곡은 추천에서 빠진다
+- **DB 보기**: `cd backend && npx prisma studio --url "file:///Users/5ceansdeep/cabinet/backend/dev.db"`
+  (Prisma 7.10 윈도우 버그 — `file:./dev.db` 는 "not supported" 로 거부)
 - **Swagger**: http://localhost:4000/docs (Authorize 에 토큰)
 - **DB**: Prisma + SQLite(`backend/dev.db`, git 무시). 모델 `User` / `Shelf`(서랍=저장한 목록, 네임택·요청문) /
   `Track`(커버·미리듣기·videoId) / `ShelfTrack`(순서).
@@ -44,16 +58,27 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
   - 영상 ID: 유튜브 검색만(100단위, 하루 상한 `YT_SEARCH_DAILY_LIMIT`). 찾으면 DB 에 영구 보관
   - 확인: 가짜 곡 6곡 커버·미리듣기 6/6 성공(URL 200), **영상 ID 0/6**
 - **.env** (git 무시, 예시는 `.env.example`): `DATABASE_URL`, `JWT_SECRET`, `PORT`,
-  `LASTFM_API_KEY`(발급 완료), `YOUTUBE_API_KEY`(미발급)
+  `ADMIN_EMAILS`, `LASTFM_API_KEY`(발급 완료), `YOUTUBE_API_KEY`(9/28 발급 — 사용자가 .env 에 넣는 중), `YT_SEARCH_DAILY_LIMIT`
 
 ## 가짜로 둔 것 (`ponytail:` 주석)
-- 프론트 로그인: 아직 `frontend/lib/auth.ts` 의 localStorage 가짜 인증. **백엔드 /auth 가 생겼으니 교체 차례**
-- 저장한 서랍: `components/archive/shelf.ts` 가 localStorage. 백엔드 저장 API 가 생기면 읽기/쓰기만 교체
+- 요청 해석: 낱말 사전 (LLM 전)
+- 열쇠 찾기: 메일 발송 없음
 - 로딩 진행률: 타이머
-- 결과 트랙: `components/results/tracks.ts` 하드코딩, 앨범 이미지는 그라디언트
-- 미리듣기: 효과음 + NOW PLAYING 표시만, 실제 음원 없음
+- 서버가 없을 때 결과 곡: `tracks.ts` 가짜 12곡
 
 ## 다음
+- **작업 순서(9/28 합의 대기)**: ① 이 문서 갱신(완료) ② `interpret()` 을 LLM 으로 — DB 에 실제 있는 태그 목록을 enum 으로 묶고,
+  온도 0·해시 캐시 ③ 곡 풀 넓히기를 관리자 배치로
+- **곡 풀 넓히기 — `git stash` 에 있음** (`stash@{0}` "곡 풀 넓히기(PoolService) 작업 중"): `catalog/pool.ts`.
+  후보 = 해석 태그의 Last.fm `tag.getTopTracks` + 결과 상위 가수의 `artist.getSimilar` → `artist.getTopTracks`.
+  태그 먼저 받아 한국 곡만(한글 이름 또는 korean·k-indie 류 태그), iTunes 는 분당 20회라 3초 간격 대기열, 같은 곡 다른 표기는 미리듣기 URL 로 거름.
+  검색 두 번에 21→38곡 확인. 지금은 검색할 때 뒤에서 모으는 방식 — 확정안("DB 는 관리자 배치")에 맞춰 배치 엔드포인트로 옮길 것.
+  남은 문제: iTunes 한국 스토어가 영문 표기(JANNABI, The Black Skirts)를 주기도 함, 가수 태그뿐인 곡은 점수가 같아 한 가수로 몰림(가수당 1곡 먼저 — 미검증)
+- **영상 ID 방향 제안(미확정)**: 전부 미리 모으면 할당량(검색 100단위, 하루 100곡) 낭비 — 재생목록을 안 만드는 사람이 많다.
+  제안 = 재생목록 요청 때 없는 곡만 찾기 + 매일 남는 할당량으로 자주 추천·저장된 곡부터 밤 배치 + 상한에 걸리면 곡별 유튜브 검색 링크(할당량 0).
+  곡 풀 크기가 총비용의 상한이라 풀이 안정되면 호출 거의 0. 확정되면 docs/youtube-playlist-plan.md 3장 고칠 것
+- **곡 특징 보강 후보**: 가사 = LRCLIB(무료·키 없음, 한국 곡 있음 — 분석에만, 화면 표시 금지), BPM = Deezer track.bpm(무료),
+  키·장조 = iTunes 미리듣기를 직접 분석(librosa/essentia, ai-report-plan 2단계)
 - **바로 다음 작업**: 인스타 스토리용 재생목록 카드(아래 "바이럴 인증물"). 계획 먼저 볼지 바로 만들지 사용자 답 대기
 - **정리 대기**: `feat/archive-room` 브랜치(로컬·원격) — 내용은 main 에 다 있음, 지울지 사용자 답 대기
 - 자막 띠 위 반투명 회색 박스 유지 여부, 넓은 프레임에서 랜딩 서류함이 작아 보임(카메라 조정 여부) — 사용자 답 대기
@@ -70,14 +95,10 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
   비밀번호 최대 72자, 로그인 시도 제한, iTunes 결과 아티스트 확인, 네임택 텍스처 캐시가 쌓임, 서랍 이름 제안(`/비/`) 오탐.
   유튜브 검색(`backend/src/catalog/youtube.ts`)이 영상 ID 의 유일한 길 — 키 없으면 안 돈다. MusicBrainz 는 9/28 수집에서 뺌
 - **순서 합의: 화면 목업 완성 → 백엔드·상세 기능** (모바일은 그 뒤)
-- **다 던져 버렸을 때 인터랙션 (요청)**: 남긴 곡이 0이 되면 신의 목소리로 한마디 하고 두 갈래를 준다 —
-  (1) 방금 던진 곡들을 빼고 다시 찾기(제외 목록을 검색에 넘김) (2) 같은 편지로 몇 곡 더 찾기(이어서 더 꺼내기).
-  자막·음성 대사도 새로 필요(`lines.ts` + voice-script.csv)
 - **바이럴 인증물 — 방향 확정(2026-09-28), 다음 작업**: 인스타그램 스토리 공유용 **재생목록 카드 한 장**.
   최대한 심플하고 귀엽지만 cabinet 다운 특색(서랍·네임택·플로피). 카드에 만든 재생목록을 쉽게 공유할 수단을 담는다 —
   읽기 전용 공개 페이지 링크(`/shelf/{id}` 류)를 띄우고, 그 페이지에서 바로 유튜브 재생목록으로 만들 수 있게
   (`docs/youtube-playlist-plan.md` 의 watch_videos 링크 = 로그인·할당량 없이). 보관증 클립(MediaRecorder)은 보류
-- 결과 디스크 원 게이지: 얇은 흰 원으로 작게 바꿈 (적용 완료)
 - **유튜브 영상 ID 를 어떻게 채울지 — 막힌 지점.** 키 없이 되는 길은 사실상 없다(직접 확인):
   Odesli(song.link) 공개 API 폐지(401 PUBLIC_API_ACCESS_DEPRECATED), Piped 공개 인스턴스는 HTML 만,
   Invidious 는 접속 실패/403, Deezer 는 되지만 유튜브 링크가 없다.
@@ -85,7 +106,6 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
   → 선택지: (1) 유튜브 API 키 발급(재생목록 OAuth 와 같은 Google Cloud 프로젝트라 어차피 필요) (2) yt-dlp 류(약관 위반·취약)
   (3) 영상 ID 는 재생목록 붙일 때로 미루기. → **9/28 확정: (1) 유튜브 API 키, 관리자 배치로 미리 채움** (위 "파이프라인 확정")
 - **Deezer 폴백 제안(미적용)**: iTunes 가 간헐적으로 0건을 주므로, 키 없이 되는 Deezer 로 커버·미리듣기 성공률을 올릴 수 있다
-- 프론트 가짜 인증 → 백엔드 /auth 연결, 서랍 저장 API(`POST /shelves`) 추가
 - 아키비스트 AI 보고서(XAI): 계획은 [docs/ai-report-plan.md](docs/ai-report-plan.md) — 아래 결정으로 문서 갱신 필요
   - 원칙: 숫자는 코드가 계산, LLM은 문장만
   - 1차 특징 = Last.fm 태그 (`track.getTopTags`, 태그별 가중치 0~100. 태그 적으면 `artist.getTopTags` 로 보충). BPM 등 부족한 특징은 2차에 수집
@@ -98,8 +118,7 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 백엔드 API 전�
     3. 좌우 분할 동시: 왼쪽 보고서, 오른쪽 캐러셀, 가운데 디스크 문단 강조
 - 유튜브 재생목록 만들기(미리듣기는 iTunes): [docs/youtube-playlist-plan.md](docs/youtube-playlist-plan.md). 요약 — 검색(100단위)을 피하려 곡↔영상 짝을 관리자 배치(유튜브 검색 곡당 1회)로 미리 DB 에 적재, 재생목록은 로그인 없는 watch_videos 링크(할당량 0)와 OAuth 생성 두 갈래. 스포티파이는 데모 저장까지 전부 뺌(9/28)
 - 모바일 대응: [docs/mobile-plan.md](docs/mobile-plan.md) — 보류. 목업 완성 후 1단계(뷰포트·dvh·터치 제스처·카메라 화각·성능 단계)부터
-- 재생 슬롯에 밀어 넣기 인터랙션(4번) 미구현
 - 3D 모델: Sketchfab GLB 받으면 `frontend/public/models/` 에. 서랍장 외형만 교체하고 긴 서랍/파일 연출은 유지 (라이선스·출처 표기 확인)
-- 백엔드: 검색·추천(자연어 → 태그 → 점수) 아직 없음. 인증·DB·곡 수집은 위 "백엔드" 참고
+- 추천 품질: 곡 풀 늘리기, LLM 요청 해석, 분위기 특징 보강
 - 자연어 처리 안정성: LLM 은 요청문 → 태그 가중치만, 곡 선택은 코드. 온도 0·모델 고정·요청문 정규화 후 해시 캐시로
   같은 문장이면 같은 결과. 화면에 "요청 해석" 태그를 보여 준다

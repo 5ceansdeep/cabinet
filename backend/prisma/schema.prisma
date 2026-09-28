@@ -56,3 +56,14 @@ model ShelfTrack {
 
   @@id([shelfId, trackId])
 }
+
+/// 검색 기록 — 요청 해석 태그와 결과 상위 가수. 곡 풀 넓히기(관리자 배치)가 사람들이 찾는 쪽으로 곡을 모을 때 씨앗으로 쓴다.
+/// 요청문 원문과 사용자는 남기지 않는다
+model SearchLog {
+  id        String   @id @default(cuid())
+  tags      String // {"night": 100, ...}
+  artists   String   @default("[]") // ["검정치마", ...]
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

@@ -34,25 +34,28 @@ const NORMALIZE: Record<string, string> = {
 
 type TopTags = { toptags?: { tag?: { name: string; count: number | string }[] } };
 
-async function topTags(params: Record<string, string>): Promise<Tags> {
+async function call<T>(params: Record<string, string>): Promise<T | null> {
   const key = process.env.LASTFM_API_KEY;
-  if (!key) return {};
+  if (!key) return null;
   const qs = new URLSearchParams({ ...params, api_key: key, format: 'json', autocorrect: '1' });
   try {
     const res = await fetch(`https://ws.audioscrobbler.com/2.0/?${qs}`);
-    if (!res.ok) return {};
-    const json = (await res.json()) as TopTags;
-    const out: Tags = {};
-    for (const t of json.toptags?.tag?.slice(0, 20) ?? []) {
-      const raw = t.name.toLowerCase().trim();
-      const name = NORMALIZE[raw] ?? raw;
-      const w = Number(t.count);
-      if (w > 0) out[name] = Math.max(out[name] ?? 0, w);
-    }
-    return out;
+    return res.ok ? ((await res.json()) as T) : null;
   } catch {
-    return {};
+    return null;
   }
+}
+
+async function topTags(params: Record<string, string>): Promise<Tags> {
+  const r = await call<TopTags>(params);
+  const out: Tags = {};
+  for (const t of r?.toptags?.tag?.slice(0, 20) ?? []) {
+    const raw = t.name.toLowerCase().trim();
+    const name = NORMALIZE[raw] ?? raw;
+    const w = Number(t.count);
+    if (w > 0) out[name] = Math.max(out[name] ?? 0, w);
+  }
+  return out;
 }
 
 export async function fetchTags(title: string, artist: string): Promise<Tags> {
@@ -60,4 +63,25 @@ export async function fetchTags(title: string, artist: string): Promise<Tags> {
   if (Object.keys(track).length >= 3) return track;
   // 곡 태그가 모자라면 가수 태그로 채운다 — 곡 태그를 우선
   return { ...(await topTags({ method: 'artist.getTopTags', artist })), ...track };
+}
+
+/* ─ 곡 풀을 넓힐 후보 — 태그의 인기곡, 비슷한 가수의 인기곡 ─ */
+
+export type Ref = { title: string; artist: string };
+
+type TrackList = { name: string; artist: { name: string } }[];
+
+export async function tagTopTracks(tag: string, limit = 30): Promise<Ref[]> {
+  const r = await call<{ tracks?: { track?: TrackList } }>({ method: 'tag.getTopTracks', tag, limit: String(limit) });
+  return (r?.tracks?.track ?? []).map((t) => ({ title: t.name, artist: t.artist.name }));
+}
+
+export async function similarArtists(artist: string, limit = 5): Promise<string[]> {
+  const r = await call<{ similarartists?: { artist?: { name: string }[] } }>({ method: 'artist.getSimilar', artist, limit: String(limit) });
+  return (r?.similarartists?.artist ?? []).map((a) => a.name);
+}
+
+export async function artistTopTracks(artist: string, limit = 3): Promise<Ref[]> {
+  const r = await call<{ toptracks?: { track?: TrackList } }>({ method: 'artist.getTopTracks', artist, limit: String(limit) });
+  return (r?.toptracks?.track ?? []).map((t) => ({ title: t.name, artist: t.artist.name }));
 }

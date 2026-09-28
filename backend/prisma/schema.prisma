@@ -39,7 +39,7 @@ model Track {
   artwork    String? // iTunes 앨범 커버 URL
   previewUrl String? // iTunes 30초 미리듣기
   videoId    String? // 유튜브 영상 ID — 재생목록에 담을 때 쓴다
-  checkedAt  DateTime? // 영상이 살아 있는지 마지막으로 확인한 때
+  checkedAt  DateTime? // 영상 ID 를 마지막으로 찾아본 때 — 못 찾았으면 30일 동안 다시 안 묻는다
   tags       String       @default("{}") // Last.fm 태그 가중치 JSON {"indie": 100, "dreamy": 42} — SQLite 엔 배열·맵이 없다
   shelves    ShelfTrack[]
 

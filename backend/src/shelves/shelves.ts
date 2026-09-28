@@ -3,6 +3,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, IsArray, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { CatalogModule } from '../catalog/catalog.module.js';
+import { searchUrl, VideoService, watchUrl } from '../catalog/videos.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /* 서랍 = 저장한 목록. 네임택과 그때의 요청문, 꽂힌 곡 순서를 남긴다 (DRIFT sectors 의 목록·저장·삭제 틀) */
@@ -29,7 +31,10 @@ type Req = { user: { id: string } };
 
 @Injectable()
 export class ShelvesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly videos: VideoService,
+  ) {}
 
   private readonly include = { tracks: { orderBy: { order: 'asc' as const }, include: { track: true } } };
 
@@ -74,6 +79,22 @@ export class ShelvesService {
     return this.toResponse(shelf);
   }
 
+  /** 유튜브 재생목록 링크 — 모르는 곡만 영상을 찾고(한 번 찾으면 영구), 찾은 곡들로 watch_videos 링크(로그인·할당량 0).
+      못 찾았거나 오늘 상한에 걸린 곡은 곡별 유튜브 검색 링크로 */
+  async playlist(userId: string, id: string) {
+    const shelf = await this.prisma.shelf.findFirst({ where: { id, userId }, include: this.include });
+    if (!shelf) throw new NotFoundException('그런 서랍은 없네');
+    const { tracks, exhausted } = await this.videos.ensure(shelf.tracks.map((s) => s.track));
+    const ids = tracks.flatMap((t) => (t.videoId ? [t.videoId] : []));
+    return {
+      url: ids.length ? watchUrl(ids.slice(0, 50)) : null, // watch_videos 는 50개까지
+      found: ids.length,
+      total: tracks.length,
+      exhausted, // 오늘 검색 상한에 걸려 못 물어본 곡이 있다
+      missing: tracks.filter((t) => !t.videoId).map((t) => ({ title: t.title, artist: t.artist, search: searchUrl(t) })),
+    };
+  }
+
   async remove(userId: string, id: string) {
     const shelf = await this.prisma.shelf.findFirst({ where: { id, userId } });
     if (!shelf) throw new NotFoundException('그런 서랍은 없네');
@@ -101,6 +122,12 @@ export class ShelvesController {
     return this.shelves.create(req.user.id, dto);
   }
 
+  @Post(':id/playlist')
+  @ApiOperation({ summary: '유튜브에서 이어 듣기 — watch_videos 링크 + 못 찾은 곡의 검색 링크' })
+  playlist(@Req() req: Req, @Param('id') id: string) {
+    return this.shelves.playlist(req.user.id, id);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: '서랍 비우기' })
   remove(@Req() req: Req, @Param('id') id: string) {
@@ -108,5 +135,5 @@ export class ShelvesController {
   }
 }
 
-@Module({ controllers: [ShelvesController], providers: [ShelvesService] })
+@Module({ imports: [CatalogModule], controllers: [ShelvesController], providers: [ShelvesService] })
 export class ShelvesModule {}

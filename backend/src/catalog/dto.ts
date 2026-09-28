@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 
 export class TrackRefDto {
   @ApiProperty({ example: 'Everything' }) @IsString() @IsNotEmpty() @MaxLength(200) title!: string;
@@ -29,4 +29,13 @@ export class TrackDto {
   @ApiProperty({ nullable: true, description: 'iTunes 앨범 커버(600x600)' }) artwork!: string | null;
   @ApiProperty({ nullable: true, description: 'iTunes 30초 미리듣기' }) previewUrl!: string | null;
   @ApiProperty({ nullable: true, description: '유튜브 영상 ID — 재생목록에 담을 때 쓴다' }) videoId!: string | null;
+}
+
+export class GrowDto {
+  @ApiProperty({ required: false, default: 30, maximum: 100, description: '새로 담을 곡 수 — iTunes 제한 때문에 곡당 3초쯤 걸린다' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  target?: number;
 }

@@ -6,6 +6,7 @@ import { interpret } from './interpret.js';
 import { cosine, push } from './score.js';
 
 /* 요청문 → 태그(해석) → 갖춰 둔 곡마다 태그 겹침 점수 → 상위 몇 곡.
+   검색은 해석 태그·상위 가수만 SearchLog 에 남긴다 — 곡 풀 넓히기(catalog/pool.ts, 관리자 배치)가 이걸 씨앗으로 쓴다. 여기선 외부 호출 없음.
    숫자는 전부 코드가 계산한다 (LLM 은 나중에 해석·문장만). 서랍에 넣을 곡 목록이 곧 이 결과다 */
 
 const ids = (s?: string) => (s ? s.split(',').filter(Boolean) : []);
@@ -24,12 +25,21 @@ export class RecommendService {
     const want = thrown.length ? push(asked, thrown.map((id) => tagsOf.get(id) ?? {})) : asked;
     const skip = new Set([...seen, ...thrown]);
 
-    const tracks = pool
+    const ranked = pool
       .filter((t) => !skip.has(t.id))
       .map((t) => scored(t, asked, want))
-      .sort((a, b) => b.semantic - a.semantic)
-      .slice(0, limit);
+      .sort((a, b) => b.semantic - a.semantic);
+    // 가수당 한 곡씩 먼저 — 곡 태그가 모자라 가수 태그를 쓴 곡들은 점수가 같아 한 가수로 몰린다. 모자라면 나머지로 채운다
+    const artists = new Set<string>();
+    const first = ranked.filter((t) => !artists.has(t.artist) && artists.add(t.artist));
+    const tracks = [...first, ...ranked.filter((t) => !first.includes(t))].slice(0, limit);
 
+    // 처음 뒤질 때만 남긴다("다시 찾기"·"몇 곡 더"는 같은 요청) — 실패해도 결과는 준다
+    if (!seen.length && !thrown.length && query.trim()) {
+      void this.prisma.searchLog
+        .create({ data: { tags: JSON.stringify(asked), artists: JSON.stringify([...new Set(tracks.map((t) => t.artist))].slice(0, 3)) } })
+        .catch(() => undefined);
+    }
     return { interpretation: asked, tracks };
   }
 

@@ -72,11 +72,11 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
 ## 다음
 - **작업 순서(9/28 합의 대기)**: ① 이 문서 갱신(완료) ② `interpret()` 을 LLM 으로 — DB 에 실제 있는 태그 목록을 enum 으로 묶고,
   온도 0·해시 캐시 ③ 곡 풀 넓히기를 관리자 배치로
-- **곡 풀 넓히기 — `git stash` 에 있음** (`stash@{0}` "곡 풀 넓히기(PoolService) 작업 중"): `catalog/pool.ts`.
-  후보 = 해석 태그의 Last.fm `tag.getTopTracks` + 결과 상위 가수의 `artist.getSimilar` → `artist.getTopTracks`.
-  태그 먼저 받아 한국 곡만(한글 이름 또는 korean·k-indie 류 태그), iTunes 는 분당 20회라 3초 간격 대기열, 같은 곡 다른 표기는 미리듣기 URL 로 거름.
-  검색 두 번에 21→38곡 확인. 지금은 검색할 때 뒤에서 모으는 방식 — 확정안("DB 는 관리자 배치")에 맞춰 배치 엔드포인트로 옮길 것.
-  남은 문제: iTunes 한국 스토어가 영문 표기(JANNABI, The Black Skirts)를 주기도 함, 가수 태그뿐인 곡은 점수가 같아 한 가수로 몰림(가수당 1곡 먼저 — 미검증)
+- **곡 풀 넓히기 — 관리자 배치(9/28 구현)**: `POST /catalog/grow {target}`(관리자, 뒤에서 돎) · `GET /catalog/grow`(진행 상황) · 매일 새벽 4시(서버 시간) 자동.
+  검색은 해석 태그·결과 상위 가수만 `SearchLog` 에 남기고 외부 호출 없음. 배치 씨앗 = 최근 7일 검색 태그·가수 + 한국 태그(k-indie 등) + 애플 뮤직 한국 차트.
+  후보 = Last.fm 태그 인기곡·비슷한 가수 인기곡·차트를 출처별로 번갈아. 한국 곡만(한글 이름 또는 korean·k-* 태그), 반주(inst·MR·karaoke)는 거르고
+  리믹스·라이브는 살림, 같은 곡 다른 표기는 미리듣기 URL 로 거름, 태그 없으면 iTunes 장르. iTunes 분당 20회라 곡당 3초 — 30곡에 2~3분.
+  확인: 28곡 보고 8곡 담음(한국 스토어가 0건인 날이라 이름이 영문으로 들어옴 — Kim Dong Ryul 등). 추천은 가수당 1곡 먼저
 - **영상 ID — 9/28 확정·구현**: 필요할 때 + 밤 배치 ([docs/youtube-playlist-plan.md](docs/youtube-playlist-plan.md) 3장).
   `POST /shelves/:id/playlist` → 모르는 곡만 유튜브 검색 → watch_videos 링크 + 못 찾은 곡 검색 링크. 밤 배치 = 태평양 23:30 남은 몫으로
   서랍에 많이 담긴 곡부터(`catalog/videos.ts`). 수집은 유튜브를 안 부른다. 못 찾은 곡은 30일 재질문 안 함. 보관함에서 서랍 열면

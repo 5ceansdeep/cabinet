@@ -2,7 +2,8 @@ import { Body, Controller, ForbiddenException, Get, Post, Req, UseGuards } from 
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CatalogService } from './catalog.service.js';
-import { CollectDto, TrackDto } from './dto.js';
+import { CollectDto, GrowDto, TrackDto } from './dto.js';
+import { PoolService } from './pool.js';
 
 /* 수집은 외부 API(iTunes·Last.fm)를 몰아 부르므로 관리자만.
    관리자 = .env 의 ADMIN_EMAILS(쉼표로 여러 개). 비어 있으면 아무도 못 부른다 */
@@ -16,7 +17,10 @@ const isAdmin = (email: string) =>
 @ApiTags('catalog')
 @Controller('catalog')
 export class CatalogController {
-  constructor(private readonly catalog: CatalogService) {}
+  constructor(
+    private readonly catalog: CatalogService,
+    private readonly pool: PoolService,
+  ) {}
 
   @Get('tracks')
   @ApiOperation({ summary: '갖춰 둔 곡 목록' })
@@ -40,5 +44,24 @@ export class CatalogController {
   collect(@Body() dto: CollectDto, @Req() req: { user: { email: string } }) {
     if (!isAdmin(req.user.email)) throw new ForbiddenException('수집은 관리자만 할 수 있네');
     return this.catalog.collectMany(dto.tracks, dto.force ?? false);
+  }
+
+  @Post('grow')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '곡 풀 넓히기 시작 (관리자) — 검색 기록·한국 태그·애플 차트에서 한국 곡을 모은다. 뒤에서 돌고 바로 상태를 돌려준다' })
+  @ApiResponse({ status: 403, description: 'ADMIN_EMAILS 에 없는 계정' })
+  grow(@Body() dto: GrowDto, @Req() req: { user: { email: string } }) {
+    if (!isAdmin(req.user.email)) throw new ForbiddenException('곡 풀은 관리자만 넓힐 수 있네');
+    return this.pool.start(dto.target);
+  }
+
+  @Get('grow')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '곡 풀 넓히기 진행 상황 (관리자)' })
+  growStatus(@Req() req: { user: { email: string } }) {
+    if (!isAdmin(req.user.email)) throw new ForbiddenException('곡 풀은 관리자만 넓힐 수 있네');
+    return this.pool.getStatus();
   }
 }

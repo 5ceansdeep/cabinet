@@ -89,7 +89,7 @@ export default function Results({ query }: { query: string }) {
   const nowPlaying = kept.find((t) => t.id === playing);
 
   return (
-    <main data-theme="void" className="relative flex min-h-screen flex-1 flex-col overflow-hidden bg-background text-foreground">
+    <main data-theme="void" className="relative flex min-h-full flex-1 flex-col overflow-hidden bg-background text-foreground">
       {phase === "riffle" ? (
         <Riffle />
       ) : (

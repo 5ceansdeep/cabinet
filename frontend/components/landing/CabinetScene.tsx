@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { ContactShadows, Environment, Lightformer, RoundedBox } from "@react-three/drei";
 import { Color, type AmbientLight, type DirectionalLight, type Fog, type SpotLight } from "three";
@@ -105,6 +106,8 @@ function keepContext({ gl, invalidate }: { gl: { domElement: HTMLCanvasElement }
   c.addEventListener("webglcontextlost", (e) => e.preventDefault());
   c.addEventListener("webglcontextrestored", () => invalidate());
 }
+
+const noop = () => () => {}; // 바뀌지 않는 값 구독용
 
 /* 카메라는 서랍 정면에 고정 */
 function Rig() {
@@ -220,6 +223,8 @@ export default function CabinetScene({
   }, [phase]);
 
   const muted = useSyncExternalStore(subscribeMuted, isMuted, () => false); // 브라우저가 소리를 막고 있나
+  // 자막 띠 — 서버 렌더에는 document 가 없으니 브라우저에서만 찾는다
+  const subtitleBar = useSyncExternalStore(noop, () => document.getElementById("cinema-sub"), () => null);
   const said = voiced?.line;
   const waving = said?.voiceKey === "SUBMITTING"; // 대조하는 동안 서랍 속 파일이 파도친다
 
@@ -370,7 +375,7 @@ export default function CabinetScene({
             aria-label={field.label}
             placeholder={field.label.toLowerCase()}
             className={inputCls}
-            style={{ width: `${CARD_VH * 0.62}vh`, fontSize: `${CARD_VH * 0.038}vh` }}
+            style={{ width: `${CARD_VH * 0.62}cqh`, fontSize: `${CARD_VH * 0.038}cqh` }}
           />
           {step > 0 && (
             <p className="absolute inset-x-0 top-full mt-3 text-center font-mono text-[10px] tracking-[.25em] text-black/30">{LINES.escHint}</p>
@@ -385,16 +390,19 @@ export default function CabinetScene({
         </p>
       )}
 
-      {said && (
-        // 위쪽을 고정 — 새 줄이 위에 들어오면 먼저 나온 줄은 아래로 밀린다. z-50: 3D 장면·입력 파일·후광 빛보다 늘 위
-        <div key={`subtitle-${voiced.n}`} aria-live="polite" className="pointer-events-none absolute inset-x-0 top-[78%] z-50 px-6 text-center">
-          <Subtitle
-            timeline={timeline}
-            link={said.link}
-            linkDelay={timeline.at(-1)![1] + timeline.at(-1)![0].length * LINE_PACE} // 마지막 줄을 읽고 나서
-          />
-        </div>
-      )}
+      {/* 자막은 영화처럼 프레임 아래 검은 띠(layout 의 #cinema-sub)에 — 새 줄이 위에 들어오면 먼저 나온 줄은 아래로 밀린다 */}
+      {said &&
+        subtitleBar &&
+        createPortal(
+          <div key={`subtitle-${voiced.n}`} aria-live="polite" className="text-center">
+            <Subtitle
+              timeline={timeline}
+              link={said.link}
+              linkDelay={timeline.at(-1)![1] + timeline.at(-1)![0].length * LINE_PACE} // 마지막 줄을 읽고 나서
+            />
+          </div>,
+          subtitleBar,
+        )}
 
       {/* 키보드 사용자용 — 포커스하면 서랍이 열린다 */}
       {!open && phase === "auth" && !locked && (

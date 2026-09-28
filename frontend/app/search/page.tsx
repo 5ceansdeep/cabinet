@@ -10,7 +10,7 @@ export default function SearchPage() {
   const { canvasRef, scatter } = useParticles();
 
   return (
-    <main className="relative flex min-h-screen flex-1 items-center justify-center bg-white px-4 text-foreground">
+    <main className="relative flex min-h-full flex-1 items-center justify-center bg-white px-4 text-foreground">
       <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 h-full w-full" />
       <RequestForm onType={scatter} onSubmit={(q) => router.push(`/results?q=${encodeURIComponent(q)}`)} />
     </main>

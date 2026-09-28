@@ -40,7 +40,7 @@ function Gauge({ label, value }: { label: string; value: number }) {
 
 export default function Report({ track, query, no }: { track: Track; query: string; no: string }) {
   return (
-    <main className="flex min-h-screen flex-1 justify-center bg-[#cfc7b4] px-4 py-10 font-mono text-[#2f2a20]">
+    <main className="flex min-h-full flex-1 justify-center bg-[#cfc7b4] px-4 py-10 font-mono text-[#2f2a20]">
       <article
         className="relative w-full max-w-2xl rotate-[-.35deg] p-10 shadow-[0_18px_50px_rgba(60,45,20,.35)] animate-[rise_.8s_cubic-bezier(.2,.8,.2,1)]"
         style={{ background: PAPER }}

@@ -18,7 +18,7 @@ export function Halo({ p, behind }: { p: number; behind?: boolean }) {
         <div aria-hidden className="absolute inset-0 bg-[#0b0d12] transition-opacity duration-700" style={{ opacity: Math.min(0.94, p * 4) }} />
         <div
           aria-hidden
-          className="pointer-events-none absolute left-1/2 -m-[50vmax] size-[100vmax] animate-[turn_90s_linear_infinite] transition-[transform,opacity] duration-700 ease-out"
+          className="pointer-events-none absolute left-1/2 -m-[50cqmax] size-[100cqmax] animate-[turn_90s_linear_infinite] transition-[transform,opacity] duration-700 ease-out"
           style={{
             top: `${CABINET_TOP}%`,
             transform: `scale(${0.7 + p * 1.8})`, // translate 대신 margin 으로 가운데 — rotate 가 제자리에서 돌게
@@ -31,7 +31,7 @@ export function Halo({ p, behind }: { p: number; behind?: boolean }) {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute left-1/2 size-[100vmax] rounded-full transition-[transform,opacity] duration-700 ease-out"
+      className="pointer-events-none absolute left-1/2 size-[100cqmax] rounded-full transition-[transform,opacity] duration-700 ease-out"
       style={{
         top: `${CABINET_TOP}%`,
         transform: `translate(-50%, -50%) scale(${0.2 + 6 * p ** 3})`,

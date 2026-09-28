@@ -56,8 +56,17 @@ export async function searchVideoId(title: string, artist: string): Promise<{ id
   spend();
   if (!res.ok) return null; // 403(할당량 초과·키 문제) 등 — 못 찾은 게 아니라 못 물어본 것
   const json = (await res.json()) as { items?: Item[] };
-  const items = json.items ?? [];
-  // 공식 음원(아티스트 - Topic 채널)을 먼저, 없으면 첫 결과
-  const official = items.find((i) => i.snippet.channelTitle.endsWith('- Topic') || i.snippet.channelTitle.includes(artist));
-  return { id: (official ?? items[0])?.id.videoId ?? null };
+  return { id: pickVideo(json.items ?? [], title, artist) };
+}
+
+// 라이브·방송 무대·커버 — 곡 제목에 이미 들어 있지 않으면 음원 대신 걸린 것
+const NOT_ORIGINAL = /live|라이브|스케치북|콘서트|concert|직캠|fancam|cover|커버|reaction|playlist|\d+\s?(시간|hour)/i;
+
+/** 검색 결과 중 원곡 영상 — 공식 음원(Topic) > 가수 채널 > 첫 결과, 라이브·커버는 뺀다. 다 걸리면 null */
+export function pickVideo(items: Item[], title: string, artist: string): string | null {
+  const ok = NOT_ORIGINAL.test(title) ? items : items.filter((i) => !NOT_ORIGINAL.test(i.snippet.title));
+  const a = artist.toLowerCase();
+  const official =
+    ok.find((i) => i.snippet.channelTitle.endsWith('- Topic')) ?? ok.find((i) => i.snippet.channelTitle.toLowerCase().includes(a));
+  return (official ?? ok[0])?.id.videoId ?? null;
 }

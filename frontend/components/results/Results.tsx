@@ -123,12 +123,13 @@ export default function Results({ query }: { query: string }) {
                 {center.title}
                 <span className="block text-xs text-foreground/50">{center.artist}</span>
               </p>
+              {/* 보고서 꺼 둠 — 되살릴 때 app/report/[id]/page.tsx 와 같이
               <Link
                 href={`/report/${center.id}?q=${encodeURIComponent(query)}`}
                 className="mt-2 inline-block font-mono text-[10px] tracking-[.2em] text-accent/70 hover:text-accent"
               >
                 보고서 열람
-              </Link>
+              </Link> */}
             </div>
           )}
 

@@ -1,12 +1,12 @@
 // 서류함의 기록 — 사용자와, 그가 서랍에 넣어 둔 곡들.
-// ponytail: 개발은 SQLite 로 시작한다 (설치할 게 없다). 배포 때 PostgreSQL 로 옮기면 datasource 만 바뀐다.
+// DB 는 원격 Postgres(Neon) — 여러 PC 에서 같은 곡·서랍을 본다. 주소는 .env 의 DATABASE_URL
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {
@@ -40,7 +40,7 @@ model Track {
   previewUrl String? // iTunes 30초 미리듣기
   videoId    String? // 유튜브 영상 ID — 재생목록에 담을 때 쓴다
   checkedAt  DateTime? // 영상 ID 를 마지막으로 찾아본 때 — 못 찾았으면 30일 동안 다시 안 묻는다
-  tags       String       @default("{}") // Last.fm 태그 가중치 JSON {"indie": 100, "dreamy": 42} — SQLite 엔 배열·맵이 없다
+  tags       String       @default("{}") // Last.fm 태그 가중치 JSON {"indie": 100, "dreamy": 42} — SQLite 시절 그대로 문자열 (코드가 JSON.parse 한다)
   shelves    ShelfTrack[]
 
   @@unique([title, artist])

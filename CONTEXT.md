@@ -58,7 +58,7 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   - 영상 ID: 유튜브 검색만(100단위, 하루 상한 `YT_SEARCH_DAILY_LIMIT`). 찾으면 DB 에 영구 보관
   - 확인: 가짜 곡 6곡 커버·미리듣기 6/6 성공(URL 200), **영상 ID 0/6**
 - **.env** (git 무시, 예시는 `.env.example`): `DATABASE_URL`, `JWT_SECRET`, `PORT`,
-  `ADMIN_EMAILS`, `LASTFM_API_KEY`(발급 완료), `YOUTUBE_API_KEY`(9/28 발급 — 사용자가 .env 에 넣는 중), `YT_SEARCH_DAILY_LIMIT`
+  `ADMIN_EMAILS`, `LASTFM_API_KEY`(발급 완료), `YOUTUBE_API_KEY`(9/28 발급·적용), `YT_SEARCH_DAILY_LIMIT`
 
 ## 가짜로 둔 것 (`ponytail:` 주석)
 - 요청 해석: 낱말 사전 (LLM 전)
@@ -74,9 +74,10 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   태그 먼저 받아 한국 곡만(한글 이름 또는 korean·k-indie 류 태그), iTunes 는 분당 20회라 3초 간격 대기열, 같은 곡 다른 표기는 미리듣기 URL 로 거름.
   검색 두 번에 21→38곡 확인. 지금은 검색할 때 뒤에서 모으는 방식 — 확정안("DB 는 관리자 배치")에 맞춰 배치 엔드포인트로 옮길 것.
   남은 문제: iTunes 한국 스토어가 영문 표기(JANNABI, The Black Skirts)를 주기도 함, 가수 태그뿐인 곡은 점수가 같아 한 가수로 몰림(가수당 1곡 먼저 — 미검증)
-- **영상 ID 방향 제안(미확정)**: 전부 미리 모으면 할당량(검색 100단위, 하루 100곡) 낭비 — 재생목록을 안 만드는 사람이 많다.
-  제안 = 재생목록 요청 때 없는 곡만 찾기 + 매일 남는 할당량으로 자주 추천·저장된 곡부터 밤 배치 + 상한에 걸리면 곡별 유튜브 검색 링크(할당량 0).
-  곡 풀 크기가 총비용의 상한이라 풀이 안정되면 호출 거의 0. 확정되면 docs/youtube-playlist-plan.md 3장 고칠 것
+- **영상 ID — 9/28 확정·구현**: 필요할 때 + 밤 배치 ([docs/youtube-playlist-plan.md](docs/youtube-playlist-plan.md) 3장).
+  `POST /shelves/:id/playlist` → 모르는 곡만 유튜브 검색 → watch_videos 링크 + 못 찾은 곡 검색 링크. 밤 배치 = 태평양 23:30 남은 몫으로
+  서랍에 많이 담긴 곡부터(`catalog/videos.ts`). 수집은 유튜브를 안 부른다. 못 찾은 곡은 30일 재질문 안 함. 보관함에서 서랍 열면
+  "유튜브에서 이어 듣기"(`ListenPanel`). 키 발급·확인 완료(검정치마·새소년 MV 정확히 찾음)
 - **곡 특징 보강 후보**: 가사 = LRCLIB(무료·키 없음, 한국 곡 있음 — 분석에만, 화면 표시 금지), BPM = Deezer track.bpm(무료),
   키·장조 = iTunes 미리듣기를 직접 분석(librosa/essentia, ai-report-plan 2단계)
 - **바로 다음 작업**: 인스타 스토리용 재생목록 카드(아래 "바이럴 인증물"). 계획 먼저 볼지 바로 만들지 사용자 답 대기

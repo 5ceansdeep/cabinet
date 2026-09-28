@@ -5,12 +5,12 @@
 import { api, getToken } from "@/lib/api";
 import { TRACKS, type Track } from "@/components/results/tracks";
 
-export type Shelf = { id: string; tag: string; query: string; kept: Track[] };
+export type Shelf = { id: string; tag: string; query: string; kept: Track[]; remote?: boolean }; // remote = 서버에 있는 서랍
 
 const KEY = "cabinet.shelves";
 const EVENT = "cabinet-shelves"; // 같은 탭 안에서 바뀐 걸 알린다 (storage 이벤트는 다른 탭에만 온다)
 // ids 는 예전 형식(가짜 곡 번호) — 읽을 때만 받아 준다
-type Saved = { id: string; tag: string; query?: string; tracks?: Track[]; ids?: (number | string)[]; at: number };
+type Saved = { id: string; tag: string; query?: string; tracks?: Track[]; ids?: (number | string)[]; at: number; remote?: boolean };
 
 // 예시 서랍 — 아직 저장한 게 없어도 방이 비어 보이지 않게
 const DEMO: Shelf[] = [
@@ -36,6 +36,7 @@ function write(list: Saved[]) {
 type Remote = { id: string; tag: string; query: string; createdAt: string; tracks: { id: string; title: string; artist: string; artwork: string | null; previewUrl: string | null }[] };
 const fromRemote = (s: Remote, scores?: Track[]): Saved => ({
   id: s.id,
+  remote: true,
   tag: s.tag,
   query: s.query,
   at: Date.parse(s.createdAt),
@@ -120,7 +121,26 @@ export function parseShelves(raw: string): Shelf[] {
       id: s.id,
       tag: s.tag,
       query: s.query ?? "",
+      remote: s.remote,
       kept: s.tracks ?? (s.ids ?? []).map((id) => TRACKS.find((t) => t.id === String(id))).filter((t): t is Track => !!t),
     }));
   return [...mine, ...DEMO];
+}
+
+/* 유튜브에서 이어 듣기 — 서버 서랍이면 영상을 찾아 watch_videos 링크를, 아니면 곡별 검색 링크만(할당량 0) */
+export type Playlist = {
+  url: string | null;
+  exhausted: boolean;
+  missing: { title: string; artist: string; search: string }[];
+  local?: boolean;
+};
+const searchUrl = (t: { title: string; artist: string }) =>
+  `https://www.youtube.com/results?search_query=${encodeURIComponent(`${t.artist} ${t.title}`)}`;
+
+export async function playlistOf(shelf: Shelf): Promise<Playlist | null> {
+  if (shelf.remote && getToken()) {
+    const r = await api<Playlist>(`/shelves/${shelf.id}/playlist`, { method: "POST" });
+    return r.ok ? r.data : null;
+  }
+  return { url: null, exhausted: false, local: true, missing: shelf.kept.map((t) => ({ title: t.title, artist: t.artist, search: searchUrl(t) })) };
 }

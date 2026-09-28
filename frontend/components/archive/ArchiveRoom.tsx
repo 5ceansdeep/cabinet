@@ -12,6 +12,7 @@ import { Wall } from "@/components/results/CabinetWall";
 import { FloppyBody, useLabel } from "@/components/results/floppy";
 import type { Track } from "@/components/results/tracks";
 import { thud } from "@/lib/thud";
+import ListenPanel from "./ListenPanel";
 import { parseShelves, shelvesRaw, subscribeShelves, syncShelves } from "./shelf";
 
 /* 5번 아카이빙 메인 룸 — 나만의 서류함. 서랍 전면에 감정 테마 태그가 네임택으로 붙어 있고,
@@ -235,6 +236,8 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
           </button>
         </nav>
       )}
+
+      {openShelf && openShelf.kept.length > 0 && <ListenPanel key={openShelf.id} shelf={openShelf} />}
 
       <footer className="relative px-6 pb-8 text-center font-mono text-[10px] tracking-[.2em] text-foreground/40">
         {openShelf ? `${openShelf.tag} — ${openShelf.kept.length}장` : "CLICK A DRAWER TO OPEN"}

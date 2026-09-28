@@ -149,3 +149,15 @@ export const RESULT_LINES = {
   empty: { text: RESULT_DIALOGUE.EMPTY, voiceKey: "RESULT_EMPTY" },
   dry: { text: RESULT_DIALOGUE.DRY, voiceKey: "RESULT_DRY", link: { href: "/search", label: RESULT_DIALOGUE.DRY_ACTION } },
 } satisfies Record<string, Line>;
+
+/* ─ 5번 보관함: 서랍을 유튜브에서 이어 듣기 (읽지 않는 짧은 안내) ─ */
+export const PLAYLIST_DIALOGUE = {
+  ACTION: "유튜브에서 이어 듣기",
+  WORKING: "영상을 찾는 중이네.",
+  OPEN: "재생목록 열기",
+  ALL: "다 찾았네. 가서 듣게.",
+  SOME: (n: number) => `${n}곡은 못 찾았네. 아래에서 직접 찾아 듣게.`,
+  TIRED: "오늘 몫은 다 썼네. 나머지는 직접 찾아 듣게.",
+  LOCAL: "이 서랍은 자네 브라우저에만 있네. 곡마다 직접 찾아 듣게.",
+  FAIL: "이런, 내 손이 미끄러졌군. 다시 눌러보게.",
+} as const;

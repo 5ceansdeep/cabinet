@@ -1,11 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { findOnITunes } from './itunes.js';
-import { findYoutubeId } from './musicbrainz.js';
 import { searchBudget, searchVideoId } from './youtube.js';
 
-/* 곡 한 장을 갖추는 일 — 앨범 커버와 30초 미리듣기(iTunes), 유튜브 영상 ID(MusicBrainz).
-   한 번 갖춘 곡은 DB 에 남겨 다시 찾지 않는다. 유튜브 검색 API(100 단위)는 여기서 부르지 않는다 */
+/* 곡 한 장을 갖추는 일 — 앨범 커버와 30초 미리듣기(iTunes), 유튜브 영상 ID(유튜브 검색).
+   한 번 갖춘 곡은 DB 에 남겨 다시 찾지 않는다. 유튜브 검색은 100 단위라 곡당 한 번, 하루 상한 안에서만 */
 @Injectable()
 export class CatalogService {
   private readonly log = new Logger('Catalog');
@@ -18,9 +17,8 @@ export class CatalogService {
     if (have?.artwork && have.previewUrl && have.videoId && !force) return have;
 
     const itunes = have?.artwork && have.previewUrl && !force ? null : await findOnITunes(title, artist);
-    // 영상 ID: 공짜인 MusicBrainz 를 먼저, 못 찾으면 유튜브 검색(100 단위, 하루 상한) — 한 번 찾으면 DB 에 남아 다시 안 찾는다
-    const videoId =
-      have?.videoId && !force ? have.videoId : ((await findYoutubeId(title, artist)) ?? (await searchVideoId(title, artist)));
+    // 영상 ID: 유튜브 검색(100 단위, 하루 상한) — 한 번 찾으면 DB 에 남아 다시 안 찾는다
+    const videoId = have?.videoId && !force ? have.videoId : await searchVideoId(title, artist);
     const data = {
       artwork: itunes?.artwork ?? have?.artwork ?? null,
       previewUrl: itunes?.previewUrl ?? have?.previewUrl ?? null,
@@ -36,7 +34,7 @@ export class CatalogService {
     });
   }
 
-  /** 여러 곡을 차례로 — MusicBrainz 가 초당 1회라 순서대로 돈다 */
+  /** 여러 곡을 차례로 — 하루 검색 상한을 차례로 깎도록 순서대로 돈다 */
   async collectMany(tracks: { title: string; artist: string }[], force = false) {
     const out = [];
     for (const t of tracks) out.push(await this.collect(t.title, t.artist, force));

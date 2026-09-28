@@ -8,7 +8,7 @@ export class TrackRefDto {
 }
 
 export class CollectDto {
-  // 한 번에 20곡까지 — MusicBrainz 가 초당 1회라 더 많으면 요청 하나가 몇 분씩 묶인다
+  // 한 번에 20곡까지 — 곡마다 유튜브 검색 1회(100 단위)라 한 요청이 하루 상한을 다 먹지 않게
   @ApiProperty({ type: [TrackRefDto], maxItems: 20 })
   @IsArray()
   @ArrayMaxSize(20)

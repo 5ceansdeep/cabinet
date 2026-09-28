@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Ip, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
-import { LoginDto, MeDto, SignupDto, TokenDto } from './dto.js';
+import { CheckEmailDto, LoginDto, MeDto, SignupDto, TokenDto } from './dto.js';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -15,6 +15,15 @@ export class AuthController {
   @ApiResponse({ status: 409, description: '이미 가입된 이메일' })
   signup(@Body() dto: SignupDto) {
     return this.auth.signup(dto);
+  }
+
+  @Post('check-email')
+  @HttpCode(200)
+  @ApiOperation({ summary: '가입된 이메일인가 — 회원가입 첫 칸에서 바로 알려 주려고' })
+  @ApiResponse({ status: 200, description: '{ taken: boolean }' })
+  @ApiResponse({ status: 429, description: '같은 곳에서 10분에 30번 넘게' })
+  checkEmail(@Body() dto: CheckEmailDto, @Ip() ip: string) {
+    return this.auth.checkEmail(dto.email, ip);
   }
 
   @Post('login')

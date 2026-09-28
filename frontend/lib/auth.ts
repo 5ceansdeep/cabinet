@@ -42,6 +42,12 @@ export const login = (email: string, password: string) =>
 export const signup = (email: string, nickname: string, password: string) =>
   enter("/auth/signup", { email, nickname, password }, (s) => ({ ok: false, reason: s === 409 ? "emailTaken" : "server" }));
 
+/* 회원가입 첫 칸에서 바로 — 이미 가입된 이메일인가. 서버에 못 닿으면 null(모름) — 그땐 마지막에 가입하며 다시 걸러진다 */
+export async function emailTaken(email: string): Promise<boolean | null> {
+  const r = await api<{ taken: boolean }>("/auth/check-email", { method: "POST", body: { email } });
+  return r.ok ? r.data.taken : null;
+}
+
 // 계정 존재 여부와 상관없이 같은 결과 — 가입 여부를 흘리지 않는다
 // ponytail: 메일 발송 없음 — 백엔드에 재설정 메일(토큰 링크)이 생기면 여기서 POST
 export async function requestReset(): Promise<{ ok: boolean }> {

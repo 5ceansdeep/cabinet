@@ -11,7 +11,9 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
 - 음성은 영어(ElevenLabs, `docs/voice-script.csv`), 자막은 한국어. 음성 파일(29개, `public/voice/`)에서 말소리 사이 가장 긴 쉼 N−1개(N=자막 줄 수, 잔향 때문에 최고 음량 15% 미만을 쉼으로 봄)를 찾아(`lib/cues.ts`) 자막 줄을 음성 문장에 맞춰 띄움. 대사는 끊지 않고 대기열로 이어 재생(엔터만 예외 — `cut()` 으로 즉시 끊고 자막도 지움. 말 끝 = 분석한 마지막 말소리, 파일 끝 공백은 안 기다림, 기다리는 중엔 최신 1개만), 자막은 그 대사 소리가 시작될 때 바뀜. 페이지 떠나도 끝까지 나옴, `/search` 이동은 `whenQuiet()` 뒤. 첫 대사는 페이지별(`LINES.intro` — INTRO / INTRO_SIGNUP / INTRO_FORGOT)
 - 자막 표시(`components/landing/Subtitle.tsx`): 위쪽 고정(top 74%), 새 줄이 위에 펼쳐지며 먼저 나온 줄을 아래로 밀어냄. 로딩(후광) 중엔 서랍 호버·키보드 열기 잠금
 - 자막: 줄마다 반투명 회색 박스 + 흰 조선굴림체(`app/fonts/ChosunGu.woff`, `font-subtitle`), 긴 문장은 문장별로 줄 나눠 "- " 시작(`subtitleLines`). 음성 파일 `public/voice/{키}.mp3`(없으면 기계 음성), 키 목록은 docs/voice-persona.md 4번
-- 안내는 영화 자막 + 목소리(`lib/voice.ts`, Web Speech API — 첫 사용자 입력 전엔 무음). 문구는 전부 `components/landing/lines.ts`(말투 = `docs/voice-persona.md`, 브루스 올마이티의 신 "자네"): 필드별(prompt/missing/invalid/tooShort/mismatch) + 흐름(idle·30초 재촉·CapsLock·대조 중·틀림·계정 없음·이미 가입·서버 오류·환영/재방문·로딩·열쇠 찾기). ESC 로 앞 서류. 회원가입 = 이메일→닉네임(2~12, 한/영/숫자/_)→비밀번호(8자+)→확인. `/forgot` 열쇠 찾기(가입 여부 안 흘림). 인증은 백엔드 /auth (`lib/auth.ts` → `lib/api.ts`, JWT 는 localStorage `cabinet.token`). 로그인 실패는 계정 유무 구분 없이 "비밀이 틀렸네"
+- 안내는 영화 자막 + 목소리(`lib/voice.ts`, Web Speech API — 첫 사용자 입력 전엔 무음). 문구는 전부 `components/landing/lines.ts`(말투 = `docs/voice-persona.md`, 브루스 올마이티의 신 "자네"): 필드별(prompt/missing/invalid/tooShort/mismatch) + 흐름(idle·30초 재촉·CapsLock·대조 중·틀림·계정 없음·이미 가입·서버 오류·환영/재방문·로딩·열쇠 찾기). ESC 로 앞 서류. 회원가입 = 이메일→닉네임(2~12, 한/영/숫자/_)→비밀번호(8자+)→확인. `/forgot` 열쇠 찾기(가입 여부 안 흘림). 인증은 백엔드 /auth (`lib/auth.ts` → `lib/api.ts`, JWT 는 localStorage `cabinet.token`). 로그인 실패는 계정 유무 구분 없이 "비밀이 틀렸네".
+  회원가입 이메일은 첫 칸 Enter 때 형식(끝말 .com 까지)·가입 여부를 바로 검사(`/auth/check-email`). 첫 화면에서 토큰을 `/auth/me` 로 확인해
+  무효(401)면 흔적을 지우고 평소 로그인으로(예전엔 토큰이 있기만 하면 "또 왔군" 하고 들어갔다)
 - 3번 키워드 입력: `frontend/app/search/page.tsx` + `components/search/` — 흰 테마 편지지(순백 + 그림자색만, "신" 단어 금지, 명조체 `font-letter` = Nanum Myeongjo. 메일 작성창 버전은 해봤다가 롤백), 그림자색 타이핑 입자, Enter 제출 → `/results?q=` (4번은 아직 다크)
 - 5번 아카이빙 메인 룸: `frontend/app/archive/page.tsx` + `components/archive/` — 감정 테마 태그가 네임택으로 붙은 3단 개인 서류함(4번과 같은 방). 서랍을 누르면 앞으로 열리며 카메라가 위로 올라가 내려다보고, 서랍 3개씩 넘겨 봄. 보관 기록은 `components/archive/shelf.ts` — 로그인했으면 백엔드 /shelves 가 원본(보관함 들어올 때 동기화), localStorage 는 사본
 - 5.1 문서 보고서 (**꺼 둠, 2026-09-28** — 라우트는 notFound, 링크 주석 처리. `grep "보고서 꺼 둠"` 으로 되살림): `frontend/app/report/[id]/page.tsx` + `components/report/Report.tsx` — 빛바랜 종이, 대외비 도장, 요청문 인용, 대조 결과 막대
@@ -35,7 +37,7 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   서랍 저장 타이머 정리, 네임택 텍스처, 서랍 이름 제안 오탐, 5.1 보고서 꺼 둠
 
 ## 백엔드 (NestJS, :4000)
-- **인증**: `POST /auth/signup`, `POST /auth/login`, `GET /auth/me` — bcrypt 해시, JWT 7일.
+- **인증**: `POST /auth/signup`, `POST /auth/login`, `GET /auth/me`, `POST /auth/check-email`(가입 여부, IP 당 10분 30번) — bcrypt 해시, JWT 7일.
   이메일은 검증 전에 공백·대문자를 다듬고, 로그인 실패는 계정 없음/비밀번호 틀림을 구분해 알리지 않는다.
   JWT 서명 키는 `JwtModule.registerAsync` 로 .env 에서 읽어야 한다 (`register()` 면 모듈이 .env 보다 먼저 평가돼
   서명 키와 검증 키가 어긋나 /auth/me 가 401)
@@ -48,7 +50,16 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   **둘 다 없으면 iTunes 장르**(`catalog/genres.ts`, DRIFT 에서 옮김, 9/28) — 태그가 없으면 추천에서 빠져서. **한계(나중에 문제되면 교체)**:
   미국 스토어는 한국 곡을 거의 다 "K-Pop" 하나로 묶어(발라드·인디 구분 없음) 이 곡들끼리 점수가 같다. 한국 스토어가 0건인 날(간헐 장애)엔
   가수 이름이 영문으로 달라 iTunes 에서도 못 찾아 빈 채로 남는다(예: 너드커넥션). 교체안 = LLM 태깅(가사 LRCLIB 참고, DB 태그 목록 안에서)
-- **곡 풀**: 약 38곡(커버·미리듣기·태그). 태그 0개인 곡은 추천에서 빠진다
+- **곡 풀**: 41곡(9/28). 태그 0개인 곡은 추천에서 빠진다. 9/28 유저·서랍 전부 비움(Track 은 남김), 로컬 JWT_SECRET 새로 만듦
+- **곡 풀 넓히기 — 관리자 배치(9/28 구현)**: `POST /catalog/grow {target}`(관리자, 뒤에서 돎) · `GET /catalog/grow`(진행 상황) · 매일 새벽 4시(서버 시간) 자동.
+  검색은 해석 태그·결과 상위 가수만 `SearchLog` 에 남기고 외부 호출 없음. 배치 씨앗 = 최근 7일 검색 태그·가수 + 한국 태그(k-indie 등) + 애플 뮤직 한국 차트.
+  후보 = Last.fm 태그 인기곡·비슷한 가수 인기곡·차트를 출처별로 번갈아. 한국 곡만(한글 이름 또는 korean·k-* 태그), 반주(inst·MR·karaoke)는 거르고
+  리믹스·라이브는 살림, 같은 곡 다른 표기는 미리듣기 URL 로 거름, 태그 없으면 iTunes 장르. iTunes 분당 20회라 곡당 3초 — 30곡에 2~3분.
+  확인: 28곡 보고 8곡 담음(한국 스토어가 0건인 날이라 이름이 영문으로 들어옴 — Kim Dong Ryul 등). 추천은 가수당 1곡 먼저
+- **영상 ID — 9/28 확정·구현**: 필요할 때 + 밤 배치 ([docs/youtube-playlist-plan.md](docs/youtube-playlist-plan.md) 3장).
+  `POST /shelves/:id/playlist` → 모르는 곡만 유튜브 검색 → watch_videos 링크 + 못 찾은 곡 검색 링크. 밤 배치 = 태평양 23:30 남은 몫으로
+  서랍에 많이 담긴 곡부터(`catalog/videos.ts`). 수집은 유튜브를 안 부른다. 못 찾은 곡은 30일 재질문 안 함. 보관함에서 서랍 열면
+  "유튜브에서 이어 듣기"(`ListenPanel`). 키 발급·확인 완료(검정치마·새소년 MV 정확히 찾음)
 - **DB 보기**: `cd backend && npx prisma studio --url "file:///Users/5ceansdeep/cabinet/backend/dev.db"`
   (Prisma 7.10 윈도우 버그 — `file:./dev.db` 는 "not supported" 로 거부)
 - **Swagger**: http://localhost:4000/docs (Authorize 에 토큰)
@@ -70,34 +81,21 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
 - 서버가 없을 때 결과 곡: `tracks.ts` 가짜 12곡
 
 ## 다음
-- **작업 순서(9/28 합의 대기)**: ① 이 문서 갱신(완료) ② `interpret()` 을 LLM 으로 — DB 에 실제 있는 태그 목록을 enum 으로 묶고,
-  온도 0·해시 캐시 ③ 곡 풀 넓히기를 관리자 배치로
-- **곡 풀 넓히기 — 관리자 배치(9/28 구현)**: `POST /catalog/grow {target}`(관리자, 뒤에서 돎) · `GET /catalog/grow`(진행 상황) · 매일 새벽 4시(서버 시간) 자동.
-  검색은 해석 태그·결과 상위 가수만 `SearchLog` 에 남기고 외부 호출 없음. 배치 씨앗 = 최근 7일 검색 태그·가수 + 한국 태그(k-indie 등) + 애플 뮤직 한국 차트.
-  후보 = Last.fm 태그 인기곡·비슷한 가수 인기곡·차트를 출처별로 번갈아. 한국 곡만(한글 이름 또는 korean·k-* 태그), 반주(inst·MR·karaoke)는 거르고
-  리믹스·라이브는 살림, 같은 곡 다른 표기는 미리듣기 URL 로 거름, 태그 없으면 iTunes 장르. iTunes 분당 20회라 곡당 3초 — 30곡에 2~3분.
-  확인: 28곡 보고 8곡 담음(한국 스토어가 0건인 날이라 이름이 영문으로 들어옴 — Kim Dong Ryul 등). 추천은 가수당 1곡 먼저
-- **영상 ID — 9/28 확정·구현**: 필요할 때 + 밤 배치 ([docs/youtube-playlist-plan.md](docs/youtube-playlist-plan.md) 3장).
-  `POST /shelves/:id/playlist` → 모르는 곡만 유튜브 검색 → watch_videos 링크 + 못 찾은 곡 검색 링크. 밤 배치 = 태평양 23:30 남은 몫으로
-  서랍에 많이 담긴 곡부터(`catalog/videos.ts`). 수집은 유튜브를 안 부른다. 못 찾은 곡은 30일 재질문 안 함. 보관함에서 서랍 열면
-  "유튜브에서 이어 듣기"(`ListenPanel`). 키 발급·확인 완료(검정치마·새소년 MV 정확히 찾음)
+- **바로 다음(급한 순)**: ① `interpret()` 을 LLM 으로 — DB 에 실제 있는 태그 목록을 enum 으로 묶고 온도 0·해시 캐시.
+  같이: 태그 없는 곡 LLM 태깅(가사 LRCLIB 참고) — iTunes 장르 대체. `ANTHROPIC_API_KEY` 필요(사용자가 .env 에)
+  ② 인스타 스토리 재생목록 카드(아래 "바이럴 인증물") ③ 푸시 — 로컬 main 이 원격보다 20커밋 넘게 앞섬(9/28 리베이스 후 안 올림)
 - **곡 특징 보강 후보**: 가사 = LRCLIB(무료·키 없음, 한국 곡 있음 — 분석에만, 화면 표시 금지), BPM = Deezer track.bpm(무료),
   키·장조 = iTunes 미리듣기를 직접 분석(librosa/essentia, ai-report-plan 2단계)
-- **바로 다음 작업**: 인스타 스토리용 재생목록 카드(아래 "바이럴 인증물"). 계획 먼저 볼지 바로 만들지 사용자 답 대기
 - **정리 대기**: `feat/archive-room` 브랜치(로컬·원격) — 내용은 main 에 다 있음, 지울지 사용자 답 대기
 - 자막 띠 위 반투명 회색 박스 유지 여부, 넓은 프레임에서 랜딩 서류함이 작아 보임(카메라 조정 여부) — 사용자 답 대기
 - **파이프라인 확정(2026-09-28)** — 스포티파이는 전부 뺀다(개발 모드 5명 제한 + 정책상 다른 서비스로 넘기기·AI 입력 금지):
   1. LLM = 의도 파서만. 요청문 → 태그 JSON. **DB 에 실제 있는 태그 목록 안에서만** 고르게 출력 형식을 묶는다
      (자유 키워드 "비오는날" 은 곡의 Last.fm 태그 "rainy" 와 글자가 달라 점수가 0 이 된다). 곡은 지어내지 않는다
   2. 곡 고르기 = 코드. 미리 모아 둔 DB 곡 목록에서 태그 점수 상위
-  3. DB 는 관리자 배치로 미리 채운다: 곡 정보·표지·30초 미리듣기 = iTunes(가수 번호로 매칭), 영상 ID = 유튜브 Data API 로 곡당 1회 → 영구 저장.
-     요청할 때는 유튜브 호출 0
+  3. DB 는 관리자 배치로 채운다: 곡 정보·표지·30초 미리듣기 = iTunes(가수 번호로 매칭), 태그 = Last.fm(없으면 iTunes 장르).
+     영상 ID 는 재생목록 요청 때 + 밤 배치(위 "영상 ID"), 곡당 1회 → 영구 저장. 검색 요청 중엔 외부 호출 0
   4. 출구 = watch_videos?video_ids=… 익명 링크(로그인·할당량 0, 공식 문서엔 없는 주소라 깨질 수 있음) + 인스타 카드
-  - 할 일: 유튜브 API 키 발급(사용자, Google Cloud), 애플 표지·미리듣기 출처 표시 조건 원문 확인
-- **2026-09-28 리뷰에서 남은 것**(1~4번은 고침): 못 찾은 곡을 유튜브 검색에 매번 다시 묻는다(`checkedAt` 으로 건너뛰기 — 이제 100 단위씩 날아감),
-  `.env` 없으면 `prisma.config.ts` 가 터진다(새로 클론한 사람), 결과 화면 네임택 인쇄 타이머가 페이지를 떠나도 돈다,
-  비밀번호 최대 72자, 로그인 시도 제한, iTunes 결과 아티스트 확인, 네임택 텍스처 캐시가 쌓임, 서랍 이름 제안(`/비/`) 오탐.
-  유튜브 검색(`backend/src/catalog/youtube.ts`)이 영상 ID 의 유일한 길 — 키 없으면 안 돈다. MusicBrainz 는 9/28 수집에서 뺌
+  - 할 일: 애플 표지·미리듣기 출처 표시 조건 원문 확인
 - **순서 합의: 화면 목업 완성 → 백엔드·상세 기능** (모바일은 그 뒤)
 - **바이럴 인증물 — 방향 확정(2026-09-28), 다음 작업**: 인스타그램 스토리 공유용 **재생목록 카드 한 장**.
   최대한 심플하고 귀엽지만 cabinet 다운 특색(서랍·네임택·플로피). 카드에 만든 재생목록을 쉽게 공유할 수단을 담는다 —

@@ -15,7 +15,8 @@ import { JwtStrategy } from './jwt.strategy.js';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') ?? 'cabinet-dev-secret',
+        // 없으면 켜지지 않는다 — 코드에 적힌 기본 키로 켜지면 누구나 토큰을 위조할 수 있다
+        secret: config.getOrThrow<string>('JWT_SECRET'),
         signOptions: { expiresIn: '7d' },
       }),
     }),

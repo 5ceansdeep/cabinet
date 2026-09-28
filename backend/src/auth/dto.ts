@@ -24,6 +24,14 @@ export class SignupDto {
   password!: string;
 }
 
+export class CheckEmailDto {
+  @ApiProperty({ example: 'archivist@cabinet.kr' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
+  @IsEmail()
+  @MaxLength(254)
+  email!: string;
+}
+
 export class LoginDto {
   @ApiProperty({ example: 'archivist@cabinet.kr' })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))

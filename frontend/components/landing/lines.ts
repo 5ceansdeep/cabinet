@@ -85,7 +85,8 @@ const D = AUTH_DIALOGUE;
 /* ─ 필드: 입력 규칙 + 위 문구 ─ */
 
 // voiceKey = AUTH_DIALOGUE 의 묶음 이름. 문구 종류가 붙어 음성 파일이 된다 — 예: EMAIL.prompt.mp3, EMAIL.missing.mp3
-const EMAIL: Field = { name: "email", type: "email", voiceKey: "EMAIL", ...D.EMAIL };
+// 브라우저 기본 이메일 검사는 "a@b" 도 통과시킨다 — 서버(IsEmail)처럼 점 뒤 끝말까지 있어야 한다
+const EMAIL: Field = { name: "email", type: "email", pattern: String.raw`[^@\s]+@[^@\s]+\.[^@\s]{2,}`, voiceKey: "EMAIL", ...D.EMAIL };
 const PASSWORD: Field = { name: "password", type: "password", voiceKey: "PASSWORD_LOGIN", ...D.PASSWORD_LOGIN };
 // 72자까지 — 서버(bcrypt)가 72바이트 뒤를 잘라 버리니 그보다 길게 못 치게 한다
 const NEW_PASSWORD: Field = { name: "password", type: "password", minLength: 8, maxLength: 72, voiceKey: "PASSWORD_SIGNUP", ...D.PASSWORD_SIGNUP };

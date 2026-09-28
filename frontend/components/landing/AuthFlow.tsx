@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { clearSession, getSession, hasAccounts, login, requestReset, sendToSignupOnce, signup, subscribeSession } from "@/lib/auth";
+import { clearSession, getSession, hasAccounts, login, requestReset, sendToSignupOnce, signup, subscribeSession, emailTaken } from "@/lib/auth";
 import { startChoir } from "@/lib/choir";
 import { whenQuiet } from "@/lib/voice";
 import { thud } from "@/lib/thud";
@@ -73,6 +73,12 @@ export default function AuthFlow({ mode }: { mode: Mode }) {
   // 로딩 동안 성스러운 브금 — 페이지를 떠나면 cleanup 으로 페이드아웃
   useEffect(() => (phase === "loading" ? startChoir() : undefined), [phase]);
 
+  /* 회원가입 이메일 칸 — 이미 가입된 주소면 비밀번호까지 받기 전에 바로 알린다 (서버에 못 닿으면 그냥 넘어가고 마지막에 다시 걸러진다) */
+  async function check(name: string, value: string): Promise<Line | null> {
+    if (name !== "email") return null;
+    return (await emailTaken(value.trim().toLowerCase())) ? LINES.emailTaken : null;
+  }
+
   /* 모든 파일을 받았다 — 대조하고, 실패면 다시 받을 파일 번호를 돌려준다 */
   async function done(values: Record<string, string>): Promise<number | null> {
     setFlow(LINES.checking);
@@ -120,6 +126,7 @@ export default function AuthFlow({ mode }: { mode: Mode }) {
         phase={phase}
         flow={returning ? LINES.returning(returning) : flow}
         onClearFlow={() => setFlow(null)}
+        onCheck={mode === "signup" ? check : undefined}
         onDone={done}
       />
       {phase === "loading" && <Halo p={glow} />}

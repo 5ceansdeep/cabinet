@@ -130,6 +130,7 @@ export default function CabinetScene({
   phase,
   flow,
   onClearFlow,
+  onCheck,
   onDone,
 }: {
   fields: Field[];
@@ -139,6 +140,7 @@ export default function CabinetScene({
   phase: Phase;
   flow: Line | null;
   onClearFlow: () => void;
+  onCheck?: (name: string, value: string) => Promise<Line | null>; // 칸마다 서버에 물어볼 게 있으면 — 꾸지람 대사, 괜찮으면 null
   onDone: (values: Record<string, string>) => Promise<number | null>;
 }) {
   const [open, setOpen] = useState(false); // 한 번 호버하면 열린 채로 유지
@@ -256,6 +258,13 @@ export default function CabinetScene({
     const kind = kinds.find((k) => field[k]);
     if (kind) {
       setError((p) => ({ line: { text: field[kind]!, voiceKey: `${field.voiceKey}.${kind}` }, n: p.n + 1 }));
+      input.focus();
+      return;
+    }
+    // 형식은 맞다 — 서버에 물어봐야 아는 것(이미 가입된 이메일 등)은 이 칸에서 바로
+    const refused = await onCheck?.(field.name, v);
+    if (refused) {
+      setError((p) => ({ line: refused, n: p.n + 1 }));
       input.focus();
       return;
     }

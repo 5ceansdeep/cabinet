@@ -1,6 +1,8 @@
 /* iTunes Search API — 앨범 커버와 30초 미리듣기. 키가 필요 없고, 결과는 DB 에 담아 두고 다시 부르지 않는다.
    ponytail: country=kr 에서 0건이 나오는 망이 있어 us 로 한 번 더 찾는다 */
 
+import { koreanName } from './musicbrainz.js';
+
 export type ITunesInfo = { artwork: string; previewUrl: string | null; title: string; artist: string; genre: string | null };
 
 type Result = { trackName: string; artistName: string; artistId?: number; artworkUrl100?: string; previewUrl?: string; primaryGenreName?: string };
@@ -61,7 +63,7 @@ export async function findOnITunes(title: string, artist: string): Promise<ITune
     artwork: hit.artworkUrl100.replace('100x100bb', '600x600bb'),
     previewUrl: hit.previewUrl ?? null,
     title: hit.trackName,
-    artist: hit.artistName,
+    artist: (await koreanName(artist)) ?? (await koreanName(hit.artistName)) ?? hit.artistName,
     genre: hit.primaryGenreName ?? null, // Last.fm 태그가 없을 때 대신 쓴다 (genres.ts)
   };
 }

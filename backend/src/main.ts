@@ -1,7 +1,11 @@
+import { setDefaultResultOrder } from 'node:dns';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
+
+// IPv6 가 막힌 네트워크(회사망 등)에선 외부 API 연결이 10초 걸려 끊긴다 — IPv4 부터
+setDefaultResultOrder('ipv4first');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

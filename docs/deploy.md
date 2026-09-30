@@ -2,6 +2,11 @@
 
 프론트는 Vercel, 백엔드는 항상 켜져 있는 곳(Railway 등), DB 는 지금 쓰는 Neon 그대로. 모바일은 베타 범위 밖, Gemini 는 무료 한도.
 
+**진행(9/30 밤)**: 백엔드 배포 완료 — https://cabinet-production-9cf8.up.railway.app (Railway, Southeast Asia). 프론트·CORS 연결은 [next.md](next.md) 1장.
+Railway 에서 처음 빌드는 기본 설정(루트 폴더·변수 없음)으로 바로 돌아 실패하는 게 정상 — 설정·변수를 넣고 Deploy.
+Region 은 서비스 Settings 에서 Southeast Asia(Singapore) 로 — Neon 이 싱가포르다(워크스페이스 설정의 기본 지역은 새 서비스에만).
+Networking → Generate Domain 의 포트는 8080 그대로(Railway 가 넣는 `PORT`).
+
 ## 1. 백엔드 — Railway (월 $5 안팎)
 
 항상 켜져 있어야 한다. 잠드는 무료 호스팅(Render 무료 등)이면 첫 요청이 30초 넘게 걸리고, 서버 안의 새벽 배치(곡 풀 4시·소리 5시·설명 6시, 영상 ID 태평양 23:30)가 돌지 않는다.

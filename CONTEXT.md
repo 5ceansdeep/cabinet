@@ -20,15 +20,11 @@
   신의 한마디·이유는 `GET /recommend/line` 으로 디스크 뒤에(1.7~2초). Gemini 재정렬 순서는 안 씀
 - **서버 오류를 가짜 곡으로 덮던 것** 고침 — 가짜 곡은 서버에 못 닿을 때만, 오류면 "서랍이 뻑뻑하네" + 다시 뒤지기
 
-## 남은 일 (급한 순)
-1. **"보컬 없는 재즈" 같은 요청이 안 됨** — ① ReccoBeats instrumentalness 저장 + 요청 풀어쓰기가 보컬 유무를 뽑아 소리 점수에 ② 곡 설명 프롬프트
-   "가사 정보 없음 ≠ 연주곡" + 가사 없는 곡부터 다시 쓰기(3.8-flash 하루 20곡) ③ 연주 재즈 모으기(cool jazz·bebop·jazz piano·bossa nova)
-   ④ 장르 기준 올리기(지금 가중치 10 — 피아프·트레네가 jazz 30대로 재즈에 잡힘)
-2. **베타 2일차 배포**(docs/deploy.md) — Railway·Vercel 가입은 사용자
-3. ElevenLabs 결정(유료 Starter / 기본 목소리 + 고정 대사 재녹음 / 끄기). 고정 대사 새 문구(RESULT_EMPTY·DRY·FAILED) 녹음
-4. 가사 없는 곡 설명 다시 쓰기가 끝나면 평가 다시(`npm run eval`)
-- 사용자 답 대기: 곡 설명에 Last.fm 태그를 참고로 보여 줄지(답 없으면 그대로)
-- `package-lock.json` 두 개가 이 작업과 무관하게 바뀌어 있음(커밋 안 함) — 필요 없으면 `git checkout --` 로 되돌림
+## 남은 일 → [docs/next.md](docs/next.md)
+1. 베타 배포 마무리 — **백엔드 떴다**(https://cabinet-production-9cf8.up.railway.app, 싱가포르). 남은 것: Vercel → `WEB_ORIGIN` → 한 바퀴 확인
+2. "보컬 없는 재즈" 같은 요청 — 연주 재즈 모으기·instrumentalness·곡 설명 "연주곡" 거짓말·장르 기준
+3. ElevenLabs 결정(무료 등급 402) 4. 잔일(package-lock 커밋 여부 답 대기 등)
+- 곡 설명에 Last.fm 태그를 참고로 보여 주기 — **9/30 사용자: 지금처럼 보여 준다**
 
 ## 목표
 docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백엔드(인증·추천·서랍)에 붙었고, 서버가 없으면 가짜 데이터로 돈다.

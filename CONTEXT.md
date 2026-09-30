@@ -95,12 +95,13 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   `ADMIN_EMAILS`, `LASTFM_API_KEY`(발급 완료), `YOUTUBE_API_KEY`(9/28 발급·적용), `YT_SEARCH_DAILY_LIMIT`
 
 ## 가짜로 둔 것 (`ponytail:` 주석)
-- 요청 해석: 낱말 사전 (LLM 전)
 - 열쇠 찾기: 메일 발송 없음
 - 로딩 진행률: 타이머
 - 서버가 없을 때 결과 곡: `tracks.ts` 가짜 12곡
 
 ## 다음
+- **비공개 베타 배포(9/30 결정)** — 절차 [docs/deploy.md](docs/deploy.md). 프론트 Vercel · 백엔드 Railway(항상 켜짐) · DB Neon. 모바일은 안 함, Gemini 는 무료 한도(테스터에게 데이터 안내).
+  1일차: feat/recommend → main 합침(9/30 로컬, 푸시 전), 곡 풀 88곡 → 늘리는 중. 2일차 배포, 3일차 테스터
 - **바로 다음 — 추천 개편, [docs/recommend-plan.md](docs/recommend-plan.md)(9/30 개정, 브랜치 `feat/recommend`)**: 태그 안을 버리고 두 단계.
   1단계 거르기 = 뜻(GPT 곡 설명 → 임베딩 코사인) + 소리(에너지·밝기 거리) → 20~30곡, 2단계 = GPT 가 곡 설명을 읽고 재정렬 + 한 줄 이유.
   장르·Last.fm 태그는 점수에서 뺌(사용자: 장르가 같아도 느낌이 달라 교집합이 없다). acousticness·danceability 는 energy·valence 와 겹쳐 뺌(상관 −0.86·0.77).

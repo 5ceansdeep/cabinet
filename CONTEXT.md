@@ -6,7 +6,7 @@
 - `backend/.env`: `DATABASE_URL` = Neon direct 주소, **`GEMINI_API_KEY` 새로 필수**(없으면 백엔드가 안 켜짐 — aistudio.google.com).
   DB 는 Neon 하나라 곡·설명·벡터는 이미 다 있다(88곡). 마이그레이션도 적용돼 있어 `npx prisma generate` 만
 - 이어서 할 것: ① 사용자가 `backend/src/recommend/eval.json`(평가 세트) 확인·수정 → `cd backend && npm run eval` 로 다시 재서 A 조정
-  ② 2단계 Gemini 재정렬(docs/recommend-plan.md 6장). 평가 캐시 `.eval-cache.json` 은 git 에 없어 첫 eval 은 Gemini 를 30번 부른다(무료 한도 주의)
+  ② 2단계 Gemini 재정렬(docs/recommend-plan.md 6장). 평가 캐시 `backend/.eval-cache.json` 은 git 에 있어 같은 요청이면 Gemini 를 안 부른다(요청 문장을 새로 넣거나 고친 것만)
 - Gemini 무료 한도: 모델마다 하루 20번(태평양 자정에 풀림). 배치(곡 설명)·평가·실제 요청이 같은 한도를 나눠 쓴다
 
 ## 목표

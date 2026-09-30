@@ -12,7 +12,7 @@ import { speak } from "@/lib/voice";
 import CabinetWall from "./CabinetWall";
 import PlayerBar from "./PlayerBar";
 import Riffle from "./Riffle";
-import { findTracks, type Track } from "./tracks";
+import { findLine, findTracks, type Track } from "./tracks";
 import { apiUrl } from "@/lib/api";
 import { genreLabel } from "@/lib/genres";
 
@@ -70,13 +70,19 @@ export default function Results({ query, genres }: { query: string; genres: stri
       if (run !== digs.current) return;
       thud(70);
       setInterpretation(found.interpretation);
-      // 영어 음성은 백엔드가 ElevenLabs 로 만든 mp3(켜 뒀을 때만) — 꺼져 있으면 기계 음성이 한국어 자막을 읽는다
-      setGreeting(found.line && found.tracks.length ? { text: found.line.ko, voiceKey: found.line.voice ? apiUrl(`/voice/${found.line.voice}`) : undefined } : null);
+      setGreeting(null);
       setKept(found.tracks);
       setSeen((s) => [...s, ...found.tracks.map((t) => t.id)]);
       setDry(found.tracks.length === 0);
       setIndex(Math.floor(found.tracks.length / 2));
       setPhase("discs");
+      if (!found.tracks.length) return;
+      // 신의 한마디·이유는 디스크를 띄운 뒤 — 기다리면 3~4초 늦게 뜬다
+      const { line, reasons } = await findLine(query, found.tracks.map((t) => t.id));
+      if (run !== digs.current) return;
+      setKept((ks) => ks.map((t) => (reasons[t.id] ? { ...t, reason: reasons[t.id] } : t)));
+      // 영어 음성은 백엔드가 ElevenLabs 로 만든 mp3(켜 뒀을 때만) — 꺼져 있으면 기계 음성이 한국어 자막을 읽는다
+      if (line) setGreeting({ text: line.ko, voiceKey: line.voice ? apiUrl(`/voice/${line.voice}`) : undefined });
     },
     [query, genres],
   );

@@ -17,7 +17,7 @@ const CACHE_MAX = 300;
 const SCHEMA = {
   type: 'OBJECT',
   properties: {
-    order: { type: 'ARRAY', items: { type: 'INTEGER' }, description: '어울리는 순서대로 후보 번호. 어울리는 것만, 최대 6개' },
+    order: { type: 'ARRAY', items: { type: 'INTEGER' }, description: '어울리는 순서대로 후보 번호. 후보가 6곡 이하면 전부(화면에 이미 떠 있다), 많으면 어울리는 것만 최대 6개' },
     reasons: {
       type: 'ARRAY',
       description: 'order 에 넣은 곡마다 왜 이 요청에 맞는지 한국어 한 문장(20자 안팎). 신의 말투(~네/~지) — ~입니다·~해요 금지, ~게나·~군은 쓰지 않는다',

@@ -9,12 +9,12 @@ export type Track = {
   artwork?: string | null; // iTunes 앨범 커버
   previewUrl?: string | null; // iTunes 30초 미리듣기
   description?: string | null; // 곡 설명(감정/상황/가사/소리)
-  reason?: string | null; // 2단계 재정렬이 준 한 줄 — 왜 이 요청에 이 곡인지
+  reason?: string | null; // 신의 한마디와 같이 오는 한 줄 — 왜 이 요청에 이 곡인지 (디스크가 뜬 뒤 붙는다)
 };
 
 /** 신의 한마디 — ko 는 자막, en 은 음성(ElevenLabs 붙기 전엔 안 쓴다) */
 export type GodLine = { ko: string; en: string; voice?: string | null }; // voice = 영어 음성 id (ElevenLabs 를 켰을 때만)
-export type Found = { interpretation: string[]; line: GodLine | null; tracks: Track[] };
+export type Found = { interpretation: string[]; tracks: Track[] };
 
 const GRADIENTS = [
   "linear-gradient(135deg,#1e3a5f,#8ec5fc)",
@@ -51,17 +51,18 @@ export async function findTracks(query: string, opt: { seen?: string[]; thrown?:
   if (opt.genres?.length) qs.set("g", opt.genres.join(","));
   if (opt.seen?.length) qs.set("seen", opt.seen.join(","));
   if (opt.thrown?.length) qs.set("thrown", opt.thrown.join(","));
-  const r = await api<{ interpretation: string[]; line: GodLine | null; tracks: Scored[] }>(`/recommend?${qs}`);
-  if (r.ok && r.data.tracks.length) {
-    return {
-      interpretation: r.data.interpretation,
-      line: r.data.line,
-      tracks: r.data.tracks.map((t) => ({ ...t, cover: gradientOf(t.id) })),
-    };
-  }
-  if (r.ok) return { interpretation: r.data.interpretation, line: null, tracks: [] };
+  const r = await api<{ interpretation: string[]; tracks: Scored[] }>(`/recommend?${qs}`);
+  if (r.ok) return { interpretation: r.data.interpretation, tracks: r.data.tracks.map((t) => ({ ...t, cover: gradientOf(t.id) })) };
   const skip = new Set([...(opt.seen ?? []), ...(opt.thrown ?? [])]);
-  return { interpretation: [], line: null, tracks: TRACKS.filter((t) => !skip.has(t.id)).slice(0, 6) };
+  return { interpretation: [], tracks: TRACKS.filter((t) => !skip.has(t.id)).slice(0, 6) };
+}
+
+/* 보여 준 곡들을 건네는 신의 한마디 + 곡마다 이유 — 곡 목록보다 늦게(Gemini 한 번 더). 실패·서버 없음이면 없이 */
+export async function findLine(query: string, ids: string[]): Promise<{ line: GodLine | null; reasons: Record<string, string> }> {
+  const r = await api<{ line: GodLine | null; reasons: Record<string, string> }>(
+    `/recommend/line?${new URLSearchParams({ q: query, ids: ids.join(",") })}`,
+  );
+  return r.ok ? r.data : { line: null, reasons: {} };
 }
 
 /* 곡 하나를 요청문에 대 본다 — 보고서. 백엔드가 없으면 가짜 곡에서 */

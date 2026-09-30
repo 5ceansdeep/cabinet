@@ -1,6 +1,7 @@
 /* 백엔드(:4000) 부르기 — 로그인하면 받은 출입증(JWT)을 붙인다. 서버가 없거나 실패하면 null */
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+export const apiUrl = (path: string) => `${BASE}${path}`; // <audio src> 처럼 fetch 를 안 거치는 곳
 const TOKEN = "cabinet.token";
 
 export const getToken = () => {

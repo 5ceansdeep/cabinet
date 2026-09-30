@@ -13,7 +13,7 @@ export type Track = {
 };
 
 /** 신의 한마디 — ko 는 자막, en 은 음성(ElevenLabs 붙기 전엔 안 쓴다) */
-export type GodLine = { ko: string; en: string };
+export type GodLine = { ko: string; en: string; voice?: string | null }; // voice = 영어 음성 id (ElevenLabs 를 켰을 때만)
 export type Found = { interpretation: string[]; line: GodLine | null; tracks: Track[] };
 
 const GRADIENTS = [

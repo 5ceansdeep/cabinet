@@ -1,6 +1,6 @@
 import { analyzeSpeech } from "./cues";
 
-/* 대사 한 줄을 목소리로. key 가 있으면 public/voice/{key}.mp3 를 틀고, 파일이 없으면 브라우저 내장 음성합성으로 읽는다.
+/* 대사 한 줄을 목소리로. key 가 있으면 public/voice/{key}.mp3(주소면 그 주소 — 백엔드가 만든 신의 한마디)를 틀고, 파일이 없으면 브라우저 내장 음성합성으로 읽는다.
    대사는 끊지 않는다 — 앞 대사가 말하는 중이면 새 대사는 기다렸다가 이어서 나온다 (파일 끝의 공백은 기다리지 않음). 예외: cut() — 사용자가 엔터를 치면 바로 끊는다.
    기다리는 사이 또 새 대사가 오면 가장 최근 것만 남긴다. 페이지를 옮겨도 하던 대사는 끝까지 나온다.
    onStart — 그 대사의 소리가 실제로 시작될 때 불린다. 자막 줄(lines 개)마다 "지금부터 몇 초 뒤"를 주거나, 모르면 null.
@@ -83,7 +83,7 @@ function tts(job: Job, id: number) {
 
 function play(job: Job, id: number) {
   if (!job.key) return tts(job, id);
-  const src = `/voice/${job.key}.mp3`;
+  const src = /^https?:/.test(job.key) ? job.key : `/voice/${job.key}.mp3`;
   const a = new Audio(src);
   current?.pause(); // 앞 대사 파일의 남은 끝소리(잔향)까지 멈춘다 — 파일 두 개가 겹치면 엔터로도 앞 것이 안 끊긴다
   current = a;

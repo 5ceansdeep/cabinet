@@ -1,4 +1,15 @@
-# cabinet 작업 컨텍스트 (2026-09-28)
+# cabinet 작업 컨텍스트 (2026-09-30)
+
+## 다른 PC 에서 이어 하기 (9/30)
+- 작업 브랜치 **`feat/recommend`** (추천 개편 — 아직 main 에 안 합침). `git fetch && git switch feat/recommend`
+- `backend`·`frontend` 에서 `npm install` (백엔드에 pg 어댑터 등 새 패키지)
+- `backend/.env`: `DATABASE_URL` = Neon direct 주소, **`GEMINI_API_KEY` 새로 필수**(없으면 백엔드가 안 켜짐 — aistudio.google.com).
+  DB 는 Neon 하나라 곡·설명·벡터는 이미 다 있다(88곡). 마이그레이션도 적용돼 있어 `npx prisma generate` 만
+- 이어서 할 것: ① 사용자가 `backend/src/recommend/eval.json`(평가 세트 39개) 확인·수정 → `cd backend && npm run eval -- rerank` 로 다시 재서
+  A 와 재정렬 순서를 쓸지 결정(지금 재정렬 후 56% < 1단계만 65%, 정답지 편향 의심) ② ElevenLabs 로 신의 한마디 음성(`line.en`, 키·Voice ID 필요)
+  ③ 미녹음 RESULT_EMPTY·RESULT_DRY mp3. 평가 캐시 `.eval-cache.json`·`.eval-rerank.json` 은 git 에 있어 같은 요청이면 Gemini 를 안 부른다
+- 스웨거로 추천 시험: http://localhost:4000/docs → GET /recommend (로그인 필요 없음). 관리자 엔드포인트는 ADMIN_EMAILS 에 든 계정 토큰
+- Gemini 무료 하루 한도(태평양 자정에 풀림): 3.8-flash 20번(곡 설명) · 3.5-flash-lite 500번(요청 풀어 쓰기·재정렬) · 임베딩 1000번. 배치·평가·실제 요청이 나눠 쓴다
 
 ## 목표
 docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백엔드(인증·추천·서랍)에 붙었고, 서버가 없으면 가짜 데이터로 돈다.
@@ -90,10 +101,15 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
 - 서버가 없을 때 결과 곡: `tracks.ts` 가짜 12곡
 
 ## 다음
-- **바로 다음 — 추천 개편, [docs/recommend-plan.md](docs/recommend-plan.md)(9/28 합의)**: 뜻(태그 코사인) + 분위기(소리 숫자 거리) 두 점수 합산.
-  "안녕하세요"·"집에 가고싶어요"가 같은 결과(둘 다 사전에 안 걸려 기본값)인 게 발단.
-  ① ReccoBeats(키 없음, 미리듣기 올리면 energy·valence 등) 배치로 Track 에 저장 ② **GPT**(사용자 선택 — Claude 아님) 요청 해석 = 태그 + 목표 숫자,
-  `OPENAI_API_KEY`·모델 이름 필요 ③ 점수 합치기 ④ GPT 곡 태깅 + LRCLIB 가사(15곡 중 12곡 있음, 원문 저장 안 함)
+- **바로 다음 — 추천 개편, [docs/recommend-plan.md](docs/recommend-plan.md)(9/30 개정, 브랜치 `feat/recommend`)**: 태그 안을 버리고 두 단계.
+  1단계 거르기 = 뜻(GPT 곡 설명 → 임베딩 코사인) + 소리(에너지·밝기 거리) → 20~30곡, 2단계 = GPT 가 곡 설명을 읽고 재정렬 + 한 줄 이유.
+  장르·Last.fm 태그는 점수에서 뺌(사용자: 장르가 같아도 느낌이 달라 교집합이 없다). acousticness·danceability 는 energy·valence 와 겹쳐 뺌(상관 −0.86·0.77).
+  ① ReccoBeats 소리 숫자 **9/30 완료**(`catalog/sound.ts`, 86곡). 회사망은 IPv6 가 막혀 `main.ts` 에 ipv4first
+  ② 곡 설명 + 임베딩 배치 **9/30 완료**(`catalog/describe.ts`, 88곡, 가사 59곡) ③ 요청 풀어 쓰기 + 1단계 점수 **9/30 완료**(`recommend/interpret.ts`·`score.ts`)
+  ④ 평가 세트 30개 ⑤ Gemini 재정렬. LLM 은 **Gemini 무료 한도**(학생 — GPT 대신). 모델마다 하루 20번이라 요청은 하루 수십 번이 한계, 공개 전 유료로.
+  ④ 평가 세트 초안 39개(`backend/src/recommend/eval.json`, 88곡 전부 씀) + `npm run eval` — **9/30 38/39·재현율 65%**(평균 빼기 + A 0.5, 처음 30개로 24/30·43%).
+  ⑤ 재정렬 + 신의 한마디 **9/30 구현**(`recommend/rerank.ts`, 결과 화면 자막 띠·디스크 이름표 밑 이유). 재정렬 모델은 Lite(하루 500번, 3.8-flash 는 20번) — 평가 36/39·56%(1단계만 65%) — 정답지 편향일 수 있어 보류.
+  음성은 기계 음성 임시, ElevenLabs 는 나중(`line.en`). **사용자 확인 대기: eval.json 의 요청·기대 곡** → 재정렬 순서를 쓸지 결정. 일치도는 요청마다 60~99% 로 늘려 보임(순위 그대로)
   그다음 인스타 스토리 재생목록 카드(아래 "바이럴 인증물"). 푸시는 9/28 완료
 - DRIFT 곡 가져오기: 이 PC 의 DRIFT DB(prisma dev Postgres)는 곡 4개·한국 곡 0 — 장르별로 모은 건 다른 PC(HKCMC) DB 일 것. 거기서 songs CSV 로 뽑아 와야 함
 - **곡 특징 보강 후보**: 가사 = LRCLIB(무료·키 없음, 한국 곡 있음 — 분석에만, 화면 표시 금지), BPM = Deezer track.bpm(무료),

@@ -1,39 +1,86 @@
-import type { Tags } from '../catalog/lastfm.js';
+import { Injectable, Logger } from '@nestjs/common';
+import { describeText, type Parts } from '../catalog/describe.js';
+import { Gemini, MODELS } from '../catalog/gemini.js';
 
-/* 요청문 → Last.fm 태그 가중치. 한국 곡은 Last.fm 에 분위기 태그가 드물어서 어울리는 장르 태그도 같이 싣는다.
-   화면에는 "요청 해석"으로 그대로 보여 준다.
-   ponytail: 한국어 낱말 사전 — docs/ai-report-plan.md 의 LLM 해석(온도 0·해시 캐시)이 붙으면 이 함수 몸통만 바꾼다 */
+/* 요청문 → "이런 곡이면 좋겠다" 설명 + 목표 에너지·밝기 → 벡터 (docs/recommend-plan.md 6장).
+   요청문을 바로 임베딩하지 않고 곡 설명과 같은 틀(감정/상황/가사/소리)로 풀어 쓴 뒤 임베딩한다 — 같은 말투끼리 비교해야 잘 맞는다.
+   같은 문장이면 같은 결과: 온도 0 + 정규화한 문장으로 캐시.
+   Gemini 대화 모델이 막히면(무료 한도) 요청문을 그대로 임베딩해 뜻만으로 — 임베딩 한도는 따로다.
+   ponytail: 캐시는 메모리(최근 CACHE_MAX 문장) — 서버를 끄면 비고, 여러 대로 늘리면 DB 로 옮긴다 */
 
-const WORDS: [RegExp, Tags][] = [
-  [/새벽|밤|심야|자정|잠\s?안/, { night: 100, chill: 60, mellow: 50, indie: 50, 'r&b': 40, 'indie pop': 30 }],
-  [/비|빗소리|장마|흐린/, { melancholy: 80, mellow: 60, acoustic: 40, ballad: 50, 'r&b': 30, soul: 30 }],
-  [/몽환|꿈|아련|흐릿/, { dreamy: 100, 'dream pop': 80, shoegaze: 50, atmospheric: 50, psychedelic: 40, 'indie pop': 40 }],
-  [/신나|달리|드라이브|들뜬|설레/, { upbeat: 100, energetic: 80, happy: 50, pop: 50, dance: 50, disco: 40, rock: 30 }],
-  [/우울|슬프|눈물|외로|이별|헤어/, { sad: 100, melancholy: 80, emotional: 60, ballad: 70, 'female vocalists': 20 }],
-  [/공부|집중|일할|작업/, { instrumental: 80, 'lo-fi': 80, chill: 60, ambient: 50 }],
-  [/겨울|눈\s|추운/, { winter: 100, mellow: 50, acoustic: 40 }],
-  [/여름|바다|더운|휴가/, { summer: 100, happy: 50, upbeat: 40 }],
-  [/사랑|설렘|연애|고백/, { love: 100, romantic: 80, beautiful: 40, ballad: 50, 'r&b': 40, soul: 30 }],
-  [/파티|춤|클럽/, { dance: 100, party: 80, electronic: 50 }],
-  [/화나|분노|스트레스/, { aggressive: 80, rock: 60, energetic: 50 }],
-  [/잔잔|편안|쉬고|휴식|힐링/, { chill: 100, mellow: 80, acoustic: 50, 'r&b': 40, soul: 40, 'singer-songwriter': 30 }],
-  [/옛날|추억|그리운|향수/, { nostalgic: 100, retro: 60, '90s': 40, 'indie rock': 30, ballad: 30 }],
-  [/인디/, { indie: 100, 'indie rock': 50, 'indie pop': 50 }],
-  [/록|락|밴드/, { rock: 100, 'indie rock': 50, 'alt-rock': 50 }],
-  [/재즈/, { jazz: 100 }],
-  [/힙합|랩/, { 'hip-hop': 100, rap: 80, 'k-hiphop': 80 }],
-  [/케이팝|아이돌/, { 'k-pop': 100 }],
-];
+export type Asked = {
+  keywords: string[]; // 화면 "요청 해석"
+  description: string; // 풀어 쓴 설명 — 보고서에 곡 설명과 나란히
+  vector: number[];
+  energy: number | null; // 요청이 소리의 세기·밝기를 말할 때만
+  valence: number | null;
+};
 
-// 아무 낱말도 안 걸리면 — 넓게 한국 인디 쪽을 뒤진다
-const FALLBACK: Tags = { korean: 60, indie: 60, mellow: 30 };
+const CACHE_MAX = 500;
 
-export function interpret(query: string): Tags {
-  const out: Tags = {};
-  for (const [re, tags] of WORDS) {
-    if (!re.test(query)) continue;
-    for (const [t, w] of Object.entries(tags)) out[t] = Math.max(out[t] ?? 0, w);
+const SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    keywords: { type: 'ARRAY', items: { type: 'STRING' }, description: '요청을 어떻게 읽었는지 짧은 한국어 말 3~5개 (예: 퇴근길, 지친 하루, 위로)' },
+    emotion: { type: 'STRING', description: '들려줄 곡이 주면 좋을 감정. 미묘한 결까지' },
+    situation: { type: 'STRING', description: '이 사람이 있는 상황·때·장소' },
+    lyrics: { type: 'STRING', description: '곡의 가사가 말하면 좋을 것 한두 문장' },
+    sound: { type: 'STRING', description: '어울리는 소리의 느낌' },
+    energy: { type: 'NUMBER', nullable: true, description: '0(조용한)~1(격한). 요청이 세기를 드러낼 때만, 아니면 null' },
+    valence: { type: 'NUMBER', nullable: true, description: '0(슬픈·어두운)~1(밝은). 요청이 밝기를 드러낼 때만, 아니면 null' },
+  },
+  required: ['keywords', 'emotion', 'situation', 'lyrics', 'sound'],
+};
+
+export const promptFor = (query: string) =>
+  [
+    '음악 추천 서비스. 사용자가 적은 문장을 읽고, 이 사람에게 들려줄 곡이 어떤 곡이면 좋을지 곡 설명 틀로 쓴다.',
+    '이 설명을 곡들의 설명(감정/상황/가사/소리)과 비교해 곡을 고른다. 각 항목을 한국어 한두 문장으로.',
+    '음악과 상관없는 말("안녕하세요", "배고파")이어도 그 말을 하는 사람의 기분·상황을 짐작해 어울리는 곡을 쓴다.',
+    '장르·가수·곡 이름은 쓰지 않는다. 사용자가 직접 말한 경우에만 소리 항목에 반영한다.',
+    '',
+    `사용자: ${query}`,
+  ].join('\n');
+
+const clamp = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : null);
+export const normalize = (q: string) => q.trim().replace(/\s+/g, ' ').toLowerCase();
+
+@Injectable()
+export class Interpreter {
+  private readonly log = new Logger('Interpret');
+  private readonly cache = new Map<string, Asked>();
+
+  constructor(private readonly gemini: Gemini) {}
+
+  async interpret(query: string): Promise<Asked> {
+    const key = normalize(query);
+    const hit = this.cache.get(key);
+    if (hit) return hit;
+    const asked = await this.fresh(key);
+    this.cache.set(key, asked);
+    if (this.cache.size > CACHE_MAX) this.cache.delete(this.cache.keys().next().value!);
+    return asked;
   }
-  return Object.keys(out).length ? out : { ...FALLBACK };
-}
 
+  private async fresh(query: string): Promise<Asked> {
+    try {
+      const p = JSON.parse(await this.gemini.generate(MODELS.query, promptFor(query), SCHEMA)) as Parts & {
+        keywords?: string[];
+        energy?: number | null;
+        valence?: number | null;
+      };
+      const description = describeText(p);
+      return {
+        keywords: (p.keywords ?? []).map((k) => k.trim()).filter(Boolean).slice(0, 5),
+        description,
+        vector: await this.gemini.embed(description),
+        energy: clamp(p.energy),
+        valence: clamp(p.valence),
+      };
+    } catch (e) {
+      // 대화 모델이 막혔다 — 요청문 그대로 (이것도 실패하면 위로 던진다)
+      this.log.warn(`풀어 쓰기 실패, 요청문 그대로 임베딩: ${e}`);
+      return { keywords: [], description: query, vector: await this.gemini.embed(query), energy: null, valence: null };
+    }
+  }
+}

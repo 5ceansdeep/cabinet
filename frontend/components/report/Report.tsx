@@ -74,8 +74,8 @@ export default function Report({ track, query, no }: { track: Track; query: stri
         <section className="mb-10 space-y-3">
           <h2 className="text-[11px] tracking-[.2em] text-[#6b5d3f]">대조 결과</h2>
           <Gauge label="일치도" value={track.semantic} />
-          {!!track.matched?.length && (
-            <p className="pt-1 text-[11px] tracking-[.1em] text-[#6b5d3f]">겹친 표식 — {track.matched.join(" · ")}</p>
+          {track.description && (
+            <p className="whitespace-pre-line pt-1 text-[11px] leading-5 tracking-[.05em] text-[#6b5d3f]">{track.description}</p>
           )}
         </section>
 

@@ -20,6 +20,7 @@
   | `WEB_ORIGIN` | 프론트 주소 (예: `https://cabinet.vercel.app`) — CORS. 하나만 받는다 |
   | `ADMIN_EMAILS` | 관리자 이메일(쉼표) — 곡 수집·배치 엔드포인트 |
   | `LASTFM_API_KEY`, `LASTFM_SHARED_SECRET`, `YOUTUBE_API_KEY`, `YT_SEARCH_DAILY_LIMIT` | 로컬과 같은 값 |
+  | `ELEVENLABS_ENABLED` | `false` (켜려면 `true` + `ELEVENLABS_API_KEY`·`ELEVENLABS_VOICE_ID`·`ELEVENLABS_MODEL`) — 무료 등급은 라이브러리 목소리를 API 로 못 쓴다(402) |
   | `PORT` | 넣지 않는다 — Railway 가 준다 |
 
 - 확인: `https://<백엔드>/docs` 가 열리고 `GET /recommend?q=안녕` 이 곡을 돌려주면 된다.
@@ -41,5 +42,6 @@
   무료 한도에선 보낸 글이 Google 모델 개선에 쓰일 수 있다 — **테스터에게 미리 알린다**.
 - 유튜브 하루 검색 수는 `.yt-budget.json` 파일에 센다 — 배포 서버에선 다시 배포할 때마다 0 으로 돌아간다(유튜브가 하루 상한은 따로 막아 준다).
 - 비밀번호 찾기 메일은 안 나간다 — 테스터가 잊으면 관리자가 DB 에서 처리.
-- 신의 음성은 기계 음성(ElevenLabs 는 나중), 세로(모바일) 화면은 맞춰 두지 않았다 — PC 로 안내.
+- 신의 음성은 기계 음성(ElevenLabs 는 꺼 둠), 세로(모바일) 화면은 맞춰 두지 않았다 — PC 로 안내.
+- Railway 디스크는 배포마다 새로 — `.voice-cache/`(만든 음성)도 비워진다. 음성을 켜면 같은 대사를 다시 만들 수 있다.
 - Apple 표지·미리듣기 출처 표시 조건은 공개 전에 확인.

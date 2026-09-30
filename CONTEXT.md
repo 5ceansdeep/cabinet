@@ -1,4 +1,13 @@
-# cabinet 작업 컨텍스트 (2026-09-28)
+# cabinet 작업 컨텍스트 (2026-09-30)
+
+## 다른 PC 에서 이어 하기 (9/30)
+- 작업 브랜치 **`feat/recommend`** (추천 개편 — 아직 main 에 안 합침). `git fetch && git switch feat/recommend`
+- `backend`·`frontend` 에서 `npm install` (백엔드에 pg 어댑터 등 새 패키지)
+- `backend/.env`: `DATABASE_URL` = Neon direct 주소, **`GEMINI_API_KEY` 새로 필수**(없으면 백엔드가 안 켜짐 — aistudio.google.com).
+  DB 는 Neon 하나라 곡·설명·벡터는 이미 다 있다(88곡). 마이그레이션도 적용돼 있어 `npx prisma generate` 만
+- 이어서 할 것: ① 사용자가 `backend/src/recommend/eval.json`(평가 세트) 확인·수정 → `cd backend && npm run eval` 로 다시 재서 A 조정
+  ② 2단계 Gemini 재정렬(docs/recommend-plan.md 6장). 평가 캐시 `.eval-cache.json` 은 git 에 없어 첫 eval 은 Gemini 를 30번 부른다(무료 한도 주의)
+- Gemini 무료 한도: 모델마다 하루 20번(태평양 자정에 풀림). 배치(곡 설명)·평가·실제 요청이 같은 한도를 나눠 쓴다
 
 ## 목표
 docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백엔드(인증·추천·서랍)에 붙었고, 서버가 없으면 가짜 데이터로 돈다.

@@ -50,6 +50,7 @@ export default function Results({ query, genres }: { query: string; genres: stri
   const [seen, setSeen] = useState<string[]>([]); // 지금까지 보여 준 곡
   const [thrown, setThrown] = useState<string[]>([]); // 던져 버린 곡
   const [dry, setDry] = useState(false); // 이 편지로는 더 꺼낼 곡이 없다
+  const [failed, setFailed] = useState(false); // 서버가 오류를 냈다 — 다시 뒤지기만
   const [playing, setPlaying] = useState<Track | null>(null); // 드라이브에 꽂힌 디스크
   const [index, setIndex] = useState(0); // 가운데 앞에 나온 곡 (늘어선 줄 기준)
 
@@ -73,7 +74,8 @@ export default function Results({ query, genres }: { query: string; genres: stri
       setGreeting(null);
       setKept(found.tracks);
       setSeen((s) => [...s, ...found.tracks.map((t) => t.id)]);
-      setDry(found.tracks.length === 0);
+      setFailed(!!found.failed);
+      setDry(!found.failed && found.tracks.length === 0);
       setIndex(Math.floor(found.tracks.length / 2));
       setPhase("discs");
       if (!found.tracks.length) return;
@@ -152,7 +154,9 @@ export default function Results({ query, genres }: { query: string; genres: stri
   }
 
   const empty = phase === "discs" && kept.length === 0;
-  const said = useSaying(empty ? (dry ? RESULT_LINES.dry : RESULT_LINES.empty) : phase === "discs" ? greeting : null);
+  const said = useSaying(
+    empty ? (failed ? RESULT_LINES.failed : dry ? RESULT_LINES.dry : RESULT_LINES.empty) : phase === "discs" ? greeting : null,
+  );
   const greeted = said && said.line === greeting ? said : null;
   // 자막 띠 — 서버 렌더에는 document 가 없으니 브라우저에서만 찾는다
   const subtitleBar = useSyncExternalStore(noop, () => document.getElementById("cinema-sub"), () => null);
@@ -223,7 +227,14 @@ export default function Results({ query, genres }: { query: string; genres: stri
                 link={said.line.link}
                 linkDelay={said.timeline.at(-1)![1] + said.timeline.at(-1)![0].length * LINE_PACE}
               />
-              {!dry && (
+              {failed && (
+                <div className="mt-4 flex justify-center" style={{ animationDelay: "1.5s" }}>
+                  <button className={choice} onClick={() => dig({ thrown })}>
+                    {RESULT_DIALOGUE.FAILED_ACTION}
+                  </button>
+                </div>
+              )}
+              {!dry && !failed && (
                 <div className="mt-4 flex flex-wrap justify-center gap-3" style={{ animationDelay: "1.5s" }}>
                   <button className={choice} onClick={() => dig({ thrown })}>
                     {RESULT_DIALOGUE.RETRY}

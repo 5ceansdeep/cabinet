@@ -144,11 +144,14 @@ export const RESULT_DIALOGUE = {
   MORE: "같은 편지로 몇 곡 더", // 이어서 더 꺼낸다
   DRY: "이 편지로는 서랍이 텅 비었네. 새로 한 장 써 주면 또 뒤져 보지.",
   DRY_ACTION: "새 편지 쓰기",
+  FAILED: "서랍이 뻑뻑해서 안 열리네. 기적도 가끔은 삐걱거리지. 한 번 더 당겨 보게.", // 서버 오류
+  FAILED_ACTION: "다시 뒤지기",
 } as const;
 
 export const RESULT_LINES = {
   empty: { text: RESULT_DIALOGUE.EMPTY, voiceKey: "RESULT_EMPTY" },
   dry: { text: RESULT_DIALOGUE.DRY, voiceKey: "RESULT_DRY", link: { href: "/search", label: RESULT_DIALOGUE.DRY_ACTION } },
+  failed: { text: RESULT_DIALOGUE.FAILED, voiceKey: "RESULT_FAILED" },
 } satisfies Record<string, Line>;
 
 /* ─ 5번 보관함: 서랍을 유튜브에서 이어 듣기 (읽지 않는 짧은 안내) ─ */

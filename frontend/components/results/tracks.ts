@@ -14,7 +14,7 @@ export type Track = {
 
 /** 신의 한마디 — ko 는 자막, en 은 음성(ElevenLabs 붙기 전엔 안 쓴다) */
 export type GodLine = { ko: string; en: string; voice?: string | null }; // voice = 영어 음성 id (ElevenLabs 를 켰을 때만)
-export type Found = { interpretation: string[]; tracks: Track[] };
+export type Found = { interpretation: string[]; tracks: Track[]; failed?: boolean }; // failed = 서버가 오류를 냈다
 
 const GRADIENTS = [
   "linear-gradient(135deg,#1e3a5f,#8ec5fc)",
@@ -45,7 +45,8 @@ export const TRACKS: Track[] = [
 type Scored = Omit<Track, "cover">;
 
 /* 요청문으로 곡을 꺼낸다. seen = 이미 보여 준 곡(몇 곡 더), thrown = 던져 버린 곡(빼고 다시).
-   백엔드가 없으면 가짜 곡에서 같은 규칙으로 */
+   서버에 아예 닿지 못하면(개발 중 백엔드를 안 켬) 가짜 곡에서 같은 규칙으로. 서버가 오류를 내면 가짜 곡으로 덮지 않고 failed —
+   예전엔 오류도 가짜 곡으로 보여 줘서 결과처럼 보였다(9/30, 백엔드 재시작 중 요청) */
 export async function findTracks(query: string, opt: { seen?: string[]; thrown?: string[]; genres?: string[] } = {}): Promise<Found> {
   const qs = new URLSearchParams({ q: query });
   if (opt.genres?.length) qs.set("g", opt.genres.join(","));
@@ -53,6 +54,7 @@ export async function findTracks(query: string, opt: { seen?: string[]; thrown?:
   if (opt.thrown?.length) qs.set("thrown", opt.thrown.join(","));
   const r = await api<{ interpretation: string[]; tracks: Scored[] }>(`/recommend?${qs}`);
   if (r.ok) return { interpretation: r.data.interpretation, tracks: r.data.tracks.map((t) => ({ ...t, cover: gradientOf(t.id) })) };
+  if (r.status !== 0) return { interpretation: [], tracks: [], failed: true };
   const skip = new Set([...(opt.seen ?? []), ...(opt.thrown ?? [])]);
   return { interpretation: [], tracks: TRACKS.filter((t) => !skip.has(t.id)).slice(0, 6) };
 }

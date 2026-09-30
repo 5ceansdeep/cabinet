@@ -4,14 +4,17 @@ export type Track = {
   id: string;
   title: string;
   artist: string;
-  semantic: number; // 요청과의 일치도 % (태그 겹침 코사인)
+  semantic: number; // 요청과의 일치도 % (뜻 벡터 코사인 + 에너지·밝기 거리)
   cover: string; // 커버가 없거나 불러오는 동안 칠하는 그라디언트
   artwork?: string | null; // iTunes 앨범 커버
   previewUrl?: string | null; // iTunes 30초 미리듣기
-  matched?: string[]; // 요청과 겹친 태그
+  description?: string | null; // 곡 설명(감정/상황/가사/소리)
+  reason?: string | null; // 2단계 재정렬이 준 한 줄 — 왜 이 요청에 이 곡인지
 };
 
-export type Found = { interpretation: string[]; tracks: Track[] };
+/** 신의 한마디 — ko 는 자막, en 은 음성(ElevenLabs 붙기 전엔 안 쓴다) */
+export type GodLine = { ko: string; en: string };
+export type Found = { interpretation: string[]; line: GodLine | null; tracks: Track[] };
 
 const GRADIENTS = [
   "linear-gradient(135deg,#1e3a5f,#8ec5fc)",
@@ -47,16 +50,17 @@ export async function findTracks(query: string, opt: { seen?: string[]; thrown?:
   const qs = new URLSearchParams({ q: query });
   if (opt.seen?.length) qs.set("seen", opt.seen.join(","));
   if (opt.thrown?.length) qs.set("thrown", opt.thrown.join(","));
-  const r = await api<{ interpretation: Record<string, number>; tracks: Scored[] }>(`/recommend?${qs}`);
+  const r = await api<{ interpretation: string[]; line: GodLine | null; tracks: Scored[] }>(`/recommend?${qs}`);
   if (r.ok && r.data.tracks.length) {
     return {
-      interpretation: Object.entries(r.data.interpretation).sort((a, b) => b[1] - a[1]).map(([t]) => t),
+      interpretation: r.data.interpretation,
+      line: r.data.line,
       tracks: r.data.tracks.map((t) => ({ ...t, cover: gradientOf(t.id) })),
     };
   }
-  if (r.ok) return { interpretation: Object.keys(r.data.interpretation), tracks: [] };
+  if (r.ok) return { interpretation: r.data.interpretation, line: null, tracks: [] };
   const skip = new Set([...(opt.seen ?? []), ...(opt.thrown ?? [])]);
-  return { interpretation: [], tracks: TRACKS.filter((t) => !skip.has(t.id)).slice(0, 6) };
+  return { interpretation: [], line: null, tracks: TRACKS.filter((t) => !skip.has(t.id)).slice(0, 6) };
 }
 
 /* 곡 하나를 요청문에 대 본다 — 보고서. 백엔드가 없으면 가짜 곡에서 */

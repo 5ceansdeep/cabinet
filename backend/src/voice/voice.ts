@@ -13,7 +13,6 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 const DIR = '.voice-cache';
 const LINES_MAX = 500;
-const MODEL = 'eleven_multilingual_v2'; // 고정 대사 녹음과 같은 목소리 결 — 싸게 가려면 eleven_flash_v2_5(크레딧 절반)
 
 @Injectable()
 export class VoiceService {
@@ -21,11 +20,14 @@ export class VoiceService {
   private readonly enabled: boolean;
   private readonly key?: string;
   private readonly voiceId?: string;
+  // eleven_multilingual_v2(기본 — 표현이 풍부) / eleven_flash_v2_5(크레딧 절반·빠름). 들어 보고 고른다
+  private readonly model: string;
   private readonly lines = new Map<string, string>(); // id → 영어 대사
   private readonly making = new Map<string, Promise<Buffer | null>>(); // 같은 대사를 동시에 두 번 만들지 않게
 
   constructor(config: ConfigService) {
     this.enabled = config.get('ELEVENLABS_ENABLED') === 'true';
+    this.model = config.get<string>('ELEVENLABS_MODEL')?.trim() || 'eleven_multilingual_v2';
     if (!this.enabled) return;
     // 켰으면 키·목소리가 꼭 있어야 한다 — 없으면 서버가 안 켜진다
     const must = (k: string) => {
@@ -41,7 +43,8 @@ export class VoiceService {
   /** 대사를 올려 두고 id 를 준다. 꺼져 있으면 null */
   register(en: string): string | null {
     if (!this.enabled || !en.trim()) return null;
-    const id = createHash('sha256').update(en).digest('hex').slice(0, 16);
+    // 모델도 id 에 — 모델을 바꾸면 예전 모델로 만든 파일을 다시 쓰지 않게
+    const id = createHash('sha256').update(`${this.model}|${en}`).digest('hex').slice(0, 16);
     this.lines.set(id, en);
     if (this.lines.size > LINES_MAX) this.lines.delete(this.lines.keys().next().value!);
     return id;
@@ -67,7 +70,7 @@ export class VoiceService {
       const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${this.voiceId}?output_format=mp3_44100_128`, {
         method: 'POST',
         headers: { 'xi-api-key': this.key!, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, model_id: MODEL }),
+        body: JSON.stringify({ text, model_id: this.model }),
         signal: AbortSignal.timeout(20000),
       });
       if (!res.ok) {

@@ -28,12 +28,12 @@ describe('score', () => {
     expect(away(q, [])).toBe(q);
   });
 
-  it('순위 — 본 곡·던진 곡은 빼고, 가수당 한 곡 먼저', () => {
+  it('순위 — 본 곡·던진 곡은 빼고, 가수당 두 곡까지 먼저', () => {
     const t = (id: string, artist: string, vector: number[]) => ({ id, artist, vector, energy: null, valence: null });
-    const pool = [t('a1', 'a', [1, 0]), t('a2', 'a', [0.99, 0.14]), t('b1', 'b', [0.8, 0.6]), t('c1', 'c', [0, 1])];
+    const pool = [t('a1', 'a', [1, 0]), t('a2', 'a', [0.99, 0.14]), t('a3', 'a', [0.98, 0.2]), t('b1', 'b', [0.8, 0.6]), t('c1', 'c', [0, 1])];
     const want = { vector: [1, 0], energy: null, valence: null };
-    expect(rank(pool, want).map((x) => x.id)).toEqual(['a1', 'b1', 'c1', 'a2']);
-    expect(rank(pool, want, { seen: ['a1'], thrown: ['c1'] }).map((x) => x.id)).toEqual(['a2', 'b1']);
+    expect(rank(pool, want, { center: false }).map((x) => x.id)).toEqual(['a1', 'a2', 'b1', 'c1', 'a3']);
+    expect(rank(pool, want, { seen: ['a1', 'a3'], thrown: ['c1'], center: false }).map((x) => x.id)).toEqual(['a2', 'b1']);
   });
 
   it('화면 일치도는 60~99 로 늘린다', () => {

@@ -2,8 +2,8 @@ import { Controller, Get, Injectable, Module, NotFoundException, Param, Query } 
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CatalogModule } from '../catalog/catalog.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { type Asked, Interpreter } from './interpret.js';
-import { away, dot, soundScore, total } from './score.js';
+import { Interpreter } from './interpret.js';
+import { display, rank } from './score.js';
 
 /* 요청문 → 풀어 쓴 설명의 벡터 + 목표 에너지·밝기(Interpreter) → 곡마다 뜻(코사인)·소리(거리) 점수 → 상위 몇 곡.
    곡 설명·벡터는 배치(catalog/describe.ts)가 미리 만들어 둔다 — 설명이 없는 곡은 아직 후보가 아니다.
@@ -34,27 +34,17 @@ export class RecommendService {
     private readonly interpreter: Interpreter,
   ) {}
 
+  /** 설명·벡터가 있는 곡 전부 — 평가(eval.ts)도 쓴다 */
+  async loadPool() {
+    const rows = await this.prisma.track.findMany({ where: { embedding: { not: null } }, select: SELECT });
+    return rows.map((t) => ({ ...t, vector: JSON.parse(t.embedding!) as number[] }));
+  }
+
   async recommend(query: string, opts: { seen?: string[]; thrown?: string[]; limit?: number } = {}) {
     const { seen = [], thrown = [], limit = 6 } = opts;
-    const pool = (await this.prisma.track.findMany({ where: { embedding: { not: null } }, select: SELECT })).map((t) => ({
-      ...t,
-      vector: JSON.parse(t.embedding!) as number[],
-    }));
-
     const asked = await this.interpreter.interpret(query);
-    // 던진 곡이 있으면 그 곡들 쪽에서 멀어지게 요청을 민다
-    const byId = new Map(pool.map((t) => [t.id, t.vector]));
-    const want = away(asked.vector, thrown.map((id) => byId.get(id)).filter((v) => !!v));
-    const skip = new Set([...seen, ...thrown]);
-
-    const ranked = pool
-      .filter((t) => !skip.has(t.id))
-      .map((t) => scored(t, t.vector, asked, want))
-      .sort((a, b) => b.semantic - a.semantic);
-    // 가수당 한 곡씩 먼저 — 한 가수로 몰리지 않게. 모자라면 나머지로 채운다
-    const artists = new Set<string>();
-    const first = ranked.filter((t) => !artists.has(t.artist) && artists.add(t.artist));
-    const tracks = [...first, ...ranked.filter((t) => !first.includes(t))].slice(0, limit);
+    const ranked = rank(await this.loadPool(), asked, { seen, thrown });
+    const tracks = ranked.slice(0, limit).map((t) => shown(t, ranked));
 
     // 처음 뒤질 때만 남긴다("다시 찾기"·"몇 곡 더"는 같은 요청) — 실패해도 결과는 준다
     if (!seen.length && !thrown.length && query.trim()) {
@@ -65,18 +55,19 @@ export class RecommendService {
     return { interpretation: asked.keywords, description: asked.description, tracks };
   }
 
-  /** 곡 하나를 요청문에 대 본다 — 보고서 */
+  /** 곡 하나를 요청문에 대 본다 — 보고서. 일치도는 곡 풀 전체 안에서 늘린 값이라 전체 순위를 낸다 */
   async one(id: string, query: string) {
-    const t = await this.prisma.track.findUnique({ where: { id }, select: SELECT });
-    if (!t?.embedding) throw new NotFoundException('그런 곡은 서랍에 없네');
     const asked = await this.interpreter.interpret(query);
-    return { interpretation: asked.keywords, description: asked.description, track: scored(t, JSON.parse(t.embedding) as number[], asked, asked.vector) };
+    const ranked = rank(await this.loadPool(), asked);
+    const t = ranked.find((x) => x.id === id);
+    if (!t) throw new NotFoundException('그런 곡은 서랍에 없네');
+    return { interpretation: asked.keywords, description: asked.description, track: shown(t, ranked) };
   }
 }
 
-function scored(t: Row, vector: number[], asked: Asked, want: number[]) {
-  const meaning = Math.max(0, dot(want, vector));
-  const sound = soundScore(t, asked);
+type Ranked = Row & { score: number };
+
+function shown(t: Ranked, ranked: Ranked[]) {
   return {
     id: t.id,
     title: t.title,
@@ -84,7 +75,7 @@ function scored(t: Row, vector: number[], asked: Asked, want: number[]) {
     artwork: t.artwork,
     previewUrl: t.previewUrl,
     videoId: t.videoId,
-    semantic: Math.round(total(meaning, sound) * 100),
+    semantic: display(t.score, Math.min(...ranked.map((x) => x.score)), ranked[0].score),
     description: t.description, // 곡 설명 — 보고서에서 요청 설명과 나란히 "왜 이 곡인지"
   };
 }

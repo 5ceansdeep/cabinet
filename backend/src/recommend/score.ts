@@ -1,7 +1,7 @@
 /* 1단계 점수 = A × 뜻(벡터 코사인) + (1 − A) × 소리(에너지·밝기 거리) — docs/recommend-plan.md 6장.
-   ponytail: A 는 감으로 정한 값 — 평가 세트(7장)가 생기면 그걸로 고른다 */
+   ponytail: A 는 Claude 초안 평가 세트 30개로 고른 값 — 세트를 고치거나 곡이 늘면 npm run eval 로 다시 고른다 */
 
-export const A = 0.6;
+export const A = 0.5; // 9/30 평가 세트 30개: 평균 빼기 + 0.5 가 29/30·재현율 68% 로 가장 좋았다(0.6 은 67%, 뜻만 1.0 은 61%)
 const DEAD = 0.1; // 목표 숫자와 이만큼 안쪽이면 차이 없음 — Gemini 숫자는 대충의 감이다
 
 /** 두 벡터 모두 길이 1 이면 내적 = 코사인 */
@@ -21,7 +21,7 @@ export function soundScore(track: Sound, want: Sound): number | null {
   return gaps.length ? 1 - gaps.reduce((s, g) => s + g, 0) / gaps.length : null;
 }
 
-export const total = (meaning: number, sound: number | null) => (sound === null ? meaning : A * meaning + (1 - A) * sound);
+export const total = (meaning: number, sound: number | null, a = A) => (sound === null ? meaning : a * meaning + (1 - a) * sound);
 
 /** 던진 곡들 쪽에서 요청 벡터를 밀어낸다 — 다시 찾을 때 비슷한 곡이 덜 나오게. 결과도 길이 1 */
 export function away(query: number[], thrown: number[][], k = 0.3): number[] {
@@ -29,4 +29,39 @@ export function away(query: number[], thrown: number[][], k = 0.3): number[] {
   const v = query.map((x, i) => x - (k * thrown.reduce((s, t) => s + (t[i] ?? 0), 0)) / thrown.length);
   const n = Math.hypot(...v) || 1;
   return v.map((x) => x / n);
+}
+
+/** 곡 풀 평균을 빼고 다시 길이 1 로 — 곡 설명이 다들 비슷해("밤·혼자·아련함") 평균에 가까운 곡이 어느 요청에나 끼는 것(허브)을 막는다 */
+export function centerer(vectors: number[][]) {
+  if (!vectors.length) return (v: number[]) => v;
+  const mean = vectors[0].map((_, i) => vectors.reduce((s, v) => s + v[i], 0) / vectors.length);
+  return (v: number[]) => {
+    const c = v.map((x, i) => x - mean[i]);
+    const n = Math.hypot(...c) || 1;
+    return c.map((x) => x / n);
+  };
+}
+
+export type Candidate = Sound & { id: string; artist: string; vector: number[] };
+export type Want = Sound & { vector: number[] };
+
+/** 곡 풀 전체 순위 — seen·thrown 은 빼고, 가수당 한 곡씩 먼저(한 가수로 몰리지 않게), 모자라면 나머지 */
+export function rank<T extends Candidate>(pool: T[], want: Want, opts: { seen?: string[]; thrown?: string[]; a?: number; center?: boolean } = {}) {
+  const { seen = [], thrown = [], a = A, center = true } = opts;
+  const fix = center ? centerer(pool.map((t) => t.vector)) : (v: number[]) => v;
+  const vecs = new Map(pool.map((t) => [t.id, fix(t.vector)]));
+  const vector = away(fix(want.vector), thrown.map((id) => vecs.get(id)).filter((v) => !!v));
+  const skip = new Set([...seen, ...thrown]);
+  const ranked = pool
+    .filter((t) => !skip.has(t.id))
+    .map((t) => ({ ...t, score: total(Math.max(0, dot(vector, vecs.get(t.id)!)), soundScore(t, want), a) }))
+    .sort((x, y) => y.score - x.score);
+  const artists = new Set<string>();
+  const first = ranked.filter((t) => !artists.has(t.artist) && artists.add(t.artist));
+  return [...first, ...ranked.filter((t) => !first.includes(t))];
+}
+
+/** 화면 일치도(%) — 코사인은 곡끼리 86~93% 에 몰려 차이가 안 보인다. 이 요청에서 가장 맞는 곡 99, 가장 먼 곡 60 으로 늘린다(순위는 그대로) */
+export function display(score: number, lo: number, hi: number) {
+  return hi > lo ? Math.round(60 + (39 * (score - lo)) / (hi - lo)) : 99;
 }

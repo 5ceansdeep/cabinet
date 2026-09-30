@@ -24,7 +24,7 @@ const SCHEMA = {
       items: { type: 'OBJECT', properties: { n: { type: 'INTEGER' }, why: { type: 'STRING' } }, required: ['n', 'why'] },
     },
     line_ko: { type: 'STRING', description: '신의 한마디 — 한국어 자막. 한두 문장, 40자 안팎' },
-    line_en: { type: 'STRING', description: 'line_ko 와 같은 뜻의 영어 음성 대사. 한두 문장' },
+    line_en: { type: 'STRING', description: 'line_ko 와 같은 뜻의 영어 음성 대사. line_ko 와 문장 수가 같게 — 음성의 문장 쉼에 맞춰 한국어 자막 줄을 넘긴다' },
   },
   required: ['order', 'reasons', 'line_ko', 'line_en'],
 };

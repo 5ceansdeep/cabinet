@@ -13,6 +13,7 @@ import CabinetWall from "./CabinetWall";
 import PlayerBar from "./PlayerBar";
 import Riffle from "./Riffle";
 import { findTracks, type Track } from "./tracks";
+import { apiUrl } from "@/lib/api";
 import { genreLabel } from "@/lib/genres";
 
 const RIFFLE_MS = 1600; // 카드가 촤르르 넘어가는 시간 — 곡 찾기는 그동안 같이 한다
@@ -69,8 +70,8 @@ export default function Results({ query, genres }: { query: string; genres: stri
       if (run !== digs.current) return;
       thud(70);
       setInterpretation(found.interpretation);
-      // ponytail: 음성은 기계 음성이 한국어 자막을 읽는다 — ElevenLabs 를 붙이면 found.line.en 을 백엔드에서 음성으로
-      setGreeting(found.line && found.tracks.length ? { text: found.line.ko } : null);
+      // 영어 음성은 백엔드가 ElevenLabs 로 만든 mp3(켜 뒀을 때만) — 꺼져 있으면 기계 음성이 한국어 자막을 읽는다
+      setGreeting(found.line && found.tracks.length ? { text: found.line.ko, voiceKey: found.line.voice ? apiUrl(`/voice/${found.line.voice}`) : undefined } : null);
       setKept(found.tracks);
       setSeen((s) => [...s, ...found.tracks.map((t) => t.id)]);
       setDry(found.tracks.length === 0);

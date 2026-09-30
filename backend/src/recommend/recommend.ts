@@ -3,6 +3,7 @@ import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CatalogModule } from '../catalog/catalog.module.js';
 import { GENRES, inGenres } from '../catalog/genres.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { VoiceModule, VoiceService } from '../voice/voice.js';
 import { Interpreter } from './interpret.js';
 import { Reranker } from './rerank.js';
 import { display, rank } from './score.js';
@@ -39,6 +40,7 @@ export class RecommendService {
     private readonly prisma: PrismaService,
     private readonly interpreter: Interpreter,
     private readonly reranker: Reranker,
+    private readonly voice: VoiceService,
   ) {}
 
   /** 설명·벡터가 있는 곡 전부 — 평가(eval.ts)도 쓴다 */
@@ -68,7 +70,8 @@ export class RecommendService {
         .create({ data: { tags: '{}', artists: JSON.stringify([...new Set(tracks.map((t) => t.artist))].slice(0, 3)) } })
         .catch(() => undefined);
     }
-    return { interpretation: asked.keywords, description: asked.description, line, tracks };
+    // 영어 음성 id — ELEVENLABS_ENABLED 가 꺼져 있으면 null(프론트는 기계 음성)
+    return { interpretation: asked.keywords, description: asked.description, line: line && { ...line, voice: this.voice.register(line.en) }, tracks };
   }
 
   /** 곡 하나를 요청문에 대 본다 — 보고서. 일치도는 곡 풀 전체 안에서 늘린 값이라 전체 순위를 낸다 */
@@ -119,5 +122,5 @@ export class RecommendController {
   }
 }
 
-@Module({ imports: [CatalogModule], controllers: [RecommendController], providers: [RecommendService, Interpreter, Reranker] })
+@Module({ imports: [CatalogModule, VoiceModule], controllers: [RecommendController], providers: [RecommendService, Interpreter, Reranker] })
 export class RecommendModule {}

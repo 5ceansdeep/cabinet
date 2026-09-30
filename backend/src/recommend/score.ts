@@ -1,24 +1,32 @@
-import type { Tags } from '../catalog/lastfm.js';
+/* 1단계 점수 = A × 뜻(벡터 코사인) + (1 − A) × 소리(에너지·밝기 거리) — docs/recommend-plan.md 6장.
+   ponytail: A 는 감으로 정한 값 — 평가 세트(7장)가 생기면 그걸로 고른다 */
 
-/* 태그 가중치끼리 코사인 유사도 (DRIFT recommend.service 의 cosineSimilarity 를 희소 맵으로) */
-export function cosine(a: Tags, b: Tags): number {
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (const [t, w] of Object.entries(a)) {
-    na += w * w;
-    dot += w * (b[t] ?? 0);
+export const A = 0.6;
+const DEAD = 0.1; // 목표 숫자와 이만큼 안쪽이면 차이 없음 — Gemini 숫자는 대충의 감이다
+
+/** 두 벡터 모두 길이 1 이면 내적 = 코사인 */
+export const dot = (a: number[], b: number[]) => a.reduce((s, x, i) => s + x * (b[i] ?? 0), 0);
+
+type Sound = { energy: number | null; valence: number | null };
+
+/** 소리 일치도 0~1 — 요청이 말한 축만. 잴 게 없으면 null(뜻만으로) */
+export function soundScore(track: Sound, want: Sound): number | null {
+  const gaps: number[] = [];
+  for (const k of ['energy', 'valence'] as const) {
+    const w = want[k];
+    const t = track[k];
+    if (w === null || t === null) continue;
+    gaps.push(Math.max(0, Math.abs(w - t) - DEAD));
   }
-  for (const w of Object.values(b)) nb += w * w;
-  return na && nb ? dot / Math.sqrt(na * nb) : 0;
+  return gaps.length ? 1 - gaps.reduce((s, g) => s + g, 0) / gaps.length : null;
 }
 
-/* 던져 버린 곡의 태그만큼 요청을 반대로 민다 — 다시 찾을 때 비슷한 곡이 덜 나오게 */
-export function push(query: Tags, away: Tags[], k = 0.5): Tags {
-  const out = { ...query };
-  for (const tags of away) {
-    const max = Math.max(1, ...Object.values(tags));
-    for (const [t, w] of Object.entries(tags)) out[t] = (out[t] ?? 0) - (k * 100 * w) / max / away.length;
-  }
-  return out;
+export const total = (meaning: number, sound: number | null) => (sound === null ? meaning : A * meaning + (1 - A) * sound);
+
+/** 던진 곡들 쪽에서 요청 벡터를 밀어낸다 — 다시 찾을 때 비슷한 곡이 덜 나오게. 결과도 길이 1 */
+export function away(query: number[], thrown: number[][], k = 0.3): number[] {
+  if (!thrown.length) return query;
+  const v = query.map((x, i) => x - (k * thrown.reduce((s, t) => s + (t[i] ?? 0), 0)) / thrown.length);
+  const n = Math.hypot(...v) || 1;
+  return v.map((x) => x / n);
 }

@@ -48,6 +48,11 @@ model Track {
   acousticness Float?
   tempo        Float?
   soundAt      DateTime? // 분석해 본 때 — 분석이 안 되는 파일이면 숫자 없이 이것만 찍혀 다시 안 올린다
+  // 뜻 — Gemini 가 가사·제목·소리로 쓴 곡 설명(감정/상황/가사/소리)과 그 임베딩. 가사 원문은 저장하지 않는다
+  description String?
+  embedding   String? // JSON 숫자 배열(catalog/gemini.ts DIM 차원, 길이 1)
+  hasLyrics   Boolean? // 가사를 보고 썼나 — 없으면 제목·가수만으로 써서 뜻이 약하다
+  describedAt DateTime?
   shelves    ShelfTrack[]
 
   @@unique([title, artist])

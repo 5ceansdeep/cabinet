@@ -9,7 +9,7 @@ type Result = { trackName: string; artistName: string; artistId?: number; artwor
 
 // 비교용 — 대소문자·공백·괄호·기호를 떼고 본다 ("검정치마 (The Black Skirts)" ↔ "검정치마")
 const norm = (s: string) => s.toLowerCase().replace(/[\s()[\]{}'".,!?&:;/\\_-]+/g, '');
-const same = (a: string, b: string) => {
+export const same = (a: string, b: string) => {
   const x = norm(a);
   const y = norm(b);
   return !!x && !!y && (x.includes(y) || y.includes(x));

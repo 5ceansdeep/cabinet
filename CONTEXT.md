@@ -96,7 +96,8 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   ① ReccoBeats 소리 숫자 **9/30 완료**(`catalog/sound.ts`, 86곡). 회사망은 IPv6 가 막혀 `main.ts` 에 ipv4first
   ② 곡 설명 + 임베딩 배치 **9/30 완료**(`catalog/describe.ts`, 88곡, 가사 59곡) ③ 요청 풀어 쓰기 + 1단계 점수 **9/30 완료**(`recommend/interpret.ts`·`score.ts`)
   ④ 평가 세트 30개 ⑤ Gemini 재정렬. LLM 은 **Gemini 무료 한도**(학생 — GPT 대신). 모델마다 하루 20번이라 요청은 하루 수십 번이 한계, 공개 전 유료로.
-  남은 결정: 일치도가 86~93% 에 몰려 화면에서 차이가 안 보임(늘려 보일지)
+  ④ 평가 세트 초안 30개(`backend/src/recommend/eval.json`) + `npm run eval` — **9/30 첫 평가 29/30·재현율 68%**(평균 빼기 + A 0.5, 처음 24/30·43%).
+  **사용자 확인 대기: eval.json 의 요청·기대 곡**. 일치도는 요청마다 60~99% 로 늘려 보임(순위 그대로)
   그다음 인스타 스토리 재생목록 카드(아래 "바이럴 인증물"). 푸시는 9/28 완료
 - DRIFT 곡 가져오기: 이 PC 의 DRIFT DB(prisma dev Postgres)는 곡 4개·한국 곡 0 — 장르별로 모은 건 다른 PC(HKCMC) DB 일 것. 거기서 songs CSV 로 뽑아 와야 함
 - **곡 특징 보강 후보**: 가사 = LRCLIB(무료·키 없음, 한국 곡 있음 — 분석에만, 화면 표시 금지), BPM = Deezer track.bpm(무료),

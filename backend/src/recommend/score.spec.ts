@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { A, away, dot, soundScore, total } from './score.js';
+import { A, away, display, dot, rank, soundScore, total } from './score.js';
 
 describe('score', () => {
   it('길이 1 벡터의 내적 = 코사인', () => {
@@ -26,5 +26,19 @@ describe('score', () => {
     expect(dot(pushed, thrown)).toBeLessThan(dot(q, thrown));
     expect(Math.hypot(...pushed)).toBeCloseTo(1);
     expect(away(q, [])).toBe(q);
+  });
+
+  it('순위 — 본 곡·던진 곡은 빼고, 가수당 한 곡 먼저', () => {
+    const t = (id: string, artist: string, vector: number[]) => ({ id, artist, vector, energy: null, valence: null });
+    const pool = [t('a1', 'a', [1, 0]), t('a2', 'a', [0.99, 0.14]), t('b1', 'b', [0.8, 0.6]), t('c1', 'c', [0, 1])];
+    const want = { vector: [1, 0], energy: null, valence: null };
+    expect(rank(pool, want).map((x) => x.id)).toEqual(['a1', 'b1', 'c1', 'a2']);
+    expect(rank(pool, want, { seen: ['a1'], thrown: ['c1'] }).map((x) => x.id)).toEqual(['a2', 'b1']);
+  });
+
+  it('화면 일치도는 60~99 로 늘린다', () => {
+    expect(display(0.93, 0.8, 0.93)).toBe(99);
+    expect(display(0.8, 0.8, 0.93)).toBe(60);
+    expect(display(0.5, 0.5, 0.5)).toBe(99);
   });
 });

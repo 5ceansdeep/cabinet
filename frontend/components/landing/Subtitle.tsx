@@ -30,7 +30,7 @@ export function subtitleDelays(text: string, cues?: number[]) {
 }
 
 /* 영화 자막 — 줄이 제 시각(delay 초)에 하나씩 위에 나타나고, 먼저 나온 줄은 한 칸씩 아래로 밀려 내려간다.
-   줄마다 반투명 회색 바탕, 흰 조선굴림체 + 얇은 검정 테두리. 부모가 대사마다 key 를 바꿔 새로 건다 */
+   바탕 없이 흰 조선굴림체 + 얇은 검정 테두리. 부모가 대사마다 key 를 바꿔 새로 건다 */
 export default function Subtitle({ timeline, link, linkDelay }: { timeline: [string, number][]; link?: { href: string; label: string }; linkDelay: number }) {
   const [count, setCount] = useState(() => timeline.filter(([, d]) => d <= 0).length); // 지금까지 나온 줄 수
   const [linked, setLinked] = useState(false);
@@ -49,7 +49,7 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
       {lines.map((l) => (
         // 높이가 0 에서 펼쳐지며 들어와, 아래 줄들이 부드럽게 밀려난다
         <div key={l} className="overflow-hidden animate-[subline_.45s_ease-out_both]">
-          <p className="mb-1.5 rounded-sm bg-neutral-800/55 px-3 py-0.5 backdrop-blur-sm">- {l}</p>
+          <p className="mb-1.5 px-3 py-0.5">- {l}</p>
         </div>
       ))}
       {link && linked && (

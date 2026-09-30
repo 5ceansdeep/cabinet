@@ -68,7 +68,8 @@
 
 ## 6. 순서
 
-1. ReccoBeats 배치 — Track 에 소리 숫자 칸 추가, 밤 배치에서 없는 곡만. 키 없이 바로 가능
+1. ~~ReccoBeats 배치~~ **9/30 완료** — `catalog/sound.ts`, Track 에 energy·valence·danceability·acousticness·tempo·soundAt. 매일 새벽 5시 + `POST /catalog/sound`(관리자). 86곡 전부 채움(실패 0).
+   에너지 0.08(에일리 첫눈처럼)~0.92(데이식스), 표준편차 energy 0.23·valence 0.18. **템포는 두 배로 잡히는 곡이 있다**(Gee 179, 데이식스 190) — 점수에서 약하게
 2. GPT 요청 해석 (태그 + 목표 숫자) — `recommend/interpret.ts` 몸통 교체
 3. 점수 합치기 (뜻 코사인 + 분위기 거리)
 4. GPT 곡 태깅 + LRCLIB 가사 — iTunes 장르 대체

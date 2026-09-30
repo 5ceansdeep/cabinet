@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 import { CatalogService } from './catalog.service.js';
 import { CollectDto, GrowDto, TrackDto } from './dto.js';
 import { PoolService } from './pool.js';
+import { SoundService } from './sound.js';
 
 /* 수집은 외부 API(iTunes·Last.fm)를 몰아 부르므로 관리자만.
    관리자 = .env 의 ADMIN_EMAILS(쉼표로 여러 개). 비어 있으면 아무도 못 부른다 */
@@ -20,6 +21,7 @@ export class CatalogController {
   constructor(
     private readonly catalog: CatalogService,
     private readonly pool: PoolService,
+    private readonly sound: SoundService,
   ) {}
 
   @Get('tracks')
@@ -63,5 +65,24 @@ export class CatalogController {
   growStatus(@Req() req: { user: { email: string } }) {
     if (!isAdmin(req.user.email)) throw new ForbiddenException('곡 풀은 관리자만 넓힐 수 있네');
     return this.pool.getStatus();
+  }
+
+  @Post('sound')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '소리 숫자 채우기 시작 (관리자) — 숫자가 없는 곡의 미리듣기를 ReccoBeats 에 올린다. 뒤에서 돌고 바로 상태를 돌려준다' })
+  @ApiResponse({ status: 403, description: 'ADMIN_EMAILS 에 없는 계정' })
+  analyzeSound(@Req() req: { user: { email: string } }) {
+    if (!isAdmin(req.user.email)) throw new ForbiddenException('소리 분석은 관리자만 할 수 있네');
+    return this.sound.start();
+  }
+
+  @Get('sound')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '소리 숫자 채우기 진행 상황 (관리자)' })
+  soundStatus(@Req() req: { user: { email: string } }) {
+    if (!isAdmin(req.user.email)) throw new ForbiddenException('소리 분석은 관리자만 볼 수 있네');
+    return this.sound.getStatus();
   }
 }

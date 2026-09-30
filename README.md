@@ -71,8 +71,9 @@ cd backend && npx prisma studio  # DB 보기 (또는 Neon 콘솔 Tables)
 | `POST /shelves/:id/playlist` | 유튜브 `watch_videos` 재생목록 링크 + 못 찾은 곡 검색 링크 |
 | `GET /catalog/tracks` · `POST /catalog/collect` · `GET /catalog/budget` | 곡 목록·수집(관리자)·유튜브 사용량 |
 | `POST/GET /catalog/grow` | 곡 풀 넓히기 배치(관리자). 매일 새벽 4시 자동 |
+| `POST/GET /catalog/sound` | 소리 숫자(ReccoBeats) 채우기(관리자). 매일 새벽 5시 자동 |
 
-곡 데이터 출처: iTunes(커버·30초 미리듣기·장르), Last.fm(태그), MusicBrainz(한국 가수 한글 이름), YouTube(영상 ID — 필요할 때 + 태평양 23:30 밤 배치).
+곡 데이터 출처: iTunes(커버·30초 미리듣기·장르), Last.fm(태그), ReccoBeats(소리 숫자 — energy·valence 등), MusicBrainz(한국 가수 한글 이름), YouTube(영상 ID — 필요할 때 + 태평양 23:30 밤 배치).
 
 ## 스택
 

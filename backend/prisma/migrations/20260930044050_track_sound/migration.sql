@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "Track" ADD COLUMN     "acousticness" DOUBLE PRECISION,
+ADD COLUMN     "danceability" DOUBLE PRECISION,
+ADD COLUMN     "energy" DOUBLE PRECISION,
+ADD COLUMN     "soundAt" TIMESTAMP(3),
+ADD COLUMN     "tempo" DOUBLE PRECISION,
+ADD COLUMN     "valence" DOUBLE PRECISION;

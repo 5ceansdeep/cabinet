@@ -92,7 +92,7 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
 ## 다음
 - **바로 다음 — 추천 개편, [docs/recommend-plan.md](docs/recommend-plan.md)(9/28 합의)**: 뜻(태그 코사인) + 분위기(소리 숫자 거리) 두 점수 합산.
   "안녕하세요"·"집에 가고싶어요"가 같은 결과(둘 다 사전에 안 걸려 기본값)인 게 발단.
-  ① ReccoBeats(키 없음, 미리듣기 올리면 energy·valence 등) 배치로 Track 에 저장 ② **GPT**(사용자 선택 — Claude 아님) 요청 해석 = 태그 + 목표 숫자,
+  ① ReccoBeats 소리 숫자 — **9/30 완료**(`catalog/sound.ts`, 86곡, 브랜치 `feat/recommend`). 회사망은 IPv6 가 막혀 `main.ts` 에 ipv4first ② **GPT**(사용자 선택 — Claude 아님) 요청 해석 = 태그 + 목표 숫자,
   `OPENAI_API_KEY`·모델 이름 필요 ③ 점수 합치기 ④ GPT 곡 태깅 + LRCLIB 가사(15곡 중 12곡 있음, 원문 저장 안 함)
   그다음 인스타 스토리 재생목록 카드(아래 "바이럴 인증물"). 푸시는 9/28 완료
 - DRIFT 곡 가져오기: 이 PC 의 DRIFT DB(prisma dev Postgres)는 곡 4개·한국 곡 0 — 장르별로 모은 건 다른 PC(HKCMC) DB 일 것. 거기서 songs CSV 로 뽑아 와야 함

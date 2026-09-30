@@ -8,7 +8,8 @@ import { A, rank } from './score.js';
 
 /* 추천 평가 — `npm run eval`. eval.json 의 요청마다 상위 5곡에 나와야 할 곡이 몇 개 들었나.
    A(뜻 비중)를 바꿔 가며 같은 해석으로 다시 잰다 — 해석은 .eval-cache.json 에 남겨 Gemini 한도를 다시 쓰지 않는다.
-   Gemini 가 막혀 요청문 그대로 쓴 해석(해석어 없음)은 캐시하지 않는다 — 내일 다시 */
+   Gemini 가 막혀 요청문 그대로 쓴 해석(해석어 없음)은 캐시하지 않는다 — 내일 다시.
+   캐시는 git 에 올린다 — 다른 PC 에서도 한도를 안 쓰게. 해석 프롬프트·모델을 바꾸면 지우고 다시 만든다 */
 
 setDefaultResultOrder('ipv4first');
 const TOP = 5;

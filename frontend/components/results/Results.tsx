@@ -13,6 +13,7 @@ import CabinetWall from "./CabinetWall";
 import PlayerBar from "./PlayerBar";
 import Riffle from "./Riffle";
 import { findTracks, type Track } from "./tracks";
+import { genreLabel } from "@/lib/genres";
 
 const RIFFLE_MS = 1600; // 카드가 촤르르 넘어가는 시간 — 곡 찾기는 그동안 같이 한다
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -36,7 +37,7 @@ const choice =
 
 /* 4·4-1번 페이지 — 서랍 속에서 건져 올린 플로피 디스크들. 디스크도 서류함도 전부 3D 이고,
    그 위에 얹힌 DOM 은 제목·재생바 같은 글자뿐이다 */
-export default function Results({ query }: { query: string }) {
+export default function Results({ query, genres }: { query: string; genres: string[] }) {
   /* riffle 카드 넘김 → discs 고르기 → saving 서랍이 삼킴 → naming 네임택에 이름 적기 → printing 타자기로 인쇄 */
   const [phase, setPhase] = useState<"riffle" | "discs" | "saving" | "naming" | "printing">("riffle");
   const router = useRouter();
@@ -64,7 +65,7 @@ export default function Results({ query }: { query: string }) {
       const run = ++digs.current;
       setPhase("riffle");
       setPlaying(null);
-      const [found] = await Promise.all([findTracks(query, opt), wait(RIFFLE_MS)]);
+      const [found] = await Promise.all([findTracks(query, { ...opt, genres }), wait(RIFFLE_MS)]);
       if (run !== digs.current) return;
       thud(70);
       setInterpretation(found.interpretation);
@@ -76,7 +77,7 @@ export default function Results({ query }: { query: string }) {
       setIndex(Math.floor(found.tracks.length / 2));
       setPhase("discs");
     },
-    [query],
+    [query, genres],
   );
 
   useEffect(() => {
@@ -172,6 +173,11 @@ export default function Results({ query }: { query: string }) {
               <p>
                 QUERY — <span className="normal-case tracking-normal text-foreground/80">{query || "(empty)"}</span>
               </p>
+              {genres.length > 0 && (
+                <p>
+                  장르 — <span className="normal-case tracking-normal text-foreground/80">{genres.map(genreLabel).join(" · ")}</span>
+                </p>
+              )}
               {interpretation.length > 0 && (
                 <p>
                   요청 해석 — <span className="normal-case tracking-normal text-accent/80">{interpretation.slice(0, 5).join(" · ")}</span>

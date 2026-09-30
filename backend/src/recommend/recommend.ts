@@ -1,6 +1,7 @@
 import { Controller, Get, Injectable, Module, NotFoundException, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CatalogModule } from '../catalog/catalog.module.js';
+import { GENRES, inGenres } from '../catalog/genres.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Interpreter } from './interpret.js';
 import { Reranker } from './rerank.js';
@@ -15,6 +16,7 @@ import { display, rank } from './score.js';
 export const CANDIDATES = 20; // 1단계가 넘기는 후보 수 — 여기서 버린 곡은 2단계가 못 살린다. 늘리면 Gemini 입력이 길어진다
 const Q_MAX = 300; // 요청문 글자 — 길수록 Gemini 한도·비용을 먹는다
 const ids = (s?: string) => (s ? s.split(',').filter(Boolean) : []);
+const MIN_GENRE = 6; // 고른 장르 곡이 이보다 적으면 나머지 곡으로 채운다 — 빈 서랍보다 낫다(장르 곡이 앞)
 
 type Row = {
   id: string;
@@ -25,10 +27,11 @@ type Row = {
   videoId: string | null;
   description: string | null;
   embedding: string | null;
+  tags: string;
   energy: number | null;
   valence: number | null;
 };
-const SELECT = { id: true, title: true, artist: true, artwork: true, previewUrl: true, videoId: true, description: true, embedding: true, energy: true, valence: true };
+const SELECT = { id: true, title: true, artist: true, artwork: true, previewUrl: true, videoId: true, description: true, embedding: true, tags: true, energy: true, valence: true };
 
 @Injectable()
 export class RecommendService {
@@ -44,10 +47,13 @@ export class RecommendService {
     return rows.map((t) => ({ ...t, vector: JSON.parse(t.embedding!) as number[] }));
   }
 
-  async recommend(query: string, opts: { seen?: string[]; thrown?: string[]; limit?: number } = {}) {
-    const { seen = [], thrown = [], limit = 6 } = opts;
+  async recommend(query: string, opts: { seen?: string[]; thrown?: string[]; genres?: string[]; limit?: number } = {}) {
+    const { seen = [], thrown = [], genres = [], limit = 6 } = opts;
     const asked = await this.interpreter.interpret(query);
-    const ranked = rank(await this.loadPool(), asked, { seen, thrown });
+    const pool = await this.loadPool();
+    const all = rank(pool, asked, { seen, thrown });
+    const inGenre = all.filter((t) => inGenres(JSON.parse(t.tags) as Record<string, number>, genres));
+    const ranked = inGenre.length >= MIN_GENRE || !genres.length ? inGenre : [...inGenre, ...all.filter((t) => !inGenre.includes(t))];
     // 2단계 — 1단계가 거른 후보를 Gemini 가 읽고 다시 고른다(+ 곡마다 이유, 신의 한마디)
     const cands = ranked.slice(0, CANDIDATES);
     const { order, reasons, line } = await this.reranker.rerank(query, asked.description, cands);
@@ -100,8 +106,10 @@ export class RecommendController {
   @ApiQuery({ name: 'q', example: '새벽에 혼자 걷는 기분' })
   @ApiQuery({ name: 'seen', required: false, description: '이미 보여 준 곡 id(쉼표) — "몇 곡 더"' })
   @ApiQuery({ name: 'thrown', required: false, description: '던져 버린 곡 id(쉼표) — 빼고, 그 곡들 쪽에서 멀어진다' })
-  get(@Query('q') q = '', @Query('seen') seen?: string, @Query('thrown') thrown?: string) {
-    return this.svc.recommend(q.slice(0, Q_MAX), { seen: ids(seen), thrown: ids(thrown) });
+  @ApiQuery({ name: 'g', required: false, description: `장르 키(쉼표) — ${Object.keys(GENRES).join(', ')}. 모르는 키는 버린다` })
+  get(@Query('q') q = '', @Query('seen') seen?: string, @Query('thrown') thrown?: string, @Query('g') g?: string) {
+    const genres = ids(g).filter((k) => k in GENRES);
+    return this.svc.recommend(q.slice(0, Q_MAX), { seen: ids(seen), thrown: ids(thrown), genres });
   }
 
   @Get(':id')

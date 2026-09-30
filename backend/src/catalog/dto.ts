@@ -38,4 +38,12 @@ export class GrowDto {
   @Min(1)
   @Max(100)
   target?: number;
+
+  @ApiProperty({ required: false, type: [String], example: ['j-pop', 'chanson'], description: '이 Last.fm 태그의 인기곡만 모은다 — 비우면 검색 기록·장르·차트를 섞어서' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MaxLength(40, { each: true })
+  tags?: string[];
 }

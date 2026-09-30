@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { saveShelf, suggestTag } from "@/components/archive/shelf";
 import { RESULT_DIALOGUE, RESULT_LINES, type Line } from "@/components/landing/lines";
@@ -15,6 +16,7 @@ import { findTracks, type Track } from "./tracks";
 
 const RIFFLE_MS = 1600; // 카드가 촤르르 넘어가는 시간 — 곡 찾기는 그동안 같이 한다
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const noop = () => () => {};
 
 /* 신의 한마디 — 목소리가 시작될 때 자막 줄을 띄운다 */
 function useSaying(line: Line | null) {
@@ -41,6 +43,7 @@ export default function Results({ query }: { query: string }) {
   const [tag, setTag] = useState("");
   const [printed, setPrinted] = useState(0); // 네임택에 찍힌 글자 수
   const [interpretation, setInterpretation] = useState<string[]>([]); // 요청 해석 — 요청문을 어떤 표식으로 읽었나
+  const [greeting, setGreeting] = useState<Line | null>(null); // 곡을 건네며 하는 신의 한마디 — 뒤질 때마다 새로
   const [kept, setKept] = useState<Track[]>([]); // 위로 던져 뺀 곡은 여기서 빠진다
   const [seen, setSeen] = useState<string[]>([]); // 지금까지 보여 준 곡
   const [thrown, setThrown] = useState<string[]>([]); // 던져 버린 곡
@@ -65,6 +68,8 @@ export default function Results({ query }: { query: string }) {
       if (run !== digs.current) return;
       thud(70);
       setInterpretation(found.interpretation);
+      // ponytail: 음성은 기계 음성이 한국어 자막을 읽는다 — ElevenLabs 를 붙이면 found.line.en 을 백엔드에서 음성으로
+      setGreeting(found.line && found.tracks.length ? { text: found.line.ko } : null);
       setKept(found.tracks);
       setSeen((s) => [...s, ...found.tracks.map((t) => t.id)]);
       setDry(found.tracks.length === 0);
@@ -139,7 +144,10 @@ export default function Results({ query }: { query: string }) {
   }
 
   const empty = phase === "discs" && kept.length === 0;
-  const said = useSaying(empty ? (dry ? RESULT_LINES.dry : RESULT_LINES.empty) : null);
+  const said = useSaying(empty ? (dry ? RESULT_LINES.dry : RESULT_LINES.empty) : phase === "discs" ? greeting : null);
+  const greeted = said && said.line === greeting ? said : null;
+  // 자막 띠 — 서버 렌더에는 document 가 없으니 브라우저에서만 찾는다
+  const subtitleBar = useSyncExternalStore(noop, () => document.getElementById("cinema-sub"), () => null);
   const center = row[index];
 
   return (
@@ -183,6 +191,16 @@ export default function Results({ query }: { query: string }) {
 
           <div className="flex-1" />
 
+          {/* 곡을 건네며 — 신의 한마디는 영화처럼 프레임 아래 검은 띠(layout 의 #cinema-sub)에 */}
+          {greeted &&
+            subtitleBar &&
+            createPortal(
+              <div key={greeted.line.text} aria-live="polite" className="text-center">
+                <Subtitle timeline={greeted.timeline} linkDelay={0} />
+              </div>,
+              subtitleBar,
+            )}
+
           {/* 전부 던져 버렸다 — 신의 한마디와 두 갈래 */}
           {empty && said && (
             <div className="pointer-events-none absolute inset-x-0 top-[38%] flex flex-col items-center px-4">
@@ -219,9 +237,13 @@ export default function Results({ query }: { query: string }) {
                   {dir < 0 ? "◀" : "▶"}
                 </button>
               ))}
-              <div className="w-56">
+              <div className="w-72">
                 <p className="truncate text-sm">{center.title}</p>
                 <p className="truncate text-xs text-foreground/50">{center.artist}</p>
+                {/* 왜 이 곡인지 — 밝은 서랍 벽 위라 그림자로 띄운다 */}
+                {center.reason && (
+                  <p className="mt-1.5 text-xs leading-5 text-white [text-shadow:0_0_4px_rgba(0,0,0,.95),0_0_10px_rgba(0,0,0,.8)]">{center.reason}</p>
+                )}
                 {/* 보고서 꺼 둠 — 되살릴 때 app/report/[id]/page.tsx 와 같이
                 <Link
                   href={`/report/${center.id}?q=${encodeURIComponent(query)}`}

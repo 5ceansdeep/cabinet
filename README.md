@@ -66,7 +66,7 @@ cd backend && npx prisma studio  # DB 보기 (또는 Neon 콘솔 Tables)
 | 경로 | 설명 |
 |---|---|
 | `POST /auth/signup` · `/auth/login` · `GET /auth/me` · `POST /auth/check-email` | 인증 (bcrypt, JWT 7일, 로그인 5회 실패 15분 잠금) |
-| `GET /recommend?q=&seen=&thrown=` | 요청문 → Gemini 가 곡 설명 틀로 풀어 씀 → 뜻(임베딩 코사인) + 소리(에너지·밝기 거리). 가수당 한 곡 먼저 |
+| `GET /recommend?q=&seen=&thrown=` | 요청문 → Gemini 가 곡 설명 틀로 풀어 씀 → 뜻(임베딩 코사인) + 소리(에너지·밝기 거리)로 후보 20곡 → Gemini 재정렬 + 곡별 이유 + 신의 한마디 |
 | `GET /recommend/:id` | 곡 하나를 요청문에 대 본 점수 |
 | `GET/POST/DELETE /shelves` | 서랍(저장한 목록), JWT 필요 |
 | `POST /shelves/:id/playlist` | 유튜브 `watch_videos` 재생목록 링크 + 못 찾은 곡 검색 링크 |

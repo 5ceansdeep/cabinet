@@ -45,7 +45,9 @@ export function centerer(vectors: number[][]) {
 export type Candidate = Sound & { id: string; artist: string; vector: number[] };
 export type Want = Sound & { vector: number[] };
 
-/** 곡 풀 전체 순위 — seen·thrown 은 빼고, 가수당 한 곡씩 먼저(한 가수로 몰리지 않게), 모자라면 나머지 */
+const PER_ARTIST = 2; // 가수당 앞에 두는 곡 수 — 1 이면 같은 가수 둘째 곡이 100등 밖으로 밀렸다(9/30 FANCY 가 합산 2~3등감인데 111등)
+
+/** 곡 풀 전체 순위 — seen·thrown 은 빼고, 가수당 PER_ARTIST 곡까지 먼저(한 가수로 몰리지 않게), 모자라면 나머지 */
 export function rank<T extends Candidate>(pool: T[], want: Want, opts: { seen?: string[]; thrown?: string[]; a?: number; center?: boolean } = {}) {
   const { seen = [], thrown = [], a = A, center = true } = opts;
   const fix = center ? centerer(pool.map((t) => t.vector)) : (v: number[]) => v;
@@ -56,8 +58,12 @@ export function rank<T extends Candidate>(pool: T[], want: Want, opts: { seen?: 
     .filter((t) => !skip.has(t.id))
     .map((t) => ({ ...t, score: total(Math.max(0, dot(vector, vecs.get(t.id)!)), soundScore(t, want), a) }))
     .sort((x, y) => y.score - x.score);
-  const artists = new Set<string>();
-  const first = ranked.filter((t) => !artists.has(t.artist) && artists.add(t.artist));
+  const count = new Map<string, number>();
+  const first = ranked.filter((t) => {
+    const n = count.get(t.artist) ?? 0;
+    count.set(t.artist, n + 1);
+    return n < PER_ARTIST;
+  });
   return [...first, ...ranked.filter((t) => !first.includes(t))];
 }
 

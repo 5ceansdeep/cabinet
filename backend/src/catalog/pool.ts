@@ -5,21 +5,19 @@ import { findOnITunes } from './itunes.js';
 import { artistTopTracks, fetchTags, similarArtists, tagTopTracks, type Ref, type Tags } from './lastfm.js';
 
 /* 곡 풀 넓히기 — 관리자 배치(POST /catalog/grow)와 매일 새벽 자동 실행. 사용자 요청 중엔 외부 API 를 부르지 않는다.
-   씨앗: 최근 검색 기록(SearchLog)의 해석 태그·결과 가수 + 한국 태그 + 애플 뮤직 한국 차트.
+   씨앗: 최근 검색 기록(SearchLog)의 결과 가수 + 장르를 섞은 태그 + 애플 뮤직 한국·미국 차트.
    후보: 태그 인기곡(Last.fm), 비슷한 가수의 인기곡(Last.fm), 차트 곡.
-   걸러내기: 태그를 먼저 받아 한국 곡만(한글 이름 또는 korean·k-* 태그 — iTunes 호출을 아끼려고), 커버·미리듣기가 있는 곡만,
+   걸러내기: 커버·미리듣기가 있는 곡만(9/30 부터 한국 곡만 거르지 않는다 — 사용자 결정),
    같은 곡 다른 표기(JANNABI / 잔나비)는 미리듣기 주소로. 태그가 없으면 iTunes 장르(genres.ts).
    ponytail: 대기열은 메모리 — 서버를 끄면 남은 줄은 사라진다(다음 배치가 다시 채운다) */
 
 const GAP_MS = 3100; // iTunes 는 분당 20회 남짓 — iTunes 를 부른 곡마다 쉰다
 const DEFAULT_ADD = 30; // 한 번에 새로 담을 곡 수
 const NIGHT_HOUR = 4; // 매일 새벽 4시(서버 시간)
-const KOREAN = /[가-힣]/;
-const KOREAN_TAGS = ['korean', 'k-pop', 'k-indie', 'korean indie', 'k-rock', 'k-hiphop', 'k-ballad', 'korean ballad', 'k-r&b'];
-const SEED_TAGS = ['k-indie', 'korean indie', 'korean ballad', 'k-pop'];
-const CHART = 'https://rss.marketingtools.apple.com/api/v2/kr/music/most-played/50/songs.json';
+// 장르를 섞어 둔다 — 한 장르로 몰리지 않게. 추천 점수엔 장르를 쓰지 않고, 곡을 찾는 데만 쓴다
+const SEED_TAGS = ['k-indie', 'korean ballad', 'indie', 'dream pop', 'house', 'r&b', 'rock', 'jazz', 'city pop'];
+const CHARTS = ['kr', 'us'].map((c) => `https://rss.marketingtools.apple.com/api/v2/${c}/music/most-played/50/songs.json`);
 
-const isKorean = (r: Ref, tags: Tags) => KOREAN.test(r.artist + r.title) || KOREAN_TAGS.some((t) => tags[t]);
 const keyOf = (r: Ref) => `${r.artist}\u0000${r.title}`.toLowerCase();
 // 노래가 아닌 판만 거른다 — 목소리가 빠져 미리듣기로 곡을 알 수 없다. 단어별로 골라 둔다:
 // 거름 = 반주(inst·instrumental·MR·karaoke·반주). 살림 = remix·live·sped up — 분위기가 다른 곡일 수 있다.
@@ -34,9 +32,9 @@ export function interleave<T>(lists: T[][]): T[] {
   return out;
 }
 
-async function chart(): Promise<Ref[]> {
+async function chart(url: string): Promise<Ref[]> {
   try {
-    const res = await fetch(CHART, { signal: AbortSignal.timeout(15000) });
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) return [];
     const json = (await res.json()) as { feed?: { results?: { name: string; artistName: string }[] } };
     return (json.feed?.results ?? []).map((r) => ({ title: r.name, artist: r.artistName }));
@@ -97,7 +95,7 @@ export class PoolService implements OnModuleInit, OnModuleDestroy {
     const similar = (await Promise.all(artists.map((a) => similarArtists(a, 4)))).flat();
     const lists = await Promise.all([
       ...similar.map((a) => artistTopTracks(a, 3)),
-      chart(),
+      ...CHARTS.map(chart),
       ...tags.map((t) => tagTopTracks(t, 20)),
     ]);
     const out: Ref[] = [];
@@ -136,14 +134,12 @@ export class PoolService implements OnModuleInit, OnModuleDestroy {
   private async add(r: Ref): Promise<{ calledITunes: boolean; added: string | null }> {
     if (await this.prisma.track.findFirst({ where: { title: r.title, artist: r.artist } })) return { calledITunes: false, added: null };
     let tags = await fetchTags(r.title, r.artist);
-    // Last.fm 태그가 있으면 한국 곡인지 먼저 본다 — 아니면 iTunes 를 부르지 않는다
-    if (Object.keys(tags).length && !isKorean(r, tags)) return { calledITunes: false, added: null };
     const it = await findOnITunes(r.title, r.artist);
     if (!it?.previewUrl || !it.artwork) return { calledITunes: true, added: null };
-    if (!Object.keys(tags).length) {
-      tags = genreTags(it.genre);
-      if (!Object.keys(tags).length || !isKorean(r, tags)) return { calledITunes: true, added: null };
-    }
+    // iTunes 가 반주 판을 줄 때도 있다(Last.fm 제목은 멀쩡해도 "비밀번호 486 (Instrumental)") — 받은 제목도 거른다
+    if (ALT_VERSION.test(it.title)) return { calledITunes: true, added: null };
+    // 태그는 곡 설명을 쓸 때 참고로만 — 없어도 담는다
+    if (!Object.keys(tags).length) tags = genreTags(it.genre);
     // 같은 곡이 다른 표기로(JANNABI / 잔나비) 이미 있으면 — 미리듣기 주소가 같다
     if (await this.prisma.track.findFirst({ where: { previewUrl: it.previewUrl } })) return { calledITunes: true, added: null };
     // iTunes 표기를 곡 이름으로 쓴다 — 이미 있으면 태그만 채운다

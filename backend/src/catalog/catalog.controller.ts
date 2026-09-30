@@ -53,7 +53,7 @@ export class CatalogController {
   @Post('grow')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: '곡 풀 넓히기 시작 (관리자) — 검색 기록·한국 태그·애플 차트에서 한국 곡을 모은다. 뒤에서 돌고 바로 상태를 돌려준다' })
+  @ApiOperation({ summary: '곡 풀 넓히기 시작 (관리자) — 검색 기록·장르 태그·애플 한국·미국 차트에서 곡을 모은다. 뒤에서 돌고 바로 상태를 돌려준다' })
   @ApiResponse({ status: 403, description: 'ADMIN_EMAILS 에 없는 계정' })
   grow(@Body() dto: GrowDto, @Req() req: { user: { email: string } }) {
     if (!isAdmin(req.user.email)) throw new ForbiddenException('곡 풀은 관리자만 넓힐 수 있네');

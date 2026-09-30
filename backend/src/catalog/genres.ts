@@ -9,6 +9,11 @@ const MAP: Record<string, string[]> = {
   'korean pop': ['k-pop', 'korean'],
   가요: ['k-pop', 'korean'],
   'j-pop': ['j-pop', 'japanese'],
+  anime: ['j-pop', 'japanese'],
+  'french pop': ['chanson', 'french'],
+  chanson: ['chanson', 'french'],
+  house: ['house', 'electronic'],
+  'vocal jazz': ['jazz'],
   pop: ['pop'],
   rock: ['rock'],
   록: ['rock', 'korean'],
@@ -49,6 +54,31 @@ const MAP: Record<string, string[]> = {
   instrumental: ['instrumental'],
   acoustic: ['acoustic'],
 };
+
+/* 편지지에서 고르는 장르 — 키 → 곡 태그(Last.fm·iTunes 장르). 겹치는 장르는 하나로 묶었다(9/30 사용자:
+   인디 팝·인디 록·k-indie → 인디, 하우스·EDM·디스코 → 하우스·일렉트로닉, 랩·k-hiphop → 힙합 등).
+   화면 이름은 frontend/lib/genres.ts — 키를 바꾸면 둘 다 */
+export const GENRES: Record<string, string[]> = {
+  kpop: ['k-pop', 'kpop', 'girl group', 'boy band', 'girlband'],
+  pop: ['pop', 'dance pop', 'electropop', 'synth-pop', 'synthpop', 'teen pop'],
+  indie: ['indie', 'k-indie', 'korean indie', 'k indie', 'indie pop', 'indie folk'],
+  rock: ['rock', 'k-rock', 'indie rock', 'alternative', 'alt-rock', 'alternative rock', 'britpop', 'modern rock', 'shoegaze', 'post-rock', 'soft rock', 'punk', 'korean band'],
+  ballad: ['ballad', 'korean ballad', 'acoustic', 'singer-songwriter', 'folk'],
+  rnb: ['r&b', 'rnb', 'soul', 'korean rnb', 'neo-soul'],
+  hiphop: ['hip-hop', 'hip hop', 'hiphop', 'rap', 'k-hiphop', 'korean hip-hop', 'trap'],
+  house: ['house', 'deep house', 'french house', 'electronic', 'electronica', 'edm', 'dance', 'disco', 'techno', 'baltimore club'],
+  jazz: ['jazz', 'vocal jazz', 'jazz pop', 'smooth jazz', 'bossa nova'],
+  jpop: ['j-pop', 'jpop', 'japanese', 'city pop', 'j-rock', 'anime'],
+  chanson: ['chanson', 'french', 'french pop', 'chanson francaise'],
+};
+const MIN_WEIGHT = 10; // Last.fm 태그 가중치 0~100 — 이보다 약한 태그는 우연히 붙은 것
+
+/** 곡 태그가 고른 장르 중 하나에 드나. 장르를 안 골랐으면 늘 참 */
+export function inGenres(tags: Tags, keys: string[]): boolean {
+  if (!keys.length) return true;
+  const want = new Set(keys.flatMap((k) => GENRES[k] ?? []));
+  return Object.entries(tags).some(([t, w]) => w >= MIN_WEIGHT && want.has(t.toLowerCase()));
+}
 
 export function genreTags(genre: string | null | undefined): Tags {
   const tags = MAP[(genre ?? '').toLowerCase().trim()] ?? [];

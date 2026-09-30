@@ -46,8 +46,9 @@ type Scored = Omit<Track, "cover">;
 
 /* 요청문으로 곡을 꺼낸다. seen = 이미 보여 준 곡(몇 곡 더), thrown = 던져 버린 곡(빼고 다시).
    백엔드가 없으면 가짜 곡에서 같은 규칙으로 */
-export async function findTracks(query: string, opt: { seen?: string[]; thrown?: string[] } = {}): Promise<Found> {
+export async function findTracks(query: string, opt: { seen?: string[]; thrown?: string[]; genres?: string[] } = {}): Promise<Found> {
   const qs = new URLSearchParams({ q: query });
+  if (opt.genres?.length) qs.set("g", opt.genres.join(","));
   if (opt.seen?.length) qs.set("seen", opt.seen.join(","));
   if (opt.thrown?.length) qs.set("thrown", opt.thrown.join(","));
   const r = await api<{ interpretation: string[]; line: GodLine | null; tracks: Scored[] }>(`/recommend?${qs}`);

@@ -59,11 +59,11 @@ export class PoolService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** 배치 시작 — 이미 돌고 있으면 그 상태를 돌려준다. 끝날 때까지 기다리지 않는다 */
-  start(target = DEFAULT_ADD) {
+  start(target = DEFAULT_ADD, tags?: string[]) {
     if (this.status.running) return this.status;
     // 후보 모으기(몇 초)보다 먼저 진행 중으로 — 연달아 눌러도 두 번 돌지 않게
     this.status = { running: true, target, added: 0, tried: 0, queued: 0, startedAt: new Date().toISOString(), last: [] };
-    void this.run(target).catch((e) => {
+    void this.run(target, tags).catch((e) => {
       this.status.running = false;
       this.log.warn(`곡 풀 넓히기 실패: ${e}`);
     });
@@ -90,13 +90,14 @@ export class PoolService implements OnModuleInit, OnModuleDestroy {
     return { tags: [...new Set([...top(tagScore, 3), ...SEED_TAGS])], artists };
   }
 
-  private async candidates(): Promise<Ref[]> {
-    const { tags, artists } = await this.seeds();
+  /** only = 이 태그의 인기곡만(장르 채우기) */
+  private async candidates(only?: string[]): Promise<Ref[]> {
+    const { tags, artists } = only?.length ? { tags: only, artists: [] } : await this.seeds();
     const similar = (await Promise.all(artists.map((a) => similarArtists(a, 4)))).flat();
     const lists = await Promise.all([
       ...similar.map((a) => artistTopTracks(a, 3)),
-      ...CHARTS.map(chart),
-      ...tags.map((t) => tagTopTracks(t, 20)),
+      ...(only?.length ? [] : CHARTS.map(chart)),
+      ...tags.map((t) => tagTopTracks(t, only?.length ? 40 : 20)),
     ]);
     const out: Ref[] = [];
     for (const r of interleave(lists)) {
@@ -108,8 +109,8 @@ export class PoolService implements OnModuleInit, OnModuleDestroy {
     return out;
   }
 
-  private async run(target: number) {
-    const queue = await this.candidates();
+  private async run(target: number, only?: string[]) {
+    const queue = await this.candidates(only);
     this.status.queued = queue.length;
     this.log.log(`곡 풀 넓히기 시작 — 후보 ${queue.length}곡, 목표 ${target}곡`);
     try {

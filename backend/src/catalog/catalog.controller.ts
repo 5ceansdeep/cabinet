@@ -57,7 +57,7 @@ export class CatalogController {
   @ApiResponse({ status: 403, description: 'ADMIN_EMAILS 에 없는 계정' })
   grow(@Body() dto: GrowDto, @Req() req: { user: { email: string } }) {
     if (!isAdmin(req.user.email)) throw new ForbiddenException('곡 풀은 관리자만 넓힐 수 있네');
-    return this.pool.start(dto.target);
+    return this.pool.start(dto.target, dto.tags);
   }
 
   @Get('grow')

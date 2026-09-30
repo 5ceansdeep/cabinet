@@ -56,7 +56,9 @@ async function inStore(title: string, artist: string, country: string) {
 }
 
 export async function findOnITunes(title: string, artist: string): Promise<ITunesInfo | null> {
-  const hit = (await inStore(title, artist, 'kr')) ?? (await inStore(title, artist, 'us'));
+  // 한국 스토어에 있어도 미리듣기가 빠진 곡이 있다(지소쿠리클럽 — 미국 스토어엔 있음) → 그땐 미국도 본다
+  const kr = await inStore(title, artist, 'kr');
+  const hit = kr?.previewUrl ? kr : ((await inStore(title, artist, 'us')) ?? kr);
   if (!hit?.artworkUrl100) return null;
   return {
     // 100x100 주소를 600x600 으로 바꿔 쓴다 — 디스크 라벨에 인쇄할 만한 크기

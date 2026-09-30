@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { genreTags } from './genres.js';
 import { findOnITunes } from './itunes.js';
 import { fetchTags } from './lastfm.js';
+import { GAP_MS } from './pool.js';
 import { searchBudget } from './youtube.js';
 
 /* 곡 한 장을 갖추는 일 — 앨범 커버와 30초 미리듣기(iTunes), 태그(Last.fm, 없으면 iTunes 장르). 한 번 갖춘 곡은 DB 에 남겨 다시 찾지 않는다.
@@ -37,10 +38,13 @@ export class CatalogService {
     });
   }
 
-  /** 여러 곡을 차례로 — iTunes 가 몰아치는 호출을 싫어해 순서대로 돈다 */
+  /** 여러 곡을 차례로, 곡 사이에 쉰다 — 안 쉬면 iTunes 분당 제한에 걸려 0건을 주고 커버·미리듣기 없이 들어간다(9/30 32곡 중 17곡) */
   async collectMany(tracks: { title: string; artist: string }[], force = false) {
     const out = [];
-    for (const t of tracks) out.push(await this.collect(t.title, t.artist, force));
+    for (const [i, t] of tracks.entries()) {
+      if (i) await new Promise((ok) => setTimeout(ok, GAP_MS));
+      out.push(await this.collect(t.title, t.artist, force));
+    }
     return out;
   }
 

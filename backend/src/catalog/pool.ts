@@ -11,7 +11,7 @@ import { artistTopTracks, fetchTags, similarArtists, tagTopTracks, type Ref, typ
    같은 곡 다른 표기(JANNABI / 잔나비)는 미리듣기 주소로. 태그가 없으면 iTunes 장르(genres.ts).
    ponytail: 대기열은 메모리 — 서버를 끄면 남은 줄은 사라진다(다음 배치가 다시 채운다) */
 
-const GAP_MS = 3100; // iTunes 는 분당 20회 남짓 — iTunes 를 부른 곡마다 쉰다
+export const GAP_MS = 3100; // iTunes 는 분당 20회 남짓 — iTunes 를 부른 곡마다 쉰다
 const DEFAULT_ADD = 30; // 한 번에 새로 담을 곡 수
 const NIGHT_HOUR = 4; // 매일 새벽 4시(서버 시간)
 // 장르를 섞어 둔다 — 한 장르로 몰리지 않게. 추천 점수엔 장르를 쓰지 않고, 곡을 찾는 데만 쓴다

@@ -65,7 +65,8 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
 - **가수 이름 통일(9/28)**: iTunes 가 한국 스토어도 영문명을 줘서(아이유 → "I.U.") 섞이던 것 — `catalog/musicbrainz.ts` 로
   한국 가수면 한글 이름(없으면 한국어 대표 별칭·하나뿐인 예명, 본명 안 씀). 기존 38곡도 바꿈. 곡 제목 번역(잔나비 "A Thought on an Autumn Night")은 아직.
   `없는가수zzqx | 없는곡zzqx` 테스트 곡 남아 있음(지울지 사용자 답 대기)
-- **DB 보기**: `cd backend && npx prisma studio` 또는 Neon 콘솔(console.neon.tech, 프로젝트 cabinet)의 Tables
+- **DB 보기**: 루트 `npm run dev` 가 Prisma Studio 도 같이 띄움(http://localhost:5555, 원격 Neon) 또는 Neon 콘솔(console.neon.tech, 프로젝트 cabinet)의 Tables.
+  이 PC(9/30) `backend/.env` 의 `DATABASE_URL` 이 아직 `file:./dev.db` — Neon direct 주소로 바꿔야 백엔드·Studio 가 켜짐
 - **Swagger**: http://localhost:4000/docs (Authorize 에 토큰)
 - **DB — 9/28 Neon(원격 Postgres, 싱가포르)으로 옮김**: 여러 PC 가 같은 곡·서랍을 본다. 다른 PC 도 `backend/.env` 의 `DATABASE_URL` 을 같은 direct 주소로
   (Neon 콘솔 Connect → Connection pooling 끄고 복사). 어댑터 `@prisma/adapter-pg`, 마이그레이션은 Postgres 용 init 하나로 새로 시작(SQLite 것은 삭제).
@@ -94,6 +95,7 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   ① ReccoBeats(키 없음, 미리듣기 올리면 energy·valence 등) 배치로 Track 에 저장 ② **GPT**(사용자 선택 — Claude 아님) 요청 해석 = 태그 + 목표 숫자,
   `OPENAI_API_KEY`·모델 이름 필요 ③ 점수 합치기 ④ GPT 곡 태깅 + LRCLIB 가사(15곡 중 12곡 있음, 원문 저장 안 함)
   그다음 인스타 스토리 재생목록 카드(아래 "바이럴 인증물"). 푸시는 9/28 완료
+- **문서 정리 대기(사용자 답)**: 빈 템플릿 `backend/README.md`·`frontend/README.md`, 말투가 CLAUDE.md 로 옮겨져 중복인 `CLAUDE.local.md` 지울지
 - DRIFT 곡 가져오기: 이 PC 의 DRIFT DB(prisma dev Postgres)는 곡 4개·한국 곡 0 — 장르별로 모은 건 다른 PC(HKCMC) DB 일 것. 거기서 songs CSV 로 뽑아 와야 함
 - **곡 특징 보강 후보**: 가사 = LRCLIB(무료·키 없음, 한국 곡 있음 — 분석에만, 화면 표시 금지), BPM = Deezer track.bpm(무료),
   키·장조 = iTunes 미리듣기를 직접 분석(librosa/essentia, ai-report-plan 2단계)

@@ -17,10 +17,10 @@ export const INNER_HALF = 1.5 * CABINET.H + 2 * CABINET.GAP;
 
 // 서랍 전면이 닫혔을 때의 z, 쫙 펼쳐졌을 때 빠지는 거리
 export const FRONT_Z = CABINET.D / 2 - 0.02;
-export const FULL_OPEN = 9; // 끝없이 길게 — 브루스 올마이티의 서랍
+export const FULL_OPEN = 7.2; // 끝없이 길게 — 브루스 올마이티의 서랍. 카메라를 당긴 만큼 줄여 빠진 서랍 앞면이 화면 안에 남게
 
 // 고정 카메라 — 서랍 정면, 살짝 위에서. 순백의 공간 저 멀리 서류함이 서 있다
-export const CAMERA = new Vector3(0, 2.4, 14);
+export const CAMERA = new Vector3(0, 1.96, 11.6); // LOOK 쪽으로 20% 당김 — 넓은 프레임에서 서류함이 작아 보여서
 export const LOOK = new Vector3(0, 0.2, 2);
 
 // 파일이 떠오르는 자리 — 카메라 앞 5.5 유닛, 서류함이 보이게 살짝 위

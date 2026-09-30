@@ -94,8 +94,9 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   1단계 거르기 = 뜻(GPT 곡 설명 → 임베딩 코사인) + 소리(에너지·밝기 거리) → 20~30곡, 2단계 = GPT 가 곡 설명을 읽고 재정렬 + 한 줄 이유.
   장르·Last.fm 태그는 점수에서 뺌(사용자: 장르가 같아도 느낌이 달라 교집합이 없다). acousticness·danceability 는 energy·valence 와 겹쳐 뺌(상관 −0.86·0.77).
   ① ReccoBeats 소리 숫자 **9/30 완료**(`catalog/sound.ts`, 86곡). 회사망은 IPv6 가 막혀 `main.ts` 에 ipv4first
-  ② LRCLIB 가사 + GPT 곡 설명 + 임베딩 배치 ③ 요청 풀어 쓰기 + 1단계 점수 ④ 평가 세트 30개 ⑤ GPT 재정렬.
-  **막힌 것**: `OPENAI_API_KEY`(사용자가 .env 에) + 모델 이름(곡 설명용 좋은 것 / 요청용 싼 것 / 임베딩 text-embedding-3-small)
+  ② 곡 설명 + 임베딩 배치 **9/30 완료**(`catalog/describe.ts`, 88곡, 가사 59곡) ③ 요청 풀어 쓰기 + 1단계 점수 **9/30 완료**(`recommend/interpret.ts`·`score.ts`)
+  ④ 평가 세트 30개 ⑤ Gemini 재정렬. LLM 은 **Gemini 무료 한도**(학생 — GPT 대신). 모델마다 하루 20번이라 요청은 하루 수십 번이 한계, 공개 전 유료로.
+  남은 결정: 일치도가 86~93% 에 몰려 화면에서 차이가 안 보임(늘려 보일지)
   그다음 인스타 스토리 재생목록 카드(아래 "바이럴 인증물"). 푸시는 9/28 완료
 - DRIFT 곡 가져오기: 이 PC 의 DRIFT DB(prisma dev Postgres)는 곡 4개·한국 곡 0 — 장르별로 모은 건 다른 PC(HKCMC) DB 일 것. 거기서 songs CSV 로 뽑아 와야 함
 - **곡 특징 보강 후보**: 가사 = LRCLIB(무료·키 없음, 한국 곡 있음 — 분석에만, 화면 표시 금지), BPM = Deezer track.bpm(무료),

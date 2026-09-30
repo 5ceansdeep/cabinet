@@ -37,6 +37,7 @@ DB 는 원격 Postgres(Neon) 하나를 모든 PC 가 같이 쓴다. `backend/.en
 | `ADMIN_EMAILS` | 곡 수집·배치를 부를 수 있는 이메일, 쉼표 구분 |
 | `LASTFM_API_KEY`, `LASTFM_SHARED_SECRET` | 곡 태그 |
 | `YOUTUBE_API_KEY`, `YT_SEARCH_DAILY_LIMIT` | 영상 ID 검색, 하루 상한 (기본 60) |
+| `GEMINI_API_KEY` | 필수. 곡 설명·요청 풀어 쓰기·임베딩 (aistudio.google.com, 무료 한도는 Flash 만) |
 | `PORT` | 기본 4000 |
 
 ```bash
@@ -65,15 +66,16 @@ cd backend && npx prisma studio  # DB 보기 (또는 Neon 콘솔 Tables)
 | 경로 | 설명 |
 |---|---|
 | `POST /auth/signup` · `/auth/login` · `GET /auth/me` · `POST /auth/check-email` | 인증 (bcrypt, JWT 7일, 로그인 5회 실패 15분 잠금) |
-| `GET /recommend?q=&seen=&thrown=` | 요청문 → 태그 해석 → 곡 점수(태그 코사인). 가수당 한 곡 먼저 |
+| `GET /recommend?q=&seen=&thrown=` | 요청문 → Gemini 가 곡 설명 틀로 풀어 씀 → 뜻(임베딩 코사인) + 소리(에너지·밝기 거리). 가수당 한 곡 먼저 |
 | `GET /recommend/:id` | 곡 하나를 요청문에 대 본 점수 |
 | `GET/POST/DELETE /shelves` | 서랍(저장한 목록), JWT 필요 |
 | `POST /shelves/:id/playlist` | 유튜브 `watch_videos` 재생목록 링크 + 못 찾은 곡 검색 링크 |
 | `GET /catalog/tracks` · `POST /catalog/collect` · `GET /catalog/budget` | 곡 목록·수집(관리자)·유튜브 사용량 |
 | `POST/GET /catalog/grow` | 곡 풀 넓히기 배치(관리자). 매일 새벽 4시 자동 |
 | `POST/GET /catalog/sound` | 소리 숫자(ReccoBeats) 채우기(관리자). 매일 새벽 5시 자동 |
+| `POST/GET /catalog/describe` | 곡 설명·임베딩(가사 LRCLIB + Gemini) 채우기(관리자). 매일 새벽 6시 자동 |
 
-곡 데이터 출처: iTunes(커버·30초 미리듣기·장르), Last.fm(태그), ReccoBeats(소리 숫자 — energy·valence 등), MusicBrainz(한국 가수 한글 이름), YouTube(영상 ID — 필요할 때 + 태평양 23:30 밤 배치).
+곡 데이터 출처: iTunes(커버·30초 미리듣기·장르), Last.fm(태그), ReccoBeats(소리 숫자 — energy·valence 등), LRCLIB(가사 — 설명에만, 저장 안 함), Gemini(곡 설명·요청 해석·임베딩), MusicBrainz(한국 가수 한글 이름), YouTube(영상 ID — 필요할 때 + 태평양 23:30 밤 배치).
 
 ## 스택
 

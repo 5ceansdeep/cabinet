@@ -4,7 +4,9 @@
 - **작업은 `main`**(추천 개편 `feat/recommend` 를 합침). `git pull`, `backend`·`frontend` 에서 `npm install`, `cd backend && npx prisma generate`
 - `backend/.env`: `DATABASE_URL` = Neon direct 주소, **`GEMINI_API_KEY` 필수**(없으면 백엔드가 안 켜짐). 관리자 배치를 부르려면 `ADMIN_EMAILS` 에 내 이메일
 - **베타 배포 진행 중** — 절차 [docs/deploy.md](docs/deploy.md). 1일차(곡 풀 늘리기) 도중:
-  - 곡 풀 88 → 약 176곡(넓히기 배치 88곡 추가) + 오아시스·지소쿠리클럽·신인류·하우스 32곡 수집(9/30 저녁 도는 중 — 끝났는지 Neon 에서 확인)
+  - 곡 풀 88 → **208곡**(넓히기 88곡 + 오아시스·지소쿠리클럽·신인류·하우스 32곡 수집). 미리듣기 있는 곡 189, 설명 있는 곡 88
+  - **수집 32곡 중 17곡은 커버·미리듣기가 비었다**(지소쿠리클럽 6곡 전부·신인류 5·하우스 6). `POST /catalog/collect` 가 곡 사이에 안 쉬어
+    iTunes 분당 제한에 걸린 듯 + 이름 불일치. 수집에도 곡 사이 3초를 넣고 `force: true` 로 다시, 그래도 없으면 iTunes 표기로 다시 넣거나 지운다
   - **새 곡은 아직 추천에 안 나온다** — 소리 분석(`POST /catalog/sound`) → 곡 설명(`POST /catalog/describe`) 배치를 돌려야 후보가 된다. 새벽 5·6시 자동으로도 돈다
   - 정리할 것: 반주 판(`(Instrumental)` 등)·미리듣기 없는 곡이 들어갔으면 지운다. 넓히기는 이제 한국 곡만 거르지 않는다(9/30 사용자 결정)
   - 곡이 늘면 평가 점수가 달라진다 — 곡 설명 뒤 `npm run eval` 로 다시

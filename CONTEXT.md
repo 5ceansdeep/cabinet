@@ -5,9 +5,11 @@
 - `backend`·`frontend` 에서 `npm install` (백엔드에 pg 어댑터 등 새 패키지)
 - `backend/.env`: `DATABASE_URL` = Neon direct 주소, **`GEMINI_API_KEY` 새로 필수**(없으면 백엔드가 안 켜짐 — aistudio.google.com).
   DB 는 Neon 하나라 곡·설명·벡터는 이미 다 있다(88곡). 마이그레이션도 적용돼 있어 `npx prisma generate` 만
-- 이어서 할 것: ① 사용자가 `backend/src/recommend/eval.json`(평가 세트) 확인·수정 → `cd backend && npm run eval` 로 다시 재서 A 조정
-  ② 2단계 Gemini 재정렬(docs/recommend-plan.md 6장). 평가 캐시 `backend/.eval-cache.json` 은 git 에 있어 같은 요청이면 Gemini 를 안 부른다(요청 문장을 새로 넣거나 고친 것만)
-- Gemini 무료 한도: 모델마다 하루 20번(태평양 자정에 풀림). 배치(곡 설명)·평가·실제 요청이 같은 한도를 나눠 쓴다
+- 이어서 할 것: ① 사용자가 `backend/src/recommend/eval.json`(평가 세트 39개) 확인·수정 → `cd backend && npm run eval -- rerank` 로 다시 재서
+  A 와 재정렬 순서를 쓸지 결정(지금 재정렬 후 56% < 1단계만 65%, 정답지 편향 의심) ② ElevenLabs 로 신의 한마디 음성(`line.en`, 키·Voice ID 필요)
+  ③ 미녹음 RESULT_EMPTY·RESULT_DRY mp3. 평가 캐시 `.eval-cache.json`·`.eval-rerank.json` 은 git 에 있어 같은 요청이면 Gemini 를 안 부른다
+- 스웨거로 추천 시험: http://localhost:4000/docs → GET /recommend (로그인 필요 없음). 관리자 엔드포인트는 ADMIN_EMAILS 에 든 계정 토큰
+- Gemini 무료 하루 한도(태평양 자정에 풀림): 3.8-flash 20번(곡 설명) · 3.5-flash-lite 500번(요청 풀어 쓰기·재정렬) · 임베딩 1000번. 배치·평가·실제 요청이 나눠 쓴다
 
 ## 목표
 docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백엔드(인증·추천·서랍)에 붙었고, 서버가 없으면 가짜 데이터로 돈다.

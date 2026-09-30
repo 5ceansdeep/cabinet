@@ -10,7 +10,7 @@ const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 export const MODELS = {
   describe: ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite'], // 곡당 한 번 — 좋은 것부터
   query: ['gemini-3.5-flash-lite', 'gemini-3.8-flash'], // 요청 풀어 쓰기 — 요청마다, 빠른 것부터
-  rerank: ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite'], // 2단계 고르기 + 신의 한마디 — 판단이 필요해 좋은 것부터(한도도 요청 풀어 쓰기와 갈린다)
+  rerank: ['gemini-3.5-flash-lite', 'gemini-3.8-flash'], // 2단계 고르기 + 신의 한마디 — 요청마다라 하루 한도가 큰 Lite(500) 부터. 3.8-flash 는 하루 20번
   embed: 'gemini-embedding-2',
 };
 export const DIM = 768; // 3072 중 앞 768 — 곡 수천 개를 JSON 으로 들고 다녀도 가볍게. 바꾸면 곡 벡터를 전부 다시 만든다

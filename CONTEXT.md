@@ -7,10 +7,10 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
 `app/` 은 라우트 + 페이지 상태 흐름만. UI 조각은 `components/<페이지>/`, 공용 유틸은 `lib/`.
 
 ## 완료
-- 1·2번 랜딩/인증 + 로딩: `app/page.tsx`(로그인), `app/signup/page.tsx`(회원가입) → `components/landing/AuthFlow.tsx` 공용. 고정 카메라로 멀리 선 3D 서류함(RoundedBox + 절차적 텍스처 `materials.ts`; 끊김 때문에 N8AO 후처리 제거), 고정 키 라이트(커서 광원은 어색해서 제거), 열기 전 맨 위 서랍이 3초마다 톡톡 들썩여 호버 유도. 호버 시 맨 위 서랍이 브루스 올마이티처럼 8유닛 길게 쫙 빠짐(몸통·인스턴스 폴더가 길이 따라 늘어남) → `FileCard` 가 한 장씩 카메라 앞으로 날아오고 입력칸은 DOM 오버레이(PRESENT_TOP 위치, 3D Html 은 느려서 버림)(fields 순서), 끝나면 서랍 열린 채 로딩: 서랍 쾅 닫힘(CLOSE_MS 0.7초) → 서류함 뒤 후광(`LoadingOverlay.tsx` 의 `Halo` — 투명 캔버스 뒤엔 흰 빛살(conic 두 겹 + 마스크, 천천히 회전) + 어두운 바탕(#0b0d12, 3D 조명·안개도 함께 어두워짐 — `Lights` dim), 앞엔 흰 radial, 진행률 따라 커지다 화면 전체를 하얗게 덮음) + 성가 BGM(`lib/choir.ts`, Web Audio 합성) → 하얀 채로 /search. 다이브(가운데 서랍·암전 터널) 없앰. 카메라는 서랍 정면 고정
+- 1·2번 랜딩/인증 + 로딩: `app/page.tsx`(로그인), `app/signup/page.tsx`(회원가입) → `components/landing/AuthFlow.tsx` 공용. 고정 카메라로 멀리 선 3D 서류함(RoundedBox + 절차적 텍스처 `materials.ts`; 끊김 때문에 N8AO 후처리 제거), 고정 키 라이트(커서 광원은 어색해서 제거), 열기 전 맨 위 서랍이 3초마다 톡톡 들썩여 호버 유도. 호버 시 맨 위 서랍이 브루스 올마이티처럼 7.2유닛(`FULL_OPEN`) 길게 쫙 빠짐(몸통·인스턴스 폴더가 길이 따라 늘어남) → `FileCard` 가 한 장씩 카메라 앞으로 날아오고 입력칸은 DOM 오버레이(PRESENT_TOP 위치, 3D Html 은 느려서 버림)(fields 순서), 끝나면 서랍 열린 채 로딩: 서랍 쾅 닫힘(CLOSE_MS 0.7초) → 서류함 뒤 후광(`LoadingOverlay.tsx` 의 `Halo` — 투명 캔버스 뒤엔 흰 빛살(conic 두 겹 + 마스크, 천천히 회전) + 어두운 바탕(#0b0d12, 3D 조명·안개도 함께 어두워짐 — `Lights` dim), 앞엔 흰 radial, 진행률 따라 커지다 화면 전체를 하얗게 덮음) + 성가 BGM(`lib/choir.ts`, Web Audio 합성) → 하얀 채로 /search. 다이브(가운데 서랍·암전 터널) 없앰. 카메라는 서랍 정면 고정
 - 음성은 영어(ElevenLabs, `docs/voice-script.csv`), 자막은 한국어. 음성 파일(29개, `public/voice/`)에서 말소리 사이 가장 긴 쉼 N−1개(N=자막 줄 수, 잔향 때문에 최고 음량 15% 미만을 쉼으로 봄)를 찾아(`lib/cues.ts`) 자막 줄을 음성 문장에 맞춰 띄움. 대사는 끊지 않고 대기열로 이어 재생(엔터만 예외 — `cut()` 으로 즉시 끊고 자막도 지움. 말 끝 = 분석한 마지막 말소리, 파일 끝 공백은 안 기다림, 기다리는 중엔 최신 1개만), 자막은 그 대사 소리가 시작될 때 바뀜. 페이지 떠나도 끝까지 나옴, `/search` 이동은 `whenQuiet()` 뒤. 첫 대사는 페이지별(`LINES.intro` — INTRO / INTRO_SIGNUP / INTRO_FORGOT)
 - 자막 표시(`components/landing/Subtitle.tsx`): 위쪽 고정(top 74%), 새 줄이 위에 펼쳐지며 먼저 나온 줄을 아래로 밀어냄. 로딩(후광) 중엔 서랍 호버·키보드 열기 잠금
-- 자막: 줄마다 반투명 회색 박스 + 흰 조선굴림체(`app/fonts/ChosunGu.woff`, `font-subtitle`), 긴 문장은 문장별로 줄 나눠 "- " 시작(`subtitleLines`). 음성 파일 `public/voice/{키}.mp3`(없으면 기계 음성), 키 목록은 docs/voice-persona.md 4번
+- 자막: 바탕 박스 없이(9/30 뺌) 흰 조선굴림체 + 얇은 검정 테두리(`app/fonts/ChosunGu.woff`, `font-subtitle`), 긴 문장은 문장별로 줄 나눠 "- " 시작(`subtitleLines`). 음성 파일 `public/voice/{키}.mp3`(없으면 기계 음성), 키 목록은 docs/voice-persona.md 4번
 - 안내는 영화 자막 + 목소리(`lib/voice.ts`, Web Speech API — 첫 사용자 입력 전엔 무음). 문구는 전부 `components/landing/lines.ts`(말투 = `docs/voice-persona.md`, 브루스 올마이티의 신 "자네"): 필드별(prompt/missing/invalid/tooShort/mismatch) + 흐름(idle·30초 재촉·CapsLock·대조 중·틀림·계정 없음·이미 가입·서버 오류·환영/재방문·로딩·열쇠 찾기). ESC 로 앞 서류. 회원가입 = 이메일→닉네임(2~12, 한/영/숫자/_)→비밀번호(8자+)→확인. `/forgot` 열쇠 찾기(가입 여부 안 흘림). 인증은 백엔드 /auth (`lib/auth.ts` → `lib/api.ts`, JWT 는 localStorage `cabinet.token`). 로그인 실패는 계정 유무 구분 없이 "비밀이 틀렸네".
   회원가입 이메일은 첫 칸 Enter 때 형식(끝말 .com 까지)·가입 여부를 바로 검사(`/auth/check-email`). 첫 화면에서 토큰을 `/auth/me` 로 확인해
   무효(401)면 흔적을 지우고 평소 로그인으로(예전엔 토큰이 있기만 하면 "또 왔군" 하고 들어갔다)
@@ -61,10 +61,10 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   서랍에 많이 담긴 곡부터(`catalog/videos.ts`). 수집은 유튜브를 안 부른다. 못 찾은 곡은 30일 재질문 안 함. 보관함에서 서랍 열면
   "유튜브에서 이어 듣기"(`ListenPanel`). 키 발급·확인 완료(검정치마·새소년 MV 정확히 찾음).
   영상 고르기 = `pickVideo`(Topic > 가수 채널 > 첫 결과, 라이브·스케치북·커버 제목은 뺌 — 9/28 10CM 그라데이션에 KBS 라이브가 걸려서).
-  **그라데이션의 잘못 저장된 videoId 는 아직 DB 에 남음** — Neon 콘솔 Tables(또는 prisma studio)에서 videoId·checkedAt 비우면 다시 찾음
+  그라데이션의 잘못 저장된 videoId 는 9/30 비움 — 다음 재생목록 요청·밤 배치 때 pickVideo 로 다시 찾음
 - **가수 이름 통일(9/28)**: iTunes 가 한국 스토어도 영문명을 줘서(아이유 → "I.U.") 섞이던 것 — `catalog/musicbrainz.ts` 로
   한국 가수면 한글 이름(없으면 한국어 대표 별칭·하나뿐인 예명, 본명 안 씀). 기존 38곡도 바꿈. 곡 제목 번역(잔나비 "A Thought on an Autumn Night")은 아직.
-  `없는가수zzqx | 없는곡zzqx` 테스트 곡 남아 있음(지울지 사용자 답 대기)
+  테스트 곡(zzqx)은 9/30 지움
 - **DB 보기**: 루트 `npm run dev` 가 Prisma Studio 도 같이 띄움(http://localhost:5555, 원격 Neon) 또는 Neon 콘솔(console.neon.tech, 프로젝트 cabinet)의 Tables.
   이 PC(9/30) `backend/.env` 의 `DATABASE_URL` 이 아직 `file:./dev.db` — Neon direct 주소로 바꿔야 백엔드·Studio 가 켜짐
 - **Swagger**: http://localhost:4000/docs (Authorize 에 토큰)
@@ -95,12 +95,10 @@ docs/ui-ux-spec.md 의 5개 페이지를 순서대로 구현. 프론트는 백�
   ① ReccoBeats(키 없음, 미리듣기 올리면 energy·valence 등) 배치로 Track 에 저장 ② **GPT**(사용자 선택 — Claude 아님) 요청 해석 = 태그 + 목표 숫자,
   `OPENAI_API_KEY`·모델 이름 필요 ③ 점수 합치기 ④ GPT 곡 태깅 + LRCLIB 가사(15곡 중 12곡 있음, 원문 저장 안 함)
   그다음 인스타 스토리 재생목록 카드(아래 "바이럴 인증물"). 푸시는 9/28 완료
-- **문서 정리 대기(사용자 답)**: 빈 템플릿 `backend/README.md`·`frontend/README.md`, 말투가 CLAUDE.md 로 옮겨져 중복인 `CLAUDE.local.md` 지울지
 - DRIFT 곡 가져오기: 이 PC 의 DRIFT DB(prisma dev Postgres)는 곡 4개·한국 곡 0 — 장르별로 모은 건 다른 PC(HKCMC) DB 일 것. 거기서 songs CSV 로 뽑아 와야 함
 - **곡 특징 보강 후보**: 가사 = LRCLIB(무료·키 없음, 한국 곡 있음 — 분석에만, 화면 표시 금지), BPM = Deezer track.bpm(무료),
   키·장조 = iTunes 미리듣기를 직접 분석(librosa/essentia, ai-report-plan 2단계)
-- **정리 대기**: `feat/archive-room` 브랜치(로컬·원격) — 내용은 main 에 다 있음, 지울지 사용자 답 대기
-- 자막 띠 위 반투명 회색 박스 유지 여부, 넓은 프레임에서 랜딩 서류함이 작아 보임(카메라 조정 여부) — 사용자 답 대기
+- (9/30 처리) 자막 박스 뺌, 랜딩 카메라 20% 당김(`CAMERA` 0,1.96,11.6) + 서랍 빠지는 길이 9 → 7.2(앞면이 화면 안에 남게)
 - **파이프라인 확정(2026-09-28)** — 스포티파이는 전부 뺀다(개발 모드 5명 제한 + 정책상 다른 서비스로 넘기기·AI 입력 금지):
   1. LLM = 의도 파서만. 요청문 → 태그 JSON. **DB 에 실제 있는 태그 목록 안에서만** 고르게 출력 형식을 묶는다
      (자유 키워드 "비오는날" 은 곡의 Last.fm 태그 "rainy" 와 글자가 달라 점수가 0 이 된다). 곡은 지어내지 않는다

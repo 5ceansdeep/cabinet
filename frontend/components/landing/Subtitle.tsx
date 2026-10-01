@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 
 /* 긴 자막은 영화처럼 문장마다 줄을 나눈다 ("- 첫 문장" / "- 다음 문장"). "땡." 같은 짧은 조각은 다음 문장에 붙인다 */
@@ -48,6 +48,7 @@ const OUTLINE = [
 export default function Subtitle({ timeline, link, linkDelay }: { timeline: [string, number][]; link?: { href: string; label: string }; linkDelay: number }) {
   const [count, setCount] = useState(() => timeline.filter(([, d]) => d <= 0).length); // 지금까지 나온 줄 수
   const [linked, setLinked] = useState(false);
+  const boil = `boil${useId().replace(/:/g, "")}`; // 자글자글 필터 id — 자막이 여러 개 떠도 안 겹치게
   const [gone, setGone] = useState(false); // 대사가 끝나고 HOLD_S 초 — 자막 줄만 사라진다(버튼은 남는다)
   const sig = timeline.map(([l, d]) => `${l}@${d}`).join("|"); // 내용이 같으면 타이머를 다시 걸지 않는다
 
@@ -68,12 +69,24 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
       className="flex flex-col items-center font-subtitle text-[clamp(15px,calc(.9vw+6px),30px)] tracking-wide text-[#e2cd5a]"
       style={{ textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6)` }}
     >
-      {lines.map((l) => (
-        // 높이가 0 에서 펼쳐지며 들어와, 아래 줄들이 부드럽게 밀려난다
-        <div key={l} className="overflow-hidden animate-[subline_.45s_ease-out_both]">
-          <p className={`mb-1 px-3 leading-tight transition-opacity duration-700 ${gone ? "opacity-0" : ""}`}>- {l}</p>
-        </div>
-      ))}
+      {/* 자글자글 — 옛 필름 자막처럼 글자·테두리가 아주 살짝 끓는다(노이즈로 1~2px 비틀고, 노이즈 씨앗을 1초에 8번 바꾼다).
+          움직임 줄이기를 켠 사람에겐 끈다 */}
+      <svg aria-hidden className="absolute size-0">
+        <filter id={boil}>
+          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="1">
+            <animate attributeName="seed" values="1;2;3;4;5;6;7;8" dur="1s" repeatCount="indefinite" calcMode="discrete" />
+          </feTurbulence>
+          <feDisplacementMap in="SourceGraphic" scale="2.2" />
+        </filter>
+      </svg>
+      <div className="flex flex-col items-center motion-reduce:![filter:none]" style={{ filter: `url(#${boil})` }}>
+        {lines.map((l) => (
+          // 높이가 0 에서 펼쳐지며 들어와, 아래 줄들이 부드럽게 밀려난다
+          <div key={l} className="overflow-hidden animate-[subline_.45s_ease-out_both]">
+            <p className={`mb-1 px-3 leading-tight transition-opacity duration-700 ${gone ? "opacity-0" : ""}`}>- {l}</p>
+          </div>
+        ))}
+      </div>
       {link && linked && (
         // 자막과 구분되는 버튼 — 흰 알약, 어두운 명조 글씨, 테두리 없는 자막과 달리 얇은 테두리와 그림자
         <Link

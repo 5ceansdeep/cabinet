@@ -38,7 +38,12 @@ export const promptFor = (query: string) =>
   [
     '음악 추천 서비스. 사용자가 적은 문장을 읽고, 이 사람에게 들려줄 곡이 어떤 곡이면 좋을지 곡 설명 틀로 쓴다.',
     '이 설명을 곡들의 설명(감정/상황/가사/소리)과 비교해 곡을 고른다. 각 항목을 한국어 한두 문장으로.',
-    '음악과 상관없는 말("안녕하세요", "배고파")이어도 그 말을 하는 사람의 기분·상황을 짐작해 어울리는 곡을 쓴다.',
+    '먼저 요청이 어떤 종류인지 읽고 거기에 맞춘다:',
+    '- 구체적인 소재·몸 상태를 말하면(배고파, 비 온다, 이사했어) 그 소재를 직접 노래하는 곡이 먼저다. 가사 항목에 그 낱말을 그대로 쓴다 (예: "배고파" → 가사가 배고픔·먹고 싶은 것을 말한다).',
+    '- 감정을 말하면(슬퍼, 신나, 설레) 그 감정에 같이 머무는 곡. 슬픈 사람에게 밝은 응원가를 주지 않는다 — 슬픈 곡으로 같이 운다.',
+    '- 지치거나 힘들다고 하면(지쳤어, 번아웃, 버티는 중) 조용하고 다정한 위로. 소리는 잔잔하게, 가사는 괜찮다고 다독인다.',
+    '- 하는 일·장소를 말하면(드라이브, 공부, 청소) 그 일에 어울리는 소리와 분위기.',
+    '- 인사처럼 음악과 상관없는 말("안녕하세요")이면 그 말을 하는 사람의 기분을 짐작한다.',
     '장르·가수·곡 이름은 쓰지 않는다. 사용자가 직접 말한 경우에만 소리 항목에 반영한다.',
     '',
     `사용자: ${query}`,
@@ -68,19 +73,19 @@ export class Interpreter {
     try {
       const p = JSON.parse(await this.gemini.generate(MODELS.query, promptFor(query), SCHEMA)) as Parts & {
         keywords?: string[];
+        tags?: string[];
         energy?: number | null;
         valence?: number | null;
       };
       const description = describeText(p);
       return {
-        tags?: string[];
         keywords: (p.keywords ?? []).map((k) => k.trim()).filter(Boolean).slice(0, 5),
+        tags: (p.tags ?? []).map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 3),
         description,
         vector: await this.gemini.embed(description),
         energy: clamp(p.energy),
         valence: clamp(p.valence),
       };
-        tags: (p.tags ?? []).map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 3),
     } catch (e) {
       // 대화 모델이 막혔다 — 요청문 그대로 (이것도 실패하면 위로 던진다)
       this.log.warn(`풀어 쓰기 실패, 요청문 그대로 임베딩: ${e}`);

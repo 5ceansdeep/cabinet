@@ -65,7 +65,7 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
 
   return (
     <div
-      className="flex flex-col items-center font-subtitle text-[clamp(15px,calc(.9vw+6px),30px)] tracking-wide text-[#f3da49]"
+      className="flex flex-col items-center font-subtitle text-[clamp(15px,calc(.9vw+6px),30px)] tracking-wide text-[#e2cd5a]"
       style={{ textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6)` }}
     >
       {lines.map((l) => (

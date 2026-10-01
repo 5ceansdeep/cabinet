@@ -2,13 +2,14 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Gemini, MODELS } from './gemini.js';
 import { findLyrics, type Lyrics } from './lyrics.js';
+// 곡 사이 쉬는 시간 — Gemini 는 유료(10/1)라 분당 한도가 넉넉하지만, 가사를 못 찾으면 iTunes(분당 20회 남짓)로 영문 이름을 찾는다
+import { GAP_MS } from './pool.js';
 
 /* 곡 설명 + 임베딩 — 추천의 "뜻" 재료 (docs/recommend-plan.md 5장). 곡당 한 번, 결과 영구 보관.
    가사(LRCLIB) + 제목·가수 + 소리 숫자를 Gemini 에 주고 정해진 틀(감정/상황/가사/소리)로 쓰게 한 뒤, 그 글을 임베딩한다.
    곡끼리 같은 틀이어야 벡터 비교가 공평하다. 매일 새벽 NIGHT_HOUR 시(소리 분석 뒤) + 관리자 POST /catalog/describe */
 
 const NIGHT_HOUR = 6;
-const GAP_MS = 6000; // 무료 한도(분당 호출 수)에 걸리지 않게
 const LYRICS_MAX = 4000; // 글자 — 가사가 길어도 이만큼이면 주제는 드러난다
 
 export type Parts = { emotion: string; situation: string; lyrics: string; sound: string };

@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { RoundedBox } from "@react-three/drei";
 import { CanvasTexture, SRGBColorSpace } from "three";
 import { coverColors } from "./flying";
-import type { Track } from "./tracks";
+import { loadArt, type Track } from "./tracks";
 
 /* 3D 플로피 한 장 — 검은 몸체, 금속 셔터, 앨범 커버가 인쇄된 라벨.
    라벨의 점수 줄은 타자기처럼 한 글자씩 찍히므로 글자 수(typed)에 따라 다시 그린다 */
@@ -47,16 +47,14 @@ export function useLabel(track: Track, onArt?: () => void) {
       tex.needsUpdate = true;
     };
     draw(0);
-    if (track.artwork) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        st.art = img;
-        draw(st.last);
-        onArt?.();
-      };
-      img.src = track.artwork;
-    }
+    if (track.artwork)
+      loadArt(track.artwork)
+        .then((img) => {
+          st.art = img;
+          draw(st.last);
+          onArt?.();
+        })
+        .catch(() => undefined); // 표지를 못 받으면 그라디언트 그대로
     return { tex, draw, length: score.length };
   }, [track]); // eslint-disable-line react-hooks/exhaustive-deps
 }
@@ -73,10 +71,10 @@ export function FloppyBody({ map }: { map: CanvasTexture }) {
         <planeGeometry args={[DISK * 0.46, DISK * 0.3]} />
         <meshStandardMaterial color="#aab1bb" metalness={0.5} roughness={0.6} />
       </mesh>
-      {/* 앨범 커버가 인쇄된 라벨 */}
+      {/* 앨범 커버가 인쇄된 라벨 — 조명을 안 받는 재질. 앞에서 비추는 빛에 맨 앞 디스크 표지가 하얗게 날아갔다(10/1) */}
       <mesh position={[0, -DISK * 0.11, 0.037]}>
         <planeGeometry args={[DISK * 0.78, DISK * 0.62]} />
-        <meshStandardMaterial map={map} roughness={1} metalness={0} />
+        <meshBasicMaterial map={map} toneMapped={false} />
       </mesh>
       {/* 뒷면 — 금속 드라이브 허브 */}
       <mesh position={[0, 0, -0.037]} rotation-y={Math.PI}>

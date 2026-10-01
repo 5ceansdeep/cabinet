@@ -7,18 +7,22 @@ const row = { id: 'x', title: '난춘', artist: '새소년', tags: '{"k-indie":1
 
 describe('곡 설명', () => {
   it('프롬프트에 곡·소리 숫자·태그·가사가 들어간다', () => {
-    const p = promptFor(row, '가사 한 줄');
+    const p = promptFor(row, { text: '가사 한 줄', instrumental: false });
     expect(p).toContain('새소년 - 난춘');
     expect(p).toContain('에너지 0.31(낮음), 밝기 0.70(높음)');
     expect(p).toContain('k-indie, korean');
     expect(p).toContain('가사:\n가사 한 줄');
   });
 
-  it('소리 숫자·가사가 없으면 없음이라고 쓴다', () => {
+  it('소리 숫자가 없으면 없음, 가사를 못 찾았으면 연주곡이라 하지 말라고', () => {
     const p = promptFor({ ...row, energy: null, tags: '{}' }, null);
     expect(p).toContain('소리 숫자: 없음');
-    expect(p).toContain('가사: 없음');
+    expect(p).toContain('가사: 못 찾음');
     expect(p).not.toContain('태그');
+  });
+
+  it('연주곡 기록이 있을 때만 연주곡', () => {
+    expect(promptFor(row, { text: null, instrumental: true })).toContain('노래 없는 연주곡이다');
   });
 
   it('설명은 네 줄 틀', () => {
@@ -29,8 +33,17 @@ describe('곡 설명', () => {
 describe('가사 고르기', () => {
   const hit = (a: string, t: string, lyrics: string | null, instrumental = false) => ({ artistName: a, trackName: t, plainLyrics: lyrics, instrumental });
   it('가수·제목이 맞고 가사가 있는 곡만', () => {
-    expect(pickLyrics([hit('다른가수', '난춘', 'x'), hit('새소년', '난춘', null), hit('새소년 (SE SO NEON)', '난춘', ' 진짜 ')], '난춘', '새소년')).toBe('진짜');
-    expect(pickLyrics([hit('새소년', '난춘', 'x', true)], '난춘', '새소년')).toBeNull();
+    expect(pickLyrics([hit('다른가수', '난춘', 'x'), hit('새소년', '난춘', null), hit('새소년 (SE SO NEON)', '난춘', ' 진짜 ')], '난춘', '새소년')).toEqual({
+      text: '진짜',
+      instrumental: false,
+    });
+  });
+  it('연주곡 기록만 있으면 연주곡, 맞는 곡이 없으면 못 찾음(null)', () => {
+    expect(pickLyrics([hit('Dave Brubeck', 'Take Five', null, true)], 'Take Five', 'Dave Brubeck')).toEqual({ text: null, instrumental: true });
+    expect(pickLyrics([hit('다른가수', 'Take Five', null, true)], 'Take Five', 'Dave Brubeck')).toBeNull();
+  });
+  it('굽은 따옴표도 같은 이름', () => {
+    expect(pickLyrics([hit("Linus' Blanket", 'Labor in Vain', 'x')], 'Labor in Vain', 'Linus’ Blanket')?.text).toBe('x');
   });
 });
 

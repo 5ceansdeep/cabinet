@@ -5,10 +5,12 @@ import { koreanName } from './musicbrainz.js';
 
 export type ITunesInfo = { artwork: string; previewUrl: string | null; title: string; artist: string; genre: string | null };
 
+const HANGUL = /[가-힣]/;
+
 type Result = { trackName: string; artistName: string; artistId?: number; artworkUrl100?: string; previewUrl?: string; primaryGenreName?: string };
 
 // 비교용 — 대소문자·공백·괄호·기호를 떼고 본다 ("검정치마 (The Black Skirts)" ↔ "검정치마")
-const norm = (s: string) => s.toLowerCase().replace(/[\s()[\]{}'".,!?&:;/\\_-]+/g, '');
+const norm = (s: string) => s.toLowerCase().replace(/[\s()[\]{}'"‘’“”.,!?&:;/\\_-]+/g, ''); // 굽은 따옴표도 — "Linus’ Blanket" ↔ "Linus' Blanket"
 export const same = (a: string, b: string) => {
   const x = norm(a);
   const y = norm(b);
@@ -55,6 +57,12 @@ async function inStore(title: string, artist: string, country: string) {
   return pick(songs, title, artist, await artistId(artist, country));
 }
 
+/** 미국 스토어 표기(아이유 - 밤편지 → IU - Through the Night) — LRCLIB 은 한국 곡을 영문 이름으로 갖고 있다. 못 찾으면 null */
+export async function usName(title: string, artist: string) {
+  const hit = await inStore(title, artist, 'us');
+  return hit && { title: hit.trackName, artist: hit.artistName };
+}
+
 export async function findOnITunes(title: string, artist: string): Promise<ITunesInfo | null> {
   // 한국 스토어에 있어도 미리듣기가 빠진 곡이 있다(지소쿠리클럽 — 미국 스토어엔 있음) → 그땐 미국도 본다
   const kr = await inStore(title, artist, 'kr');
@@ -64,7 +72,8 @@ export async function findOnITunes(title: string, artist: string): Promise<ITune
     // 100x100 주소를 600x600 으로 바꿔 쓴다 — 디스크 라벨에 인쇄할 만한 크기
     artwork: hit.artworkUrl100.replace('100x100bb', '600x600bb'),
     previewUrl: hit.previewUrl ?? null,
-    title: hit.trackName,
+    // 제목은 한글을 먼저 — 미국 스토어는 번역 제목을 준다(잔나비 "가을밤에 든 생각" → "A Thought on an Autumn Night")
+    title: [kr?.trackName, hit.trackName, title].find((s) => s && HANGUL.test(s)) ?? hit.trackName,
     artist: (await koreanName(artist)) ?? (await koreanName(hit.artistName)) ?? hit.artistName,
     genre: hit.primaryGenreName ?? null, // Last.fm 태그가 없을 때 대신 쓴다 (genres.ts)
   };

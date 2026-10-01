@@ -7,6 +7,7 @@ import { CanvasTexture, type Group, type Mesh } from "three";
 import { thud } from "@/lib/thud";
 import { DISK, FloppyBody, useLabel } from "./floppy";
 import { MOUTH } from "./SaveDrawer";
+import { REVEAL_LEAD, REVEAL_MOUTH } from "./room";
 import { tossDisk } from "./flying";
 import type { Track } from "./tracks";
 
@@ -41,7 +42,8 @@ function useGauge() {
    호버하면 들리며 라벨에 점수가 타자기로 찍히고, 잡고 끌면 돌아가고, 위로 홱 뿌리면 손을 떠난다.
    짧게 한 번 누르면 밑의 드라이브 슬롯에 꽂혀 재생되고, 꽂힌 디스크를 누르거나 위로 올리면 빠지며 멈춘다 */
 
-const GAP = 1.25; // 디스크 사이 간격
+const X0 = -0.9; // 줄 가운데 — 오른쪽 곡 목록 자리만큼 왼쪽으로
+const GAP = 1.1; // 디스크 사이 간격 — 10곡이라 6곡 때(1.25)보다 촘촘히
 const DEPTH = -2.8; // 가운데 디스크의 깊이
 const THROW_SPEED = 0.35; // 이보다 빠르게 위로 뿌리면 던진 것 (px/ms)
 const MIN_UP = 12.5; // 살살 뿌려도 이만큼은 솟구친다 (월드 단위/s) — 가파른 포물선
@@ -49,9 +51,18 @@ const TO_WALL = 3.8; // 벽 쪽으로 밀어주는 속도 — 앞으로 덜 뻗�
 const HOLD_MS = 900; // 이만큼 가만히 꾹 누르고 있으면 저절로 던져진다
 const HOLD_SLOP = 6; // 이만큼(px) 움직이면 꾹 누르기가 아니라 돌리기 — 게이지를 취소한다
 const TAP_MS = 300; // 이보다 짧게, 거의 움직이지 않고 떼면 클릭
-export const SLOT: [number, number, number] = [0, -1.0, DEPTH]; // 드라이브 — 가운데 디스크 바로 아래
-const SLOT_TOP = SLOT[1] + 0.09;
-const SHOWN = 0.32; // 꽂힌 디스크가 슬롯 위로 드러나는 몫
+/* 드라이브 — 진짜 플로피 드라이브처럼 앞면에 가로 입구. 화면 아래 어둠에 몸통이 잠기고 입구만 보인다.
+   디스크는 드라이브 앞으로 빠르게 와서 눕고(셔터가 안쪽), 입구로 미끄러져 들어간다 */
+const FRONT_Z = -2.9; // 드라이브 앞면
+const SLOT_Y = -1.5; // 입구 높이 — 화면 아래 끝, 몸통은 어둠 아래로
+const DRIVE = { w: 1.3, h: 0.5, d: 1.1 };
+const SHOWN = 0.2; // 꽂힌 디스크가 입구 밖으로 남는 몫
+const FLAT = -Math.PI / 2; // 눕힌 디스크 — 위가 안쪽(셔터부터 들어간다)
+const FRONT = { x: X0, y: SLOT_Y, z: FRONT_Z + DISK / 2 + 0.04 }; // 입구 바로 앞
+const IN = { x: X0, y: SLOT_Y, z: FRONT_Z + DISK * (SHOWN - 0.5) }; // 들어간 자리
+type P = { x: number; y: number; z: number };
+const near = (a: P, b: P) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) < 0.03;
+const SPAWN: [number, number, number] = [REVEAL_MOUTH[0], REVEAL_MOUTH[1] - 0.1, REVEAL_MOUTH[2] - 0.3]; // 결과 서랍 입구 안쪽
 
 function Disk({
   track,
@@ -59,6 +70,7 @@ function Disk({
   slot,
   perPx,
   swallow,
+  rise,
   onInsert,
   onEject,
   onDiscard,
@@ -68,6 +80,7 @@ function Disk({
   slot: boolean; // 드라이브에 꽂혀 재생 중
   perPx: number; // 화면 1px 이 이 깊이에서 몇 월드인가
   swallow: number; // 0 이상이면 서랍으로 빨려 든다 — 값은 순서대로 늦어지는 지연(초)
+  rise: number; // 생기고 이만큼(초) 뒤 결과 서랍에서 솟아오른다 — 그전엔 서랍 속에 숨어 있다
   onInsert: () => void;
   onEject: () => void;
   onDiscard: () => void;
@@ -86,6 +99,8 @@ function Disk({
   const gauge = useGauge();
   const [hover, setHover] = useState(false);
   const [thrown, setThrown] = useState(false);
+  const stage = useRef<"row" | "front" | "in" | "out">("row"); // 드라이브로 가는 길 — 줄 → 입구 앞 → 안, 뺄 때는 안 → 입구 앞(out) → 줄
+  const born = useRef(-1); // 생긴 시각(첫 프레임)
   const { invalidate } = useThree();
 
   /* 손을 떠난다 — 손놀림(vx)이 있으면 그 방향으로, 꾹 눌러 던지면 곧장 위로 */
@@ -102,6 +117,12 @@ function Disk({
   useFrame(({ clock }, dt) => {
     if (thrown) return;
     const o = g.current;
+    // 결과 서랍이 빠질 때까지 서랍 속에 숨어 있다가, 차례가 되면 작게 나타나 커지며 줄로 날아간다
+    if (born.current < 0) born.current = clock.elapsedTime;
+    const hidden = clock.elapsedTime - born.current < rise;
+    o.visible = !hidden;
+    if (hidden) return invalidate();
+    if (o.scale.x < 1 && swallow < 0) o.scale.setScalar(Math.min(1, o.scale.x + dt * 3));
     // 서랍에 넣는 중 — 차례로 아래 서랍 입으로 빨려 들며 눕고 작아진다
     if (swallow >= 0) {
       if (sank.current === Infinity) sank.current = clock.elapsedTime + swallow;
@@ -131,22 +152,37 @@ function Disk({
       prog.current = 0;
       gauge.draw(0);
     }
-    const target = slot
-      ? { x: SLOT[0], y: SLOT_TOP + DISK * (SHOWN - 0.5), z: SLOT[2] }
-      : { x: offset * GAP, y: hover ? 0.16 : 0, z: DEPTH - Math.abs(offset) * 0.35 };
-    const k = 1 - Math.exp(-7 * dt);
+    // 드라이브로 — 입구 앞까지 빠르게 와서 눕고, 다 누우면 입구로 밀려 들어간다(찰칵). 뺄 때는 거꾸로
+    if (slot && stage.current === "row") stage.current = "front";
+    if (!slot && stage.current === "in") stage.current = "out";
+    if (stage.current !== "row" && near(o.position, FRONT) && Math.abs(o.rotation.x - FLAT) < 0.06) {
+      if (stage.current === "front") {
+        stage.current = "in";
+        thud(260); // 찰칵
+      } else if (stage.current === "out") stage.current = "row";
+    }
+    const st = stage.current;
+    const target = st === "in" ? IN : st === "row" ? { x: X0 + offset * GAP, y: hover ? 0.16 : 0, z: DEPTH - Math.abs(offset) * 0.35 } : FRONT;
+    const k = 1 - Math.exp((st === "front" ? -16 : st === "in" ? -9 : -7) * dt);
     o.position.x += (target.x - o.position.x) * k;
     o.position.y += (target.y - o.position.y) * k;
     o.position.z += (target.z - o.position.z) * k;
-    // 놓은 뒤 관성으로 돌다가 정면으로 복귀
     const s = spin.current;
-    if (!drag.current) {
-      s.x += (0 - s.x) * k * 0.6 + s.vx;
-      s.y += (0 - s.y) * k * 0.6 + s.vy;
-      s.vx *= 0.94;
-      s.vy *= 0.94;
+    if (st !== "row") {
+      // 눕는다 — 돌리던 건 잊고 정면으로
+      s.x = s.y = s.vx = s.vy = 0;
+      o.rotation.set(o.rotation.x + (FLAT - o.rotation.x) * k, o.rotation.y * (1 - k), 0);
+    } else {
+      // 놓은 뒤 관성으로 돌다가 정면으로 복귀(드라이브에서 나온 직후면 누운 데서 일어난다)
+      if (!drag.current) {
+        s.x += (0 - s.x) * k * 0.6 + s.vx;
+        s.y += (0 - s.y) * k * 0.6 + s.vy;
+        s.vx *= 0.94;
+        s.vy *= 0.94;
+      }
+      const rx = Math.abs(o.rotation.x - s.x) > 0.3 ? o.rotation.x + (s.x - o.rotation.x) * k : s.x;
+      o.rotation.set(rx, s.y, 0);
     }
-    o.rotation.set(s.x, s.y, 0);
     // 호버하면 점수가 한 글자씩 찍힌다
     const want = hover ? label.length : 0;
     if (typed.current !== want) {
@@ -210,7 +246,8 @@ function Disk({
   return (
     <group
       ref={g}
-      position={[offset * GAP, 0, DEPTH]}
+      position={SPAWN} // 결과 서랍 입구 안쪽에서 시작 — 매 렌더 같은 값이라 다시 옮겨지지 않는다
+      scale={0.5}
       onPointerOver={(e) => {
         e.stopPropagation();
         setHover(true);
@@ -234,19 +271,25 @@ function Disk({
   );
 }
 
-/* 재생 드라이브 — 윗면에 디스크를 꽂는 틈. 재생 중이면 불이 켜진다 */
+/* 재생 드라이브 — 앞면에 가로 입구, 옆에 불. 재생 중이면 불이 켜진다 */
 function Drive({ on, visible }: { on: boolean; visible: boolean }) {
+  const top = SLOT_Y + 0.1; // 입구는 윗면에서 조금 아래
   return (
-    <group position={SLOT} visible={visible}>
-      <RoundedBox args={[1.25, 0.18, 0.55]} radius={0.02} smoothness={3}>
-        <meshStandardMaterial color="#20252d" roughness={0.6} metalness={0.4} />
+    <group position={[X0, top - DRIVE.h / 2, FRONT_Z - DRIVE.d / 2]} visible={visible}>
+      <RoundedBox args={[DRIVE.w, DRIVE.h, DRIVE.d]} radius={0.03} smoothness={3}>
+        <meshStandardMaterial color="#1a1f27" roughness={0.55} metalness={0.45} />
       </RoundedBox>
-      <mesh position={[0, 0.091, 0]} rotation-x={-Math.PI / 2}>
-        <planeGeometry args={[DISK + 0.06, 0.07]} />
+      {/* 입구 — 검은 틈과 살짝 밝은 테 */}
+      <mesh position={[0, DRIVE.h / 2 - 0.1, DRIVE.d / 2 + 0.002]}>
+        <planeGeometry args={[DISK + 0.12, 0.085]} />
+        <meshStandardMaterial color="#3a414b" roughness={0.4} metalness={0.6} />
+      </mesh>
+      <mesh position={[0, DRIVE.h / 2 - 0.1, DRIVE.d / 2 + 0.004]}>
+        <planeGeometry args={[DISK + 0.06, 0.04]} />
         <meshBasicMaterial color="#000000" />
       </mesh>
-      <mesh position={[0.5, 0, 0.276]}>
-        <circleGeometry args={[0.018, 12]} />
+      <mesh position={[DRIVE.w / 2 - 0.12, DRIVE.h / 2 - 0.1, DRIVE.d / 2 + 0.004]}>
+        <circleGeometry args={[0.022, 16]} />
         <meshBasicMaterial color={on ? "#00e5ff" : "#3a414b"} toneMapped={false} />
       </mesh>
     </group>
@@ -287,6 +330,7 @@ export default function Deck({
           slot={t === playing}
           perPx={perPx}
           swallow={saving ? i * 0.12 : -1}
+          rise={REVEAL_LEAD + i * 0.07}
           onInsert={() => onInsert(t)}
           onEject={onEject}
           onDiscard={() => onDiscard(t)}
@@ -294,7 +338,7 @@ export default function Deck({
       ))}
       <Drive on={!!playing} visible={!saving} />
       {/* 디스크를 앞에서 비추는 빛 — 라벨이 어둠에 묻히지 않게 */}
-      <pointLight position={[0, 1.4, DEPTH + 3]} intensity={3.2} distance={9} decay={2} color="#dfe8f2" />
+      <pointLight position={[X0, 1.4, DEPTH + 3]} intensity={2.2} distance={9} decay={2} color="#dfe8f2" />
     </>
   );
 }

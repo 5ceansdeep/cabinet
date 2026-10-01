@@ -47,7 +47,7 @@ const fromRemote = (s: Remote, scores?: Track[]): Saved => ({
   }),
 });
 
-/* 서랍에 넣는다 — 로그인했으면 서버에, 아니면 이 브라우저에만. 새 서랍 id 를 돌려준다 */
+/* 서랍에 넣는다 — 로그인했으면 서버에, 아니면 이 브라우저에만. 새 서랍 id 와 서버 서랍인지(공유 링크 /s/:id 가 되나)를 돌려준다 */
 export async function saveShelf(tag: string, query: string, kept: Track[]) {
   if (getToken()) {
     const r = await api<Remote>("/shelves", {
@@ -56,12 +56,12 @@ export async function saveShelf(tag: string, query: string, kept: Track[]) {
     });
     if (r.ok) {
       write([fromRemote(r.data, kept), ...read()]);
-      return r.data.id;
+      return { id: r.data.id, remote: true };
     }
   }
   const shelf: Saved = { id: `s${Date.now().toString(36)}`, tag, query, tracks: kept, at: Date.now() };
   write([shelf, ...read()]);
-  return shelf.id;
+  return { id: shelf.id, remote: false };
 }
 
 /* 서버 원본으로 사본을 새로 고친다 — 보관소에 들어올 때. 방금 저장한 곡의 점수는 사본에서 이어받는다 */

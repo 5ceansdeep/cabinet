@@ -169,7 +169,7 @@ export class RecommendController {
   constructor(private readonly svc: RecommendService) {}
 
   @Get()
-  @ApiOperation({ summary: '요청문으로 곡 꺼내기 — 요청 해석(짧은 말·풀어 쓴 설명) + 곡별 일치 점수' })
+  @ApiOperation({ summary: '요청문으로 곡 꺼내기 — 요청 해석(짧은 말·풀어 쓴 설명) + 곡별 일치 점수 [Gemini]' })
   @ApiQuery({ name: 'q', example: '새벽에 혼자 걷는 기분' })
   @ApiQuery({ name: 'seen', required: false, description: '이미 보여 준 곡 id(쉼표) — "몇 곡 더"' })
   @ApiQuery({ name: 'thrown', required: false, description: '던져 버린 곡 id(쉼표) — 빼고, 그 곡들 쪽에서 멀어진다' })
@@ -180,7 +180,7 @@ export class RecommendController {
   }
 
   @Get('line')
-  @ApiOperation({ summary: '보여 준 곡들을 건네는 신의 한마디(자막·영어 음성 id) + 곡마다 이유 — 곡 목록 뒤에 따로 부른다' })
+  @ApiOperation({ summary: '보여 준 곡들을 건네는 신의 한마디(자막·영어 음성 id) + 곡마다 이유 — 곡 목록 뒤에 따로 부른다 [Gemini]' })
   @ApiQuery({ name: 'q', example: '새벽에 혼자 걷는 기분' })
   @ApiQuery({ name: 'ids', description: `보여 준 곡 id(쉼표, 최대 ${LINE_MAX}개)` })
   line(@Query('q') q = '', @Query('ids') list?: string) {
@@ -195,7 +195,7 @@ export class RecommendController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: '곡 하나를 요청문에 대 보기 — 보고서' })
+  @ApiOperation({ summary: '곡 하나를 요청문에 대 보기 — 보고서 [Gemini]' })
   one(@Param('id') id: string, @Query('q') q = '') {
     return this.svc.one(id, q.slice(0, Q_MAX));
   }

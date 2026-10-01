@@ -17,14 +17,17 @@ class ThrowDto {
   id!: string;
 }
 
-/* 요청문 → 풀어 쓴 설명의 벡터 + 목표 에너지·밝기(Interpreter) → 곡마다 뜻(코사인)·소리(거리) 점수로 상위 몇 곡(1단계) — 바로 돌려준다.
-   신의 한마디와 곡마다 이유는 따로(GET /recommend/line) — 화면은 디스크를 먼저 띄우고 한마디는 뒤이어 붙인다(9/30, 3~4초 줄임).
-   Gemini 재정렬 순서는 안 쓴다 — 평가에서 1단계만 쓸 때가 나았다(65% vs 56%). eval.ts 의 rerank 옵션으로는 계속 잴 수 있다.
+/* 요청문 → 풀어 쓴 설명의 벡터 + 목표 에너지·밝기(Interpreter) → 곡마다 뜻(코사인)·소리(거리) 점수로 후보 20곡(1단계)
+   → Gemini 가 후보의 곡 설명을 읽고 순서를 다시 매긴다 + 곡별 이유·신의 한마디(2단계, 같은 호출). 말한 가수 곡은 맨 앞에 고정.
+   10/1: 곡 설명을 [핵심어]+묘사로 바꾼 뒤 재정렬이 기존 39개 재현율을 27% → 38% 로 올려 순서에도 쓴다(9/30 엔 1단계가 나았다 —
+   그땐 곡 설명이 "가사 없는 연주곡" 투성이였다). 디스크가 1~2초 늦게 뜨는 대신 그 시간은 서랍 뒤지기 연출이 채운다.
+   GET /recommend/line 은 예전 화면용으로 남겨 둔다.
    곡 설명·벡터는 배치(catalog/describe.ts)가 미리 만들어 둔다 — 설명이 없는 곡은 아직 후보가 아니다.
    검색은 해석 태그(Last.fm 영어)와 결과 상위 가수만 SearchLog 에, 던진 곡은 ThrowLog 에 남긴다 — 곡 풀 넓히기(catalog/pool.ts)가 씨앗으로 쓴다. 요청문 원문은 안 남긴다.
    ponytail: 요청마다 곡 벡터 JSON 을 전부 읽어 푼다 — 곡이 수천 개를 넘으면 메모리에 두거나 Neon pgvector 로 */
 
-export const CANDIDATES = 20; // 재정렬 평가(eval.ts rerank)에서 1단계가 넘기는 후보 수 — 화면은 재정렬 순서를 안 쓴다
+export const CANDIDATES = 20; // 1단계가 재정렬에 넘기는 후보 수 — 여기서 버린 곡은 2단계가 못 살린다. 늘리면 Gemini 입력이 길어진다
+const RERANK_MS = 6000; // 재정렬이 이보다 늦으면 1단계 순서로 — 화면이 멈추면 안 된다
 const Q_MAX = 300; // 요청문 글자 — 길수록 Gemini 한도·비용을 먹는다
 const ids = (s?: string) => (s ? s.split(',').filter(Boolean) : []);
 const POOL_CHECK_MS = 60_000; // 곡 목록을 메모리에 두고, 이만큼 지나면 DB 가 바뀌었나 가볍게 확인(곡 수·마지막 분석 시각)
@@ -89,7 +92,14 @@ export class RecommendService {
     const { seen = [], thrown = [], genres = [], limit = SHOW } = opts;
     const [asked, pool, penalty] = await Promise.all([this.interpreter.interpret(query), this.loadPool(), this.penalties()]); // 서로 필요 없다 — 같이
     const ranked = arrange(rank(pool, asked, { seen, thrown, penalty }), asked, genres);
-    const tracks = ranked.slice(0, limit).map((t) => shown(t, ranked));
+    // 2단계 — 후보 20곡의 곡 설명을 LLM 이 읽고 순서를 다시 매긴다(+ 곡별 이유·신의 한마디). 늦거나 실패하면 1단계 순서 그대로
+    const cands = ranked.slice(0, CANDIDATES);
+    const rr = cands.length ? await within(this.reranker.rerank(query, asked.description, cands), RERANK_MS) : null;
+    const picked = (rr ? finalOrder(cands, rr.order, asked.artists) : ranked).slice(0, limit);
+    // 화면 일치도는 1단계 점수로 늘린 값 — 순서가 바뀌면 아래 곡이 더 높아 보이니, 뽑힌 곡들의 % 를 큰 것부터 새 순서대로 나눠 준다
+    const pct = picked.map((t) => shown(t, ranked).semantic).sort((a, b) => b - a);
+    const tracks = picked.map((t, i) => ({ ...shown(t, ranked), semantic: pct[i], reason: rr?.reasons[t.id] ?? null }));
+    const line = rr?.line ? { ...rr.line, voice: this.voice.register(rr.line.en) } : null; // 영어 음성 id — ElevenLabs 를 꺼 두면 null
 
     // 처음 뒤질 때만 남긴다("다시 찾기"·"몇 곡 더"는 같은 요청) — 실패해도 결과는 준다
     if (!seen.length && !thrown.length && query.trim()) {
@@ -97,7 +107,7 @@ export class RecommendService {
         .create({ data: { tags: JSON.stringify(Object.fromEntries((asked.tags ?? []).map((t) => [t, 100]))), artists: JSON.stringify([...new Set(tracks.map((t) => t.artist))].slice(0, 3)) } })
         .catch(() => undefined);
     }
-    return { interpretation: asked.keywords, description: asked.description, tracks };
+    return { interpretation: asked.keywords, description: asked.description, tracks, line };
   }
 
   /** 최근 THROW_DAYS 일 동안 던져진 곡 → 깎을 점수 */
@@ -144,6 +154,16 @@ export class RecommendService {
 
 /** 점수 순위 뒤 손질 — 요청문에서 직접 말한 가수 곡이 맨 앞(점수 순 — "신나는" 은 소리 점수가 가른다),
     말한 장르는 편지지 칩과 같이 거른다(모자라면 나머지로 채움). 평가(eval.ts)도 같은 순서로 잰다 */
+/** 늦으면 null */
+const within = <T>(p: Promise<T>, ms: number) => Promise.race([p, new Promise<null>((ok) => setTimeout(() => ok(null), ms))]);
+
+/** 재정렬 순서로 — 말한 가수 곡은 맨 앞에 고정(재정렬이 섞지 않게). 평가(eval.ts)도 같은 순서로 잰다 */
+export function finalOrder<T extends { id: string; artist: string }>(cands: T[], order: string[], artists: string[] = []) {
+  const named = artists.length ? cands.filter((t) => artists.some((a) => same(t.artist, a))) : [];
+  const byId = new Map(cands.map((t) => [t.id, t]));
+  return [...named, ...order.map((id) => byId.get(id)).filter((t): t is T => !!t && !named.includes(t))];
+}
+
 export function arrange<T extends { artist: string; tags: string }>(all: T[], asked: Pick<Asked, 'artists' | 'genres'>, chips: string[] = []) {
   const named = asked.artists?.length ? all.filter((t) => asked.artists!.some((a) => same(t.artist, a))) : [];
   const want = [...new Set([...chips, ...(asked.genres ?? [])])];

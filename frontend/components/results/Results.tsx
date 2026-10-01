@@ -11,6 +11,7 @@ import { thud } from "@/lib/thud";
 import { speak } from "@/lib/voice";
 import CabinetWall from "./CabinetWall";
 import Playlist from "./Playlist";
+import CardReveal from "@/components/share/CardReveal";
 import { findLine, findTracks, logThrow, type Track } from "./tracks";
 import { apiUrl } from "@/lib/api";
 import { genreLabel } from "@/lib/genres";
@@ -53,6 +54,7 @@ export default function Results({ query, genres }: { query: string; genres: stri
   const [playing, setPlaying] = useState<Track | null>(null); // 드라이브에 꽂힌 디스크
   const [index, setIndex] = useState(0); // 가운데 앞에 나온 곡 (늘어선 줄 기준)
   const [reveal, setReveal] = useState(0); // 곡이 올 때마다 하나씩 — 정면 서랍이 쭉 빠진다
+  const [saved, setSaved] = useState<{ id: string; remote: boolean } | null>(null); // 서랍에 넣었다 — 공유 카드
 
   /* 서랍에 넣는 동안 걸어 둔 타이머들 — 도중에 다른 화면으로 가면 전부 끈다.
      안 끄면 떠난 뒤에도 이름이 마저 찍히고, 서랍이 저장되고, 보관함으로 끌려간다 */
@@ -143,7 +145,7 @@ export default function Results({ query, genres }: { query: string; genres: stri
       setPrinted(n);
       thud(420 + (n % 3) * 40); // 타자기 소리
       if (n < name.length) later(() => type(n + 1), 90);
-      else later(() => void saveShelf(name, query, kept).then((shelf) => router.push(`/archive?new=${shelf}`)), 900);
+      else later(() => void saveShelf(name, query, kept).then(setSaved), 900); // 저장되면 공유 카드가 인쇄돼 올라온다
     };
     later(() => type(1), 90);
   }
@@ -279,6 +281,14 @@ export default function Results({ query, genres }: { query: string; genres: stri
             CLICK TO PLAY · DRAG TO ROTATE · FLICK UP TO DISCARD
           </footer>
         </>
+      {saved && (
+        <CardReveal
+          data={{ q: query, keywords: interpretation, line: greeting?.text ?? null, tracks: kept }}
+          shelfId={saved.id}
+          remote={saved.remote}
+          onDone={() => router.push(`/archive?new=${saved.id}`)}
+        />
+      )}
     </main>
   );
 }

@@ -3,7 +3,7 @@ import { api, getToken, setToken } from "./api";
 /* 인증 — 백엔드 /auth (bcrypt + JWT 7일). 출입증은 lib/api 가 localStorage 에 두고 요청마다 붙인다.
    백엔드는 계정 없음/비밀번호 틀림을 구분해 주지 않는다 — 누가 가입했는지 흘리지 않게. 그래서 로그인 실패는 전부 "wrong" */
 
-export type AuthResult = { ok: true; nickname: string } | { ok: false; reason: "wrong" | "noAccount" | "emailTaken" | "server" };
+export type AuthResult = { ok: true; nickname: string } | { ok: false; reason: "wrong" | "noAccount" | "emailTaken" | "expired" | "server" };
 type Token = { accessToken: string; user: { id: string; email: string; nickname: string } };
 
 const SESSION = "cabinet.session"; // 닉네임 — "또 왔군" 인사용
@@ -48,12 +48,15 @@ export async function emailTaken(email: string): Promise<boolean | null> {
   return r.ok ? r.data.taken : null;
 }
 
-// 계정 존재 여부와 상관없이 같은 결과 — 가입 여부를 흘리지 않는다
-// ponytail: 메일 발송 없음 — 백엔드에 재설정 메일(토큰 링크)이 생기면 여기서 POST
-export async function requestReset(): Promise<{ ok: boolean }> {
-  await wait(900);
-  return { ok: navigator.onLine };
+// 계정 존재 여부와 상관없이 같은 결과 — 가입 여부를 흘리지 않는다. 있으면 백엔드가 30분짜리 재설정 링크를 메일로
+export async function requestReset(email: string): Promise<{ ok: boolean }> {
+  const [r] = await Promise.all([api<{ ok: boolean }>("/auth/forgot", { method: "POST", body: { email } }), wait(MIN_MS)]);
+  return { ok: r.ok };
 }
+
+// 메일 링크의 토큰으로 새 비밀번호 — 되면 그대로 들어간다. 토큰이 틀렸거나 30분이 지나면 expired
+export const resetPassword = (token: string, password: string) =>
+  enter("/auth/reset", { token, password }, (s) => ({ ok: false, reason: s === 400 ? "expired" : "server" }));
 
 /* 세션 — 이미 들어온 적 있으면 닉네임. useSyncExternalStore 로 읽는다 */
 // 출입증이 없으면(예전 가짜 인증 시절 세션 등) 들어온 적 없는 것으로 본다

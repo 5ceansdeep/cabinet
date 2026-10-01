@@ -91,7 +91,7 @@ export class CatalogController {
   @Post('describe')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: '곡 설명·임베딩 채우기 시작 (관리자) — 가사(LRCLIB)와 소리 숫자로 Gemini 가 설명을 쓴다. 뒤에서 돌고 바로 상태를 돌려준다' })
+  @ApiOperation({ summary: '곡 설명·임베딩 채우기 시작 (관리자) — 가사(LRCLIB)와 소리 숫자로 Gemini 가 설명을 쓴다. 뒤에서 돌고 바로 상태를 돌려준다 [Gemini]' })
   @ApiResponse({ status: 403, description: 'ADMIN_EMAILS 에 없는 계정' })
   describeTracks(@Req() req: { user: { email: string } }) {
     if (!isAdmin(req.user.email)) throw new ForbiddenException('곡 설명은 관리자만 쓸 수 있네');

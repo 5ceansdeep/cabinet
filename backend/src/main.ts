@@ -21,7 +21,7 @@ async function bootstrap() {
   /* API 문서 — http://localhost:4000/docs (Authorize 버튼에 JWT 를 넣으면 /auth/me 도 눌러볼 수 있다) */
   const config = new DocumentBuilder()
     .setTitle('cabinet API')
-    .setDescription('자연어로 적은 상황에 맞는 음악을 서류함에서 건져 올리는 서비스')
+    .setDescription('자연어로 적은 상황에 맞는 음악을 서류함에서 건져 올리는 서비스. [Gemini] = 부를 때마다 Gemini 하루 한도를 쓴다')
     .setVersion('0.1')
     .addBearerAuth()
     .build();

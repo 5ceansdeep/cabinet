@@ -3,19 +3,19 @@ import { describeText, promptFor } from './describe.js';
 import { retryAfter, unit } from './gemini.js';
 import { pickLyrics } from './lyrics.js';
 
-const row = { id: 'x', title: '난춘', artist: '새소년', tags: '{"k-indie":100,"korean":80}', energy: 0.31, valence: 0.7, acousticness: null };
+const row = { id: 'x', title: '난춘', artist: '새소년', tags: '{"k-indie":100,"korean":80}', energy: 0.31, valence: 0.7, acousticness: null, danceability: 0.55, tempo: 92.4 };
 
 describe('곡 설명', () => {
   it('프롬프트에 곡·소리 숫자·태그·가사가 들어간다', () => {
     const p = promptFor(row, { text: '가사 한 줄', instrumental: false });
     expect(p).toContain('새소년 - 난춘');
-    expect(p).toContain('에너지 0.31(낮음), 밝기 0.70(높음)');
+    expect(p).toContain('에너지 0.31(낮음), 밝기 0.70(높음), 춤추기 좋음 0.55(중간), 빠르기 92 BPM');
     expect(p).toContain('k-indie, korean');
     expect(p).toContain('가사:\n가사 한 줄');
   });
 
   it('소리 숫자가 없으면 없음, 가사를 못 찾았으면 연주곡이라 하지 말라고', () => {
-    const p = promptFor({ ...row, energy: null, tags: '{}' }, null);
+    const p = promptFor({ ...row, energy: null, valence: null, danceability: null, tempo: null, tags: '{}' }, null);
     expect(p).toContain('소리 숫자: 없음');
     expect(p).toContain('가사: 못 찾음');
     expect(p).not.toContain('태그');

@@ -10,12 +10,14 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  nickname  String
-  password  String // bcrypt 해시
-  createdAt DateTime @default(now())
-  shelves   Shelf[]
+  id         String    @id @default(cuid())
+  email      String    @unique
+  nickname   String
+  password   String // bcrypt 해시
+  resetHash  String?   @unique // 비밀번호 재설정 링크 토큰의 sha256 — 토큰 원문은 메일에만
+  resetUntil DateTime? // 이때까지만 유효(30분)
+  createdAt  DateTime  @default(now())
+  shelves    Shelf[]
 }
 
 /// 서랍 하나 = 저장한 플레이리스트. 네임택(tag)과 그때의 요청문을 같이 남긴다

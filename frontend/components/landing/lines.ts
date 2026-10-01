@@ -61,6 +61,11 @@ export const AUTH_DIALOGUE = {
     prompt: "열쇠를 또 잃어버렸나? 괜찮네, 다들 그래. 이메일부터 대보게.",
     sent: "그 주소가 내 서류함에 있다면, 새 열쇠를 소포로 보냈네. 이번엔 잘 챙기게.",
     action: "돌아가지",
+    // 메일 링크로 들어온 새 열쇠 화면(/reset)
+    intro: "소포는 잘 받았나? 새 열쇠를 깎을 차례네.",
+    newPrompt: "새 비밀을 정하게. 이번엔 자네만 아는 걸로.",
+    expired: "이 열쇠는 기한이 지났네. 소포를 새로 부쳐주지.",
+    expiredAction: "다시 받기",
   },
 
   // 입력 상태 및 시스템
@@ -75,6 +80,8 @@ export const AUTH_DIALOGUE = {
   LOGIN_SUCCESS: (nickname: string) => `돌아왔군, ${nickname}. 자네 자리 그대로 비워뒀네.`,
   SIGNUP_SUCCESS: (nickname: string) => `완성됐네, ${nickname}! 어때, 천지창조보단 쉽지?`,
   WELCOME_BACK: (nickname: string) => `또 왔군, ${nickname}. 문은 열어뒀네.`,
+  RESET_SUCCESS: (nickname: string) => `새 열쇠가 딱 맞네, ${nickname}. 들어오게.`,
+  RESET_SUCCESS_VOICE: "새 열쇠가 딱 맞네. 들어오게.",
   LOGIN_SUCCESS_VOICE: "돌아왔군. 자네 자리 그대로 비워뒀네.",
   SIGNUP_SUCCESS_VOICE: "완성됐네! 어때, 천지창조보단 쉽지?",
   WELCOME_BACK_VOICE: "또 왔군. 문은 열어뒀네.",
@@ -97,6 +104,7 @@ export const FIELDS = {
   login: [EMAIL, PASSWORD],
   signup: [EMAIL, NICKNAME, NEW_PASSWORD, PASSWORD_CONFIRM],
   forgot: [{ ...EMAIL, prompt: D.PASSWORD_RESET.prompt, promptKey: "PASSWORD_RESET.prompt" }],
+  reset: [{ ...NEW_PASSWORD, prompt: D.PASSWORD_RESET.newPrompt, promptKey: "PASSWORD_RESET.newPrompt" }, PASSWORD_CONFIRM],
 } satisfies Record<string, Field[]>;
 
 /* ─ 흐름 자막: 필드와 상관없이 흘러가는 말. voiceKey 가 곧 음성 파일 이름 ─ */
@@ -107,6 +115,7 @@ export const LINES = {
     login: { text: D.INTRO, voiceKey: "INTRO" },
     signup: { text: D.INTRO_SIGNUP, voiceKey: "INTRO_SIGNUP" },
     forgot: { text: D.INTRO_FORGOT, voiceKey: "INTRO_FORGOT" },
+    reset: { text: D.PASSWORD_RESET.intro, voiceKey: "PASSWORD_RESET.intro" },
   },
   stale: { text: D.COOLDOWN, voiceKey: "COOLDOWN" },
   capsLock: { text: D.CAPS_LOCK, voiceKey: "CAPS_LOCK" },
@@ -123,6 +132,8 @@ export const LINES = {
   loading: { text: D.LOADING, voiceKey: "LOADING" },
   // 계정이 있든 없든 같은 말 — 누가 가입했는지 새어 나가지 않게
   resetSent: { text: D.PASSWORD_RESET.sent, voiceKey: "PASSWORD_RESET.sent", link: { href: "/", label: D.PASSWORD_RESET.action } },
+  resetExpired: { text: D.PASSWORD_RESET.expired, voiceKey: "PASSWORD_RESET.expired", link: { href: "/forgot", label: D.PASSWORD_RESET.expiredAction } },
+  resetDone: (nickname: string): Line => ({ text: D.RESET_SUCCESS(nickname), voice: D.RESET_SUCCESS_VOICE, voiceKey: "RESET_SUCCESS_VOICE" }),
 } satisfies Record<string, Line | string | ((nickname: string) => Line) | Record<keyof typeof FIELDS, Line>>;
 
 /* ─ 화면 구석 링크 ─ */

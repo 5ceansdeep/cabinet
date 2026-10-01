@@ -10,7 +10,7 @@ import Subtitle, { LINE_PACE, subtitleDelays, subtitleLines } from "@/components
 import { thud } from "@/lib/thud";
 import { speak } from "@/lib/voice";
 import CabinetWall from "./CabinetWall";
-import PlayerBar from "./PlayerBar";
+import Playlist from "./Playlist";
 import Riffle from "./Riffle";
 import { findLine, findTracks, logThrow, type Track } from "./tracks";
 import { apiUrl } from "@/lib/api";
@@ -161,7 +161,6 @@ export default function Results({ query, genres }: { query: string; genres: stri
   const greeted = said && said.line === greeting ? said : null;
   // 자막 띠 — 서버 렌더에는 document 가 없으니 브라우저에서만 찾는다
   const subtitleBar = useSyncExternalStore(noop, () => document.getElementById("cinema-sub"), () => null);
-  const center = row[index];
 
   return (
     <main data-theme="void" className="relative flex min-h-full flex-1 flex-col overflow-hidden bg-background text-foreground">
@@ -248,37 +247,9 @@ export default function Results({ query, genres }: { query: string; genres: stri
             </div>
           )}
 
-          {/* 가운데 디스크의 이름표 — 3D 디스크와 드라이브 사이, 양옆에 넘기는 화살표 */}
-          {center && phase === "discs" && !playing && (
-            <div className="pointer-events-none absolute inset-x-0 top-[62%] flex items-start justify-center gap-6 text-center">
-              {[-1, 1].map((dir) => (
-                <button
-                  key={dir}
-                  aria-label={dir < 0 ? "이전 디스크" : "다음 디스크"}
-                  onClick={() => move(dir)}
-                  disabled={dir < 0 ? index === 0 : index === row.length - 1}
-                  className={`pointer-events-auto px-3 py-2 font-mono text-accent/60 hover:text-accent disabled:opacity-20 ${dir < 0 ? "order-first" : "order-last"}`}
-                >
-                  {dir < 0 ? "◀" : "▶"}
-                </button>
-              ))}
-              <div className="w-72">
-                <p className="truncate text-sm">{center.title}</p>
-                <p className="truncate text-xs text-foreground/50">{center.artist}</p>
-                {/* 왜 이 곡인지 — 밝은 서랍 벽 위라 그림자로 띄운다 */}
-                {center.reason && (
-                  <p className="mt-1.5 text-xs leading-5 text-white [text-shadow:0_0_4px_rgba(0,0,0,.95),0_0_10px_rgba(0,0,0,.8)]">{center.reason}</p>
-                )}
-                {/* 보고서 꺼 둠 — 되살릴 때 app/report/[id]/page.tsx 와 같이
-                <Link
-                  href={`/report/${center.id}?q=${encodeURIComponent(query)}`}
-                  className="pointer-events-auto mt-1 inline-block font-mono text-[10px] tracking-[.2em] text-accent/70 hover:text-accent"
-                >
-                  보고서 열람
-                </Link> */}
-              </div>
-            </div>
-          )}
+          {/* 오른쪽 곡 목록 + 재생 — 누르면 그 곡이 드라이브로. 디스크 밑 이름표는 10/1 뺐다(곡 이름·이유는 목록에).
+              보고서 꺼 둠 — 되살릴 때 app/report/[id]/page.tsx 와 같이 목록에 "보고서 열람" 링크를 단다 */}
+          {phase === "discs" && kept.length > 0 && <Playlist tracks={kept} playing={playing} onPick={insert} onEject={eject} />}
 
           {phase === "naming" && (
             /* 네임택 — 자동으로 지어 준 이름이 적혀 있고, 그 위에서 바로 고쳐 쓸 수 있다 */
@@ -302,9 +273,8 @@ export default function Results({ query, genres }: { query: string; genres: stri
             </form>
           )}
 
-          <PlayerBar track={phase === "discs" ? playing : null} onEject={eject} />
-
-          <footer className="relative px-6 pb-6 text-center font-mono text-[10px] tracking-[.2em] text-foreground/40">
+          {/* 아래 가운데는 드라이브 자리 — 안내는 왼쪽 아래로 */}
+          <footer className="pointer-events-none absolute bottom-[3cqh] left-6 font-mono text-[10px] tracking-[.2em] text-foreground/40">
             CLICK TO PLAY · DRAG TO ROTATE · FLICK UP TO DISCARD
           </footer>
         </>

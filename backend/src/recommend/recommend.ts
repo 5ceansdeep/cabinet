@@ -6,7 +6,7 @@ import { GENRES, inGenres } from '../catalog/genres.js';
 import { same } from '../catalog/itunes.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VoiceModule, VoiceService } from '../voice/voice.js';
-import { Interpreter } from './interpret.js';
+import { type Asked, Interpreter } from './interpret.js';
 import { Reranker } from './rerank.js';
 import { display, rank, throwPenalty } from './score.js';
 
@@ -87,13 +87,7 @@ export class RecommendService {
   async recommend(query: string, opts: { seen?: string[]; thrown?: string[]; genres?: string[]; limit?: number } = {}) {
     const { seen = [], thrown = [], genres = [], limit = 6 } = opts;
     const [asked, pool, penalty] = await Promise.all([this.interpreter.interpret(query), this.loadPool(), this.penalties()]); // 서로 필요 없다 — 같이
-    const all = rank(pool, asked, { seen, thrown, penalty });
-    // 요청문에서 직접 말한 가수 곡이 맨 앞(점수 순 — "신나는" 은 소리 점수가 가른다), 말한 장르는 편지지 칩과 같이 거른다
-    const named = asked.artists?.length ? all.filter((t) => asked.artists!.some((a) => same(t.artist, a))) : [];
-    const want = [...new Set([...genres, ...(asked.genres ?? [])])];
-    const rest = all.filter((t) => !named.includes(t));
-    const inGenre = rest.filter((t) => inGenres(JSON.parse(t.tags) as Record<string, number>, want));
-    const ranked = [...named, ...(named.length + inGenre.length >= MIN_GENRE || !want.length ? inGenre : [...inGenre, ...rest.filter((t) => !inGenre.includes(t))])];
+    const ranked = arrange(rank(pool, asked, { seen, thrown, penalty }), asked, genres);
     const tracks = ranked.slice(0, limit).map((t) => shown(t, ranked));
 
     // 처음 뒤질 때만 남긴다("다시 찾기"·"몇 곡 더"는 같은 요청) — 실패해도 결과는 준다
@@ -145,6 +139,16 @@ export class RecommendService {
     if (!t) throw new NotFoundException('그런 곡은 서랍에 없네');
     return { interpretation: asked.keywords, description: asked.description, track: shown(t, ranked) };
   }
+}
+
+/** 점수 순위 뒤 손질 — 요청문에서 직접 말한 가수 곡이 맨 앞(점수 순 — "신나는" 은 소리 점수가 가른다),
+    말한 장르는 편지지 칩과 같이 거른다(모자라면 나머지로 채움). 평가(eval.ts)도 같은 순서로 잰다 */
+export function arrange<T extends { artist: string; tags: string }>(all: T[], asked: Pick<Asked, 'artists' | 'genres'>, chips: string[] = []) {
+  const named = asked.artists?.length ? all.filter((t) => asked.artists!.some((a) => same(t.artist, a))) : [];
+  const want = [...new Set([...chips, ...(asked.genres ?? [])])];
+  const rest = all.filter((t) => !named.includes(t));
+  const inGenre = rest.filter((t) => inGenres(JSON.parse(t.tags) as Record<string, number>, want));
+  return [...named, ...(named.length + inGenre.length >= MIN_GENRE || !want.length ? inGenre : [...inGenre, ...rest.filter((t) => !inGenre.includes(t))])];
 }
 
 type Pooled = Row & { vector: number[] };

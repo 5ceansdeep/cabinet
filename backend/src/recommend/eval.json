@@ -1,5 +1,5 @@
 {
-  "_": "추천 평가 세트 — 요청마다 상위 5곡 안에 나와야 할 곡(\"가수 - 제목\", DB 표기 그대로). 초안은 Claude(9/30, 88곡 전부 쓰게), 사용자가 9/30 고침. 미묘한 쌍은 pair 로 묶는다",
+  "_": "추천 평가 세트 — 요청마다 상위 5곡 안에 나와야 할 곡(\"가수 - 제목\", DB 표기 그대로). 초안은 Claude(9/30, 88곡 전부 쓰게), 사용자가 9/30 고침. 미묘한 쌍은 pair 로 묶는다. 끝의 6개(배고파~피아노)는 10/1 Claude 초안 — 소재·가수·장르를 직접 말하는 요청, 사용자 확인 전",
   "cases": [
     { "q": "집에 가고싶어요", "want": ["선우정아 - 도망가자", "이하이 - 한숨", "아이유 - Love Poem", "한로로 - Let Me Love My Youth", "잔나비 - Dreams, Books, Power and Walls"] },
     { "q": "안녕하세요", "want": ["검정치마 - Dientes", "튜이드 - SUN KISS", "방탄소년단 - 작은 것들을 위한 시", "george - let’s go picnic"] },
@@ -39,6 +39,12 @@
     { "q": "월요일 아침 출근길 힘내야 해", "want": ["레드벨벳 - Happiness", "방탄소년단 - Dynamite", "르세라핌 - ANTIFRAGILE", "데이식스 - 한 페이지가 될 수 있게"] },
     { "q": "데이트 준비하면서 꾸미는 중", "want": ["NewJeans - Bubble Gum", "아이유 - Good Day"] },
     { "q": "생각이 너무 많아서 머리가 복잡해", "want": ["이이언 - Don't (feat. RM)", "Silica Gel - Kyo181 (Lee Suho Remix)"] },
-    { "q": "보고 싶은데 연락이 안 와", "want": ["NewJeans - Ditto", "10cm - 스토커"] }
+    { "q": "보고 싶은데 연락이 안 와", "want": ["NewJeans - Ditto", "10cm - 스토커"] },
+    { "q": "배고파", "want": ["기리보이 - 배고파", "비비 - 밤양갱"] },
+    { "q": "여름이 끝나가는 게 아쉬워", "want": ["잔나비 - 뜨거운 여름밤은 가고 남은건 볼품 없지만", "신인류 - 우리에게 여름은 짧다"] },
+    { "q": "오아시스의 신나는 노래들", "want": ["Oasis - Supersonic", "Oasis - Some Might Say", "Oasis - Champagne Supernova"] },
+    { "q": "아이유 노래 중에 차분한 거", "want": ["아이유 - 밤편지", "아이유 - Love Poem"] },
+    { "q": "보컬 없는 재즈 틀어줘", "want": ["The Dave Brubeck Quartet - Take Five", "Bill Evans - Peace Piece", "Art Blakey & The Jazz Messengers - Moanin'", "Horace Silver - Song for My Father", "Thelonious Monk - Ruby, My Dear (Live)"] },
+    { "q": "카페에서 공부할 때 틀어 둘 잔잔한 피아노", "want": ["Bill Evans - Peace Piece", "Erroll Garner - Misty", "Thelonious Monk - Ruby, My Dear (Live)", "Bill Evans Trio - My Foolish Heart"] }
   ]
 }

@@ -1,18 +1,26 @@
-import { Controller, Get, Injectable, Module, NotFoundException, Param, Query } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, Injectable, Ip, Module, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import { ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { IsString, MaxLength } from 'class-validator';
 import { CatalogModule } from '../catalog/catalog.module.js';
 import { GENRES, inGenres } from '../catalog/genres.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VoiceModule, VoiceService } from '../voice/voice.js';
 import { Interpreter } from './interpret.js';
 import { Reranker } from './rerank.js';
-import { display, rank } from './score.js';
+import { display, rank, throwPenalty } from './score.js';
+
+class ThrowDto {
+  @ApiProperty({ description: '던진 곡 id' })
+  @IsString()
+  @MaxLength(40)
+  id!: string;
+}
 
 /* 요청문 → 풀어 쓴 설명의 벡터 + 목표 에너지·밝기(Interpreter) → 곡마다 뜻(코사인)·소리(거리) 점수로 상위 몇 곡(1단계) — 바로 돌려준다.
    신의 한마디와 곡마다 이유는 따로(GET /recommend/line) — 화면은 디스크를 먼저 띄우고 한마디는 뒤이어 붙인다(9/30, 3~4초 줄임).
    Gemini 재정렬 순서는 안 쓴다 — 평가에서 1단계만 쓸 때가 나았다(65% vs 56%). eval.ts 의 rerank 옵션으로는 계속 잴 수 있다.
    곡 설명·벡터는 배치(catalog/describe.ts)가 미리 만들어 둔다 — 설명이 없는 곡은 아직 후보가 아니다.
-   검색은 결과 상위 가수만 SearchLog 에 남긴다 — 곡 풀 넓히기(catalog/pool.ts)가 씨앗으로 쓴다. 요청문 원문은 안 남긴다.
+   검색은 해석 태그(Last.fm 영어)와 결과 상위 가수만 SearchLog 에, 던진 곡은 ThrowLog 에 남긴다 — 곡 풀 넓히기(catalog/pool.ts)가 씨앗으로 쓴다. 요청문 원문은 안 남긴다.
    ponytail: 요청마다 곡 벡터 JSON 을 전부 읽어 푼다 — 곡이 수천 개를 넘으면 메모리에 두거나 Neon pgvector 로 */
 
 export const CANDIDATES = 20; // 재정렬 평가(eval.ts rerank)에서 1단계가 넘기는 후보 수 — 화면은 재정렬 순서를 안 쓴다
@@ -21,6 +29,8 @@ const ids = (s?: string) => (s ? s.split(',').filter(Boolean) : []);
 const POOL_CHECK_MS = 60_000; // 곡 목록을 메모리에 두고, 이만큼 지나면 DB 가 바뀌었나 가볍게 확인(곡 수·마지막 분석 시각)
 const LINE_MAX = 10; // 한마디에 넘기는 곡 수 상한
 const MIN_GENRE = 6; // 고른 장르 곡이 이보다 적으면 나머지 곡으로 채운다 — 빈 서랍보다 낫다(장르 곡이 앞)
+const THROW_DAYS = 30; // 이만큼 지난 던진 기록은 순위에 안 쓴다 — 곡 설명을 고치면 다시 기회를
+const THROW_PER_IP = 100; // 한 곳에서 하루에 세는 던진 곡 수
 
 type Row = {
   id: string;
@@ -75,8 +85,8 @@ export class RecommendService {
 
   async recommend(query: string, opts: { seen?: string[]; thrown?: string[]; genres?: string[]; limit?: number } = {}) {
     const { seen = [], thrown = [], genres = [], limit = 6 } = opts;
-    const [asked, pool] = await Promise.all([this.interpreter.interpret(query), this.loadPool()]); // 서로 필요 없다 — 같이
-    const all = rank(pool, asked, { seen, thrown });
+    const [asked, pool, penalty] = await Promise.all([this.interpreter.interpret(query), this.loadPool(), this.penalties()]); // 서로 필요 없다 — 같이
+    const all = rank(pool, asked, { seen, thrown, penalty });
     const inGenre = all.filter((t) => inGenres(JSON.parse(t.tags) as Record<string, number>, genres));
     const ranked = inGenre.length >= MIN_GENRE || !genres.length ? inGenre : [...inGenre, ...all.filter((t) => !inGenre.includes(t))];
     const tracks = ranked.slice(0, limit).map((t) => shown(t, ranked));
@@ -84,10 +94,32 @@ export class RecommendService {
     // 처음 뒤질 때만 남긴다("다시 찾기"·"몇 곡 더"는 같은 요청) — 실패해도 결과는 준다
     if (!seen.length && !thrown.length && query.trim()) {
       void this.prisma.searchLog
-        .create({ data: { tags: '{}', artists: JSON.stringify([...new Set(tracks.map((t) => t.artist))].slice(0, 3)) } })
+        .create({ data: { tags: JSON.stringify(Object.fromEntries((asked.tags ?? []).map((t) => [t, 100]))), artists: JSON.stringify([...new Set(tracks.map((t) => t.artist))].slice(0, 3)) } })
         .catch(() => undefined);
     }
     return { interpretation: asked.keywords, description: asked.description, tracks };
+  }
+
+  /** 최근 THROW_DAYS 일 동안 던져진 곡 → 깎을 점수 */
+  private async penalties() {
+    const since = new Date(Date.now() - THROW_DAYS * 86_400_000);
+    const rows = await this.prisma.throwLog.groupBy({ by: ['trackId'], where: { createdAt: { gte: since } }, _count: true });
+    return new Map(rows.map((r) => [r.trackId, throwPenalty(r._count)]));
+  }
+
+  /* 던진 곡 기록 — 화면에서 디스크를 던질 때마다. 로그인 없이 부르니, 한 곳(IP)에서 같은 곡은 한 번만, 하루 THROW_PER_IP 곡까지 센다
+     (한 사람이 같은 곡을 계속 던져 순위를 끌어내리지 못하게). 모르는 곡 id(가짜 곡)는 조용히 버린다.
+     ponytail: 세는 건 메모리 — 서버를 끄면 비고, 여러 대면 따로 센다 */
+  private readonly throwsBy = new Map<string, { ids: Set<string>; until: number }>();
+
+  async logThrow(id: string, ip: string) {
+    const now = Date.now();
+    if (this.throwsBy.size > 10_000) for (const [k, b] of this.throwsBy) if (b.until < now) this.throwsBy.delete(k);
+    let b = this.throwsBy.get(ip);
+    if (!b || b.until < now) this.throwsBy.set(ip, (b = { ids: new Set(), until: now + 86_400_000 }));
+    if (b.ids.has(id) || b.ids.size >= THROW_PER_IP) return;
+    b.ids.add(id);
+    await this.prisma.throwLog.create({ data: { trackId: id } }).catch(() => undefined);
   }
 
   /** 보여 준 곡들을 건네며 하는 신의 한마디 + 곡마다 이유 — 디스크가 뜬 뒤 따로 부른다. 요청 풀어쓰기는 캐시에 있다 */
@@ -148,6 +180,13 @@ export class RecommendController {
   @ApiQuery({ name: 'ids', description: `보여 준 곡 id(쉼표, 최대 ${LINE_MAX}개)` })
   line(@Query('q') q = '', @Query('ids') list?: string) {
     return this.svc.line(q.slice(0, Q_MAX), ids(list).slice(0, LINE_MAX));
+  }
+
+  @Post('throw')
+  @HttpCode(204)
+  @ApiOperation({ summary: '디스크를 던졌다 — 자주 던져지는 곡은 순위가 조금 내려간다. 같은 곳에서 같은 곡은 하루 한 번만 센다' })
+  throw(@Body() dto: ThrowDto, @Ip() ip: string) {
+    return this.svc.logThrow(dto.id, ip);
   }
 
   @Get(':id')

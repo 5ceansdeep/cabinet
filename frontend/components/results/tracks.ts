@@ -73,3 +73,6 @@ export async function findTrack(id: string, query: string): Promise<Track | null
   if (r.ok) return { ...r.data.track, cover: gradientOf(r.data.track.id) };
   return TRACKS.find((t) => t.id === id) ?? null;
 }
+
+/** 던진 곡을 서버에 알린다 — 자주 던져지는 곡은 순위가 조금 내려간다. 결과는 기다리지 않는다(실패해도 화면은 그대로) */
+export const logThrow = (id: string) => void api("/recommend/throw", { method: "POST", body: { id } });

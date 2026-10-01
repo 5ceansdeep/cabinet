@@ -17,16 +17,12 @@ const CACHE_MAX = 300;
 const SCHEMA = {
   type: 'OBJECT',
   properties: {
-    order: { type: 'ARRAY', items: { type: 'INTEGER' }, description: '어울리는 순서대로 후보 번호. 후보가 10곡 이하면 전부(화면에 이미 떠 있다), 많으면 어울리는 것만 최대 10개' },
-    reasons: {
-      type: 'ARRAY',
-      description: 'order 에 넣은 곡마다 왜 이 요청에 맞는지 한국어 한 문장(20자 안팎). 신의 말투(~네/~지) — ~입니다·~해요 금지, ~게나·~군은 쓰지 않는다',
-      items: { type: 'OBJECT', properties: { n: { type: 'INTEGER' }, why: { type: 'STRING' } }, required: ['n', 'why'] },
-    },
+    order: { type: 'ARRAY', items: { type: 'INTEGER' }, description: '가장 어울리는 것부터 후보 번호 10개(후보가 10곡보다 적으면 전부). 이 순서대로 화면에 보여 준다' },
+    // 곡별 이유(reasons)는 10/1 뺐다 — 화면에서 안 쓰고, 10문장을 더 쓰느라 응답이 늦었다. parse 는 와도 받는다
     line_ko: { type: 'STRING', description: '신의 한마디 — 한국어 자막. 한두 문장, 40자 안팎' },
     line_en: { type: 'STRING', description: 'line_ko 와 같은 뜻의 영어 음성 대사. line_ko 와 문장 수가 같게 — 음성의 문장 쉼에 맞춰 한국어 자막 줄을 넘긴다' },
   },
-  required: ['order', 'reasons', 'line_ko', 'line_en'],
+  required: ['order', 'line_ko', 'line_en'],
 };
 
 export function promptFor(query: string, want: string, cands: Cand[]) {

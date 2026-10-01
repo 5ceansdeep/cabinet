@@ -97,6 +97,11 @@ body {
 @keyframes rise {
   from { opacity: 0; transform: translateY(24px) scale(0.97); }
 }
+/* 공유 카드가 영수증처럼 아래에서 밀려 올라온다(인쇄) */
+@keyframes print {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
 /* 슬롯에서 쇽! 튀어나오는 디스크 */
 @keyframes pop {
   from { opacity: 0; transform: translateY(140px) scale(0.6); }

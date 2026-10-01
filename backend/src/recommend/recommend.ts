@@ -29,7 +29,8 @@ const Q_MAX = 300; // 요청문 글자 — 길수록 Gemini 한도·비용을 �
 const ids = (s?: string) => (s ? s.split(',').filter(Boolean) : []);
 const POOL_CHECK_MS = 60_000; // 곡 목록을 메모리에 두고, 이만큼 지나면 DB 가 바뀌었나 가볍게 확인(곡 수·마지막 분석 시각)
 const LINE_MAX = 10; // 한마디에 넘기는 곡 수 상한
-const MIN_GENRE = 6; // 고른 장르 곡이 이보다 적으면 나머지 곡으로 채운다 — 빈 서랍보다 낫다(장르 곡이 앞)
+const SHOW = 10; // 한 번에 꺼내는 곡 수 — 6곡은 너무 적었다(10/1 사용자)
+const MIN_GENRE = SHOW; // 고른 장르 곡이 이보다 적으면 나머지 곡으로 채운다 — 빈 서랍보다 낫다(장르 곡이 앞)
 const THROW_DAYS = 30; // 이만큼 지난 던진 기록은 순위에 안 쓴다 — 곡 설명을 고치면 다시 기회를
 const THROW_PER_IP = 100; // 한 곳에서 하루에 세는 던진 곡 수
 
@@ -85,7 +86,7 @@ export class RecommendService {
   }
 
   async recommend(query: string, opts: { seen?: string[]; thrown?: string[]; genres?: string[]; limit?: number } = {}) {
-    const { seen = [], thrown = [], genres = [], limit = 6 } = opts;
+    const { seen = [], thrown = [], genres = [], limit = SHOW } = opts;
     const [asked, pool, penalty] = await Promise.all([this.interpreter.interpret(query), this.loadPool(), this.penalties()]); // 서로 필요 없다 — 같이
     const ranked = arrange(rank(pool, asked, { seen, thrown, penalty }), asked, genres);
     const tracks = ranked.slice(0, limit).map((t) => shown(t, ranked));

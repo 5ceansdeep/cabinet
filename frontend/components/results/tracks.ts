@@ -53,10 +53,34 @@ export async function findTracks(query: string, opt: { seen?: string[]; thrown?:
   if (opt.seen?.length) qs.set("seen", opt.seen.join(","));
   if (opt.thrown?.length) qs.set("thrown", opt.thrown.join(","));
   const r = await api<{ interpretation: string[]; tracks: Scored[] }>(`/recommend?${qs}`);
-  if (r.ok) return { interpretation: r.data.interpretation, tracks: r.data.tracks.map((t) => ({ ...t, cover: gradientOf(t.id) })) };
+  if (r.ok) {
+    r.data.tracks.forEach((t) => t.artwork && void loadArt(t.artwork)); // 표지는 곡 목록을 받자마자 — 3D 디스크가 생길 때 받으면 늦다
+    return { interpretation: r.data.interpretation, tracks: r.data.tracks.map((t) => ({ ...t, cover: gradientOf(t.id) })) };
+  }
   if (r.status !== 0) return { interpretation: [], tracks: [], failed: true };
   const skip = new Set([...(opt.seen ?? []), ...(opt.thrown ?? [])]);
-  return { interpretation: [], tracks: TRACKS.filter((t) => !skip.has(t.id)).slice(0, 6) };
+  return { interpretation: [], tracks: TRACKS.filter((t) => !skip.has(t.id)).slice(0, 10) };
+}
+
+/* 디스크 라벨에 그릴 앨범 표지 — 한 번 받은 그림은 다시 받지 않는다(같은 Image 를 돌려준다).
+   라벨은 512px 캔버스의 위칸이라 600px 대신 400px 로 받는다 — 표지 무게가 절반 아래로.
+   iTunes 표지는 CORS 를 열어 둬 캔버스에 그려도 된다 */
+const arts = new Map<string, Promise<HTMLImageElement>>();
+export function loadArt(artwork: string) {
+  const url = artwork.replace("600x600bb", "400x400bb");
+  let p = arts.get(url);
+  if (!p) {
+    p = new Promise((ok, no) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => ok(img);
+      img.onerror = no;
+      img.src = url;
+    });
+    p.catch(() => arts.delete(url)); // 실패면 다음에 다시
+    arts.set(url, p);
+  }
+  return p;
 }
 
 /* 보여 준 곡들을 건네는 신의 한마디 + 곡마다 이유 — 곡 목록보다 늦게(Gemini 한 번 더). 실패·서버 없음이면 없이 */

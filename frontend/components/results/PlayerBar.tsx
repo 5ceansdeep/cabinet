@@ -3,10 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 import type { Track } from "./tracks";
 
-/* 드라이브에 꽂힌 곡의 재생바 — 커버, 곡 이름, 재생/멈춤, 끌어서 옮기는 진행 막대, 꺼내기.
-   소리는 iTunes 30초 미리듣기. 미리듣기가 없는 곡은 막대 없이 알려만 준다 */
+/* 드라이브에 꽂힌 곡의 재생 — 오른쪽 곡 목록 아래. 동그란 재생 버튼, 곡 이름, 얇은 파란 진행선(누르거나 끌어서 옮긴다), 꺼내기.
+   소리는 iTunes 30초 미리듣기. 미리듣기가 없는 곡은 진행선 없이 알려만 준다.
+   10/1: 상자 + 기본 range 막대였던 걸 걷어 내고 선 하나로 단순하게 */
 
 const time = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+const Play = () => (
+  <svg viewBox="0 0 16 16" className="ml-0.5 size-3.5" aria-hidden>
+    <path d="M4 2.5v11l9-5.5z" fill="currentColor" />
+  </svg>
+);
+const Pause = () => (
+  <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden>
+    <path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" fill="currentColor" />
+  </svg>
+);
 
 export default function PlayerBar({ track, onEject }: { track: Track | null; onEject: () => void }) {
   const audio = useRef<HTMLAudioElement>(null);
@@ -35,11 +47,14 @@ export default function PlayerBar({ track, onEject }: { track: Track | null; onE
     else a.pause();
   };
 
+  // 진행선 — 누른 자리로 옮기고, 누른 채 끌면 따라간다
+  const seek = (e: React.PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    if (audio.current) audio.current.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * length;
+  };
+
   return (
-    <div
-      className={`relative mx-auto mb-4 w-[min(92vw,560px)] transition duration-300 ${track ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}
-      aria-hidden={!track}
-    >
+    <div className={`transition duration-300 ${track ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={!track}>
       <audio
         ref={audio}
         preload="none"
@@ -50,48 +65,60 @@ export default function PlayerBar({ track, onEject }: { track: Track | null; onE
         onLoadedMetadata={(e) => setLength(e.currentTarget.duration || 30)}
       />
       {track && (
-        <div className="flex items-center gap-3 rounded-md border border-white/10 bg-neutral-900/80 p-2 pr-3 shadow-[0_8px_30px_rgba(0,0,0,.5)] backdrop-blur">
-          {/* 커버 — 없으면 디스크 라벨과 같은 그라디언트 */}
-          <div
-            className="size-11 shrink-0 rounded-sm bg-cover bg-center"
-            style={{ backgroundImage: track.artwork ? `url(${track.artwork})` : track.cover }}
-          />
-          <button
-            onClick={toggle}
-            disabled={!track.previewUrl}
-            aria-label={paused ? "재생" : "멈춤"}
-            className="grid size-9 shrink-0 place-items-center rounded-full bg-white/90 text-neutral-900 transition hover:bg-white disabled:opacity-30"
-          >
-            {paused ? "▶" : "❚❚"}
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm">
-              {track.title} <span className="text-foreground/50">· {track.artist}</span>
-            </p>
-            {track.previewUrl ? (
-              <div className="mt-1 flex items-center gap-2 font-mono text-[10px] text-foreground/50">
-                <span className="w-7 text-right">{time(at)}</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={length}
-                  step={0.1}
-                  value={at}
-                  onChange={(e) => {
-                    if (audio.current) audio.current.currentTime = Number(e.target.value);
-                  }}
-                  aria-label="재생 위치"
-                  className="h-1 flex-1 cursor-pointer accent-accent"
-                />
-                <span className="w-7">{time(length)}</span>
-              </div>
-            ) : (
-              <p className="mt-1 font-mono text-[10px] tracking-[.15em] text-foreground/40">미리듣기 없음</p>
-            )}
+        <div className="border-t border-accent/15 pt-[1em]">
+          <div className="flex items-center gap-[.8em]">
+            <button
+              onClick={toggle}
+              disabled={!track.previewUrl}
+              aria-label={paused ? "재생" : "멈춤"}
+              className="grid size-[2.4em] shrink-0 place-items-center rounded-full border border-accent/50 text-accent transition hover:bg-accent/10 disabled:opacity-30"
+            >
+              {paused ? <Play /> : <Pause />}
+            </button>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-foreground/90">{track.title}</p>
+              <p className="truncate text-[.85em] text-accent/60">{track.artist}</p>
+            </div>
+            <button onClick={onEject} aria-label="꺼내기" className="shrink-0 px-1 text-accent/50 transition hover:text-accent">
+              ⏏
+            </button>
           </div>
-          <button onClick={onEject} aria-label="꺼내기" className="shrink-0 px-1 font-mono text-foreground/50 hover:text-foreground">
-            ⏏
-          </button>
+          {track.previewUrl ? (
+            <>
+              <div
+                role="slider"
+                aria-label="재생 위치"
+                aria-valuemin={0}
+                aria-valuemax={Math.round(length)}
+                aria-valuenow={Math.round(at)}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (!audio.current) return;
+                  if (e.key === "ArrowRight") audio.current.currentTime = Math.min(length, at + 5);
+                  if (e.key === "ArrowLeft") audio.current.currentTime = Math.max(0, at - 5);
+                }}
+                onPointerDown={(e) => {
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  seek(e);
+                }}
+                onPointerMove={(e) => e.currentTarget.hasPointerCapture(e.pointerId) && seek(e)}
+                className="group relative mt-[.9em] h-3 cursor-pointer"
+              >
+                <div className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 bg-accent/15" />
+                <div className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 bg-accent" style={{ width: `${(at / length) * 100}%` }} />
+                <div
+                  className="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent opacity-0 transition group-hover:opacity-100"
+                  style={{ left: `${(at / length) * 100}%` }}
+                />
+              </div>
+              <div className="mt-[.2em] flex justify-between font-mono text-[.75em] tabular-nums text-accent/40">
+                <span>{time(at)}</span>
+                <span>{time(length)}</span>
+              </div>
+            </>
+          ) : (
+            <p className="mt-[.8em] font-mono text-[.75em] tracking-[.15em] text-accent/40">미리듣기 없음</p>
+          )}
         </div>
       )}
     </div>

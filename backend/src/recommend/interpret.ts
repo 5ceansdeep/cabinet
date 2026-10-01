@@ -10,6 +10,7 @@ import { Gemini, MODELS } from '../catalog/gemini.js';
 
 export type Asked = {
   keywords: string[]; // 화면 "요청 해석"
+  tags?: string[]; // Last.fm 영어 태그 — 검색 기록(SearchLog)에 남겨 곡 풀 넓히기 씨앗으로
   description: string; // 풀어 쓴 설명 — 보고서에 곡 설명과 나란히
   vector: number[];
   energy: number | null; // 요청이 소리의 세기·밝기를 말할 때만
@@ -22,6 +23,7 @@ const SCHEMA = {
   type: 'OBJECT',
   properties: {
     keywords: { type: 'ARRAY', items: { type: 'STRING' }, description: '요청을 어떻게 읽었는지 짧은 한국어 말 3~5개 (예: 퇴근길, 지친 하루, 위로)' },
+    tags: { type: 'ARRAY', items: { type: 'STRING' }, description: '어울리는 곡에 붙을 법한 Last.fm 영어 태그 2~3개, 소문자 (예: melancholy, rainy day, driving)' },
     emotion: { type: 'STRING', description: '들려줄 곡이 주면 좋을 감정. 미묘한 결까지' },
     situation: { type: 'STRING', description: '이 사람이 있는 상황·때·장소' },
     lyrics: { type: 'STRING', description: '곡의 가사가 말하면 좋을 것 한두 문장' },
@@ -71,12 +73,14 @@ export class Interpreter {
       };
       const description = describeText(p);
       return {
+        tags?: string[];
         keywords: (p.keywords ?? []).map((k) => k.trim()).filter(Boolean).slice(0, 5),
         description,
         vector: await this.gemini.embed(description),
         energy: clamp(p.energy),
         valence: clamp(p.valence),
       };
+        tags: (p.tags ?? []).map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 3),
     } catch (e) {
       // 대화 모델이 막혔다 — 요청문 그대로 (이것도 실패하면 위로 던진다)
       this.log.warn(`풀어 쓰기 실패, 요청문 그대로 임베딩: ${e}`);

@@ -80,7 +80,10 @@ export class PoolService implements OnModuleInit, OnModuleDestroy {
       for (const [t, w] of Object.entries(JSON.parse(l.tags) as Tags)) tagScore.set(t, (tagScore.get(t) ?? 0) + w);
       for (const a of JSON.parse(l.artists) as string[]) artistCount.set(a, (artistCount.get(a) ?? 0) + 1);
     }
-    const top = <K>(m: Map<K, number>, n: number) => [...m].sort((a, b) => b[1] - a[1]).slice(0, n).map(([k]) => k);
+    // 던져진 곡의 가수는 그만큼 덜 센다 — 보여 줬다고 다 마음에 든 건 아니다
+    const thrown = await this.prisma.throwLog.findMany({ where: { createdAt: { gte: since } }, select: { track: { select: { artist: true } } } });
+    for (const { track } of thrown) artistCount.set(track.artist, (artistCount.get(track.artist) ?? 0) - 1);
+    const top = <K>(m: Map<K, number>, n: number) => [...m].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k]) => k);
     let artists = top(artistCount, 4);
     // 검색 기록이 없으면 곡 풀에서 아무 가수나
     if (!artists.length) {

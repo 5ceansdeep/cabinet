@@ -12,7 +12,7 @@ import { speak } from "@/lib/voice";
 import CabinetWall from "./CabinetWall";
 import PlayerBar from "./PlayerBar";
 import Riffle from "./Riffle";
-import { findLine, findTracks, type Track } from "./tracks";
+import { findLine, findTracks, logThrow, type Track } from "./tracks";
 import { apiUrl } from "@/lib/api";
 import { genreLabel } from "@/lib/genres";
 
@@ -149,6 +149,7 @@ export default function Results({ query, genres }: { query: string; genres: stri
 
   function discard(track: Track) {
     setThrown((ts) => [...ts, track.id]);
+    logThrow(track.id);
     setKept((ts) => ts.filter((t) => t.id !== track.id));
     setIndex((i) => Math.max(0, Math.min(row.length - 2, i)));
   }

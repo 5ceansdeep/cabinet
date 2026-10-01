@@ -47,16 +47,27 @@ export type Want = Sound & { vector: number[] };
 
 const PER_ARTIST = 2; // 가수당 앞에 두는 곡 수 — 1 이면 같은 가수 둘째 곡이 100등 밖으로 밀렸다(9/30 FANCY 가 합산 2~3등감인데 111등)
 
-/** 곡 풀 전체 순위 — seen·thrown 은 빼고, 가수당 PER_ARTIST 곡까지 먼저(한 가수로 몰리지 않게), 모자라면 나머지 */
-export function rank<T extends Candidate>(pool: T[], want: Want, opts: { seen?: string[]; thrown?: string[]; a?: number; center?: boolean } = {}) {
-  const { seen = [], thrown = [], a = A, center = true } = opts;
+const THROW_STEP = 0.01; // 최근에 던져진 한 번마다 깎는 점수(점수는 0~1) — ponytail: 감으로 정한 값, 던진 기록이 쌓이면 평가로 다시
+const THROW_MAX = 0.05; // 아무리 많이 던져져도 이만큼까지 — 어떤 요청엔 맞는 곡일 수 있다
+
+/** 던진 횟수 → 깎을 점수. ponytail: 보여 준 횟수로 나누지 않는다(노출 기록이 없다) — 자주 나오는 곡이 더 깎인다 */
+export const throwPenalty = (n: number) => Math.min(THROW_MAX, THROW_STEP * n);
+
+/** 곡 풀 전체 순위 — seen·thrown 은 빼고, 가수당 PER_ARTIST 곡까지 먼저(한 가수로 몰리지 않게), 모자라면 나머지.
+    penalty = 곡 id → 깎을 점수(사람들이 자주 던진 곡) */
+export function rank<T extends Candidate>(
+  pool: T[],
+  want: Want,
+  opts: { seen?: string[]; thrown?: string[]; a?: number; center?: boolean; penalty?: Map<string, number> } = {},
+) {
+  const { seen = [], thrown = [], a = A, center = true, penalty } = opts;
   const fix = center ? centerer(pool.map((t) => t.vector)) : (v: number[]) => v;
   const vecs = new Map(pool.map((t) => [t.id, fix(t.vector)]));
   const vector = away(fix(want.vector), thrown.map((id) => vecs.get(id)).filter((v) => !!v));
   const skip = new Set([...seen, ...thrown]);
   const ranked = pool
     .filter((t) => !skip.has(t.id))
-    .map((t) => ({ ...t, score: total(Math.max(0, dot(vector, vecs.get(t.id)!)), soundScore(t, want), a) }))
+    .map((t) => ({ ...t, score: total(Math.max(0, dot(vector, vecs.get(t.id)!)), soundScore(t, want), a) - (penalty?.get(t.id) ?? 0) }))
     .sort((x, y) => y.score - x.score);
   const count = new Map<string, number>();
   const first = ranked.filter((t) => {

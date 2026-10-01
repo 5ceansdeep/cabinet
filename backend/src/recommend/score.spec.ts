@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { A, away, display, dot, rank, soundScore, total } from './score.js';
+import { A, away, display, dot, rank, soundScore, throwPenalty, total } from './score.js';
 
 describe('score', () => {
   it('길이 1 벡터의 내적 = 코사인', () => {
@@ -34,6 +34,10 @@ describe('score', () => {
     const want = { vector: [1, 0], energy: null, valence: null };
     expect(rank(pool, want, { center: false }).map((x) => x.id)).toEqual(['a1', 'a2', 'b1', 'c1', 'a3']);
     expect(rank(pool, want, { seen: ['a1', 'a3'], thrown: ['c1'], center: false }).map((x) => x.id)).toEqual(['a2', 'b1']);
+    // 자주 던져진 곡은 조금 내려간다 — 근소한 차이만 뒤집는다
+    const penalty = new Map([['a1', throwPenalty(2)]]);
+    expect(rank(pool, want, { center: false, penalty }).map((x) => x.id).slice(0, 3)).toEqual(['a2', 'a1', 'b1']);
+    expect(throwPenalty(1000)).toBe(0.05);
   });
 
   it('화면 일치도는 60~99 로 늘린다', () => {

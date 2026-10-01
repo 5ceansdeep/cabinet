@@ -1,11 +1,28 @@
-# cabinet 작업 컨텍스트 (2026-09-30)
+# cabinet 작업 컨텍스트 (2026-10-01)
 
-## 다른 PC 에서 이어 하기 (9/30 밤)
-- **작업은 `main`**. `git pull`, `backend`·`frontend` 에서 `npm install`, `cd backend && npx prisma generate`
+## 다른 PC 에서 이어 하기 (10/1)
+- **작업은 `main`**(배포 서버와 같음). 곡 설명 프롬프트 개편만 `feat/describe-prompt`(푸시 안 함 — 이 PC 에만).
+  `git pull`, `backend`·`frontend` 에서 `npm install`, `cd backend && npx prisma generate`
 - `backend/.env`: `DATABASE_URL` = Neon direct 주소, **`GEMINI_API_KEY` 필수**, `ADMIN_EMAILS`(관리자 배치),
   ElevenLabs(`ELEVENLABS_ENABLED`·`_API_KEY`·`_VOICE_ID`·`_MODEL` — 9/30 키·목소리 넣음, **ENABLED 는 false**)
-- 이 PC 망은 IPv6 가 막혀 스크립트로 서비스 코드를 부를 땐 `setDefaultResultOrder('ipv4first')` 필요(main.ts 엔 있음)
-- Gemini 무료 하루 한도(태평양 자정): 3.8-flash 20번(곡 설명) · 3.5-flash-lite 500번(요청 풀어 쓰기·한마디) · 임베딩 1000번
+- 이 PC 망은 IPv6 가 막혀 스크립트로 서비스 코드를 부를 땐 `setDefaultResultOrder('ipv4first')` 필요(main.ts 엔 있음).
+  PowerShell 5.1 은 `&&` 대신 `;`
+- Gemini 무료 하루 한도(태평양 자정 = 한국 오후 4시)는 **모델마다 따로**. 앞 모델이 차면 다음 모델로(`gemini.ts MODELS`).
+  10/1 기준 무료로 되는 것: 3.5-flash-lite(500) · 3.8-flash(20) · 3.1-flash-lite · 3.5-flash · 3.6-flash · 3.7-flash(503 잦음). 스웨거에 `[Gemini]` 표시된 API 만 한도를 쓴다
+- **로컬도 배포 서버와 같은 Neon DB** — 로컬에서 곡을 넣거나 기록을 지우면 배포 서버도 바뀐다
+
+## 10/1 한 일 (main 푸시·배포됨)
+- **가사 못 찾던 92곡**: 노래 있는 곡이 대부분이었다 — LRCLIB 이 한국 곡을 영문 이름으로 갖고 있어서. 못 찾으면 iTunes 미국 스토어 표기로 다시,
+  굽은 따옴표 비교, 망 실패는 다음 배치에. `Track.instrumental`(LRCLIB 기록: 연주곡 / 노래 / 못 찾음) — 못 찾음이면 "연주곡이라 쓰지 마라". 25곡 시험 → 20곡 찾음.
+  **기존 설명은 아직 옛 것**(다시 설명은 아래 남은 일)
+- **요청 풀어 쓰기**: 요청 종류별(소재 → 그 소재 노래 · 감정 → 같은 감정 · 지침 → 조용한 위로 · 할 일 → 분위기). 가수·장르를 직접 말하면 그대로
+  ("오아시스의 신나는 노래들" → 오아시스 6곡, "재즈 듣고 싶어" → 칩 없이 재즈만). Last.fm 영어 태그도 뽑아 `SearchLog.tags` 에(곡 풀 씨앗)
+- **던진 곡 기록**(`ThrowLog`, `POST /recommend/throw`) — 같은 IP·곡 하루 한 번. 30일 안에 던진 횟수 × 0.01점(최대 0.05) 감점, 곡 풀 씨앗 가수에서 덜 센다
+- **한글 제목 우선**(새로 수집하는 곡부터) — 미국 스토어 결과를 쓰면 번역 제목으로 덮였다. 기존 영어 제목 110곡은 남은 일
+- **trust proxy** — Railway 에서 모든 사용자 IP 가 하나로 보여 IP 당 제한을 다 같이 나눠 쓰고 있었다
+- Gemini 예비 모델·404 는 다음 모델로, 스웨거 `[Gemini]` 표시
+- **곡 풀 275곡** — 기리보이 "배고파" + 재즈 위주 31곡(빌 에반스·콜트레인·밍거스·아트 블래키 등, 섞여 들어온 팝 몇 곡)(grow tags: cool jazz·bebop·jazz piano·bossa nova·hard bop). 소리 숫자 전부, **설명은 243곡**(새 32곡 아직)
+- 관리자 계정 비밀번호 확인함 — 대화에 노출돼서 바꾸는 게 좋다(비밀번호 바꾸기 API 없음 → bcrypt 해시를 DB 에 덮어쓰기)
 
 ## 9/30 한 일
 - **곡 풀 244곡** — 빈 커버·미리듣기 고침(collect 곡 사이 3초, 한국 스토어 미리듣기 없으면 미국), Stardust·반주 판 삭제,
@@ -21,9 +38,10 @@
 - **서버 오류를 가짜 곡으로 덮던 것** 고침 — 가짜 곡은 서버에 못 닿을 때만, 오류면 "서랍이 뻑뻑하네" + 다시 뒤지기
 
 ## 남은 일 → [docs/next.md](docs/next.md)
-1. 베타 배포 마무리 — **백엔드 떴다**(https://cabinet-production-9cf8.up.railway.app, 싱가포르). 남은 것: Vercel → `WEB_ORIGIN` → 한 바퀴 확인
-2. "보컬 없는 재즈" 같은 요청 — 연주 재즈 모으기·instrumentalness·곡 설명 "연주곡" 거짓말·장르 기준
-3. ElevenLabs 결정(무료 등급 402) 4. 잔일(package-lock 커밋 여부 답 대기 등)
+1. **요청 프롬프트 평가 미결** — 243곡에서 옛 프롬프트 32/39·42% vs 새 프롬프트(예비 모델 해석) 28/39·36%. 오후 4시 뒤 Lite 로 다시 재서 프롬프트·모델 탓을 가른다
+2. **곡 설명 다시 쓰기** — `feat/describe-prompt` 를 main 에 올리고 275곡 전부(describedAt 비우기) → 평가
+3. 베타 배포 마무리 — 백엔드 떴다(https://cabinet-production-9cf8.up.railway.app). 남은 것: Vercel → `WEB_ORIGIN` → 한 바퀴 확인
+4. ElevenLabs 결정(무료 등급 402) 5. 영어 제목 110곡 한글로 6. 잔일(package-lock 커밋 여부 답 대기, 장르 칩 유지 여부)
 - 곡 설명에 Last.fm 태그를 참고로 보여 주기 — **9/30 사용자: 지금처럼 보여 준다**
 
 ## 목표

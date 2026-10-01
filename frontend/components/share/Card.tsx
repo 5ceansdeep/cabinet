@@ -6,7 +6,7 @@ export type ShareData = {
   keywords: string[]; // 요청 해석
   line?: string | null; // 신의 한마디
   tracks: { title: string; artist: string; artwork?: string | null }[];
-  youtube?: string | null; // 유튜브 이어 듣기 링크(watch_videos) — 있으면 QR 로
+  link?: string | null; // QR 로 넣을 주소 — 공개 서랍(/s/:id) 또는 유튜브 이어 듣기(watch_videos)
 };
 
 const BG = "#07090d";
@@ -32,7 +32,8 @@ function Floppy({ title, artwork }: { title: string; artwork?: string | null }) 
   );
 }
 
-export default function Card({ q, keywords, line, tracks, qr }: Omit<ShareData, "youtube"> & { qr?: string | null }) {
+/** qr = QR 그림(data URL), shelf = QR 이 공개 서랍 주소인가(아니면 유튜브) */
+export default function Card({ q, keywords, line, tracks, qr, shelf }: Omit<ShareData, "link"> & { qr?: string | null; shelf?: boolean }) {
   const ten = tracks.slice(0, 10);
   return (
     <div style={{ display: "flex", flexDirection: "column", width: 1080, height: 1920, background: BG, color: "#e2e8f0", padding: "110px 84px 90px", fontFamily: "Chosun", wordBreak: "keep-all" }}>
@@ -71,14 +72,14 @@ export default function Card({ q, keywords, line, tracks, qr }: Omit<ShareData, 
         ))}
       </div>
 
-      {/* 유튜브 QR — 휴대폰 카메라로 비추면 이 곡들이 유튜브에서 이어서 나온다(흰 바탕 검은 점 — 인식이 잘 되게) */}
+      {/* QR — 휴대폰 카메라로 비추면 공개 서랍(또는 유튜브)이 열린다(흰 바탕 검은 점 — 인식이 잘 되게) */}
       {qr && (
         <div style={{ display: "flex", alignItems: "center", marginTop: 40 }}>
           {/* eslint-disable-next-line @next/next/no-img-element -- Satori 는 img 만 그린다 */}
           <img src={qr} width={200} height={200} style={{ borderRadius: 12 }} alt="" />
           <div style={{ display: "flex", flexDirection: "column", marginLeft: 36, fontSize: 30, lineHeight: 1.45, color: "rgba(226,232,240,.8)" }}>
             <span>카메라로 비추면</span>
-            <span style={{ color: ACCENT }}>유튜브에서 이어 듣기</span>
+            <span style={{ color: ACCENT }}>{shelf ? "이 서랍 열어 보기" : "유튜브에서 이어 듣기"}</span>
           </div>
         </div>
       )}
@@ -86,6 +87,24 @@ export default function Card({ q, keywords, line, tracks, qr }: Omit<ShareData, 
       {/* 신의 한마디 — 영화 자막처럼 */}
       {line && <div style={{ display: "flex", justifyContent: "center", textAlign: "center", marginTop: "auto", fontSize: 38, lineHeight: 1.4, color: YELLOW, textShadow: OUTLINE }}>{line.slice(0, 70)}</div>}
       <div style={{ display: "flex", justifyContent: "center", marginTop: 48, fontSize: 24, letterSpacing: 4, color: "rgba(226,232,240,.4)" }}>cabinet-flame-zeta.vercel.app</div>
+    </div>
+  );
+}
+
+/* 링크 미리보기(1200×630) — 카톡·DM 에 공개 서랍 링크를 붙이면 뜬다. 편지 문장 + 플로피 5장 */
+export function OgCard({ q, tag, tracks }: { q: string; tag: string; tracks: ShareData["tracks"] }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", width: 1200, height: 630, background: BG, color: "#e2e8f0", padding: "56px 64px", fontFamily: "Chosun", wordBreak: "keep-all" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 22, letterSpacing: 6, color: "rgba(226,232,240,.45)" }}>
+        <span>CABINET</span>
+        <span style={{ color: ACCENT }}>{tag}</span>
+      </div>
+      <div style={{ display: "flex", marginTop: 34, fontSize: 52, lineHeight: 1.3, color: "#ffffff" }}>“{q.slice(0, 40)}”</div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: "auto" }}>
+        {tracks.slice(0, 5).map((t, i) => (
+          <Floppy key={i} title={t.title} artwork={t.artwork} />
+        ))}
+      </div>
     </div>
   );
 }

@@ -32,6 +32,20 @@ export class CheckEmailDto {
   email!: string;
 }
 
+export class ResetDto {
+  @ApiProperty({ description: '재설정 메일 링크의 token' })
+  @IsString()
+  @MaxLength(100)
+  token!: string;
+
+  // 회원가입과 같은 규칙
+  @ApiProperty({ example: 'new-cabinet-secret', minLength: 8, description: '8자 이상, 72바이트 이하' })
+  @IsString()
+  @MinLength(8)
+  @IsByteLength(0, 72, { message: '비밀이 너무 길군. 72바이트 안으로 줄이게' })
+  password!: string;
+}
+
 export class LoginDto {
   @ApiProperty({ example: 'archivist@cabinet.kr' })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))

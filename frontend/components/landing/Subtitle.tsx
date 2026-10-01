@@ -18,6 +18,7 @@ export function subtitleLines(text: string) {
 /* 줄마다 뜨는 시각(초). 음성 파일이 있으면 그 파일에서 찾은 문장 시작 시각에 맞추고(cues — 문장 수가 줄 수와 같을 때),
    없으면 앞 줄을 읽을 만큼 글자 수에 비례해 기다린다 */
 export const LINE_PACE = 0.09; // 글자당 초
+const HOLD_S = 3; // 대사가 끝나고 자막이 남아 있는 시간(초)
 export function subtitleDelays(text: string, cues?: number[]) {
   const lines = subtitleLines(text);
   if (cues?.length === lines.length) return lines.map((l, i): [string, number] => [l, Math.max(0, cues[i])]);
@@ -30,26 +31,47 @@ export function subtitleDelays(text: string, cues?: number[]) {
 }
 
 /* 영화 자막 — 줄이 제 시각(delay 초)에 하나씩 위에 나타나고, 먼저 나온 줄은 한 칸씩 아래로 밀려 내려간다.
-   바탕 없이 흰 조선굴림체 + 얇은 검정 테두리. 부모가 대사마다 key 를 바꿔 새로 건다 */
+   바탕 없이 노란 조선굴림체 + 검정 테두리(영화 자막처럼, 10/1 — 흰색은 밝은 서랍 벽에 묻혔다).
+   글자 크기는 화면 폭을 따라간다(자막 띠는 프레임 밖이라 cq 단위가 안 먹는다). 부모가 대사마다 key 를 바꿔 새로 건다 */
+const OUTLINE = [
+  [-1.5, -1.5],
+  [0, -1.5],
+  [1.5, -1.5],
+  [-1.5, 0],
+  [1.5, 0],
+  [-1.5, 1.5],
+  [0, 1.5],
+  [1.5, 1.5],
+]
+  .map(([x, y]) => `${x}px ${y}px 0 #000`)
+  .join(",");
 export default function Subtitle({ timeline, link, linkDelay }: { timeline: [string, number][]; link?: { href: string; label: string }; linkDelay: number }) {
   const [count, setCount] = useState(() => timeline.filter(([, d]) => d <= 0).length); // 지금까지 나온 줄 수
   const [linked, setLinked] = useState(false);
+  const [gone, setGone] = useState(false); // 대사가 끝나고 HOLD_S 초 — 자막 줄만 사라진다(버튼은 남는다)
   const sig = timeline.map(([l, d]) => `${l}@${d}`).join("|"); // 내용이 같으면 타이머를 다시 걸지 않는다
 
   useEffect(() => {
     const ids = timeline.map(([, d], i) => setTimeout(() => setCount((c) => Math.max(c, i + 1)), d * 1000));
     const link = setTimeout(() => setLinked(true), linkDelay * 1000);
-    return () => [...ids, link].forEach(clearTimeout);
+    // 대사 끝 = 마지막 줄이 뜬 시각 + 그 줄을 읽는 시간. ponytail: 음성 길이가 아니라 글자 수로 어림한다
+    const [last, at] = timeline.at(-1) ?? ["", 0];
+    const hide = setTimeout(() => setGone(true), (at + last.length * LINE_PACE + HOLD_S) * 1000);
+    return () => [...ids, link, hide].forEach(clearTimeout);
   }, [sig, linkDelay]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const lines = timeline.slice(0, count).map(([l]) => l).reverse(); // 새 줄이 위
+  // 새 줄이 위, 영화 자막처럼 두 줄까지 — 세 줄째부터는 자막 띠를 넘쳤다(10/1)
+  const lines = timeline.slice(0, count).map(([l]) => l).reverse().slice(0, 2);
 
   return (
-    <div className="flex flex-col items-center font-subtitle text-[clamp(17px,2.6vh,26px)] tracking-wide text-white [text-shadow:-1px_-1px_0_rgba(0,0,0,.85),1px_-1px_0_rgba(0,0,0,.85),-1px_1px_0_rgba(0,0,0,.85),1px_1px_0_rgba(0,0,0,.85),0_0_3px_rgba(0,0,0,.5)]">
+    <div
+      className="flex flex-col items-center font-subtitle text-[clamp(15px,calc(.9vw+6px),30px)] tracking-wide text-[#ffde3b]"
+      style={{ textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6)` }}
+    >
       {lines.map((l) => (
         // 높이가 0 에서 펼쳐지며 들어와, 아래 줄들이 부드럽게 밀려난다
         <div key={l} className="overflow-hidden animate-[subline_.45s_ease-out_both]">
-          <p className="mb-1.5 px-3 py-0.5">- {l}</p>
+          <p className={`mb-1 px-3 leading-tight transition-opacity duration-700 ${gone ? "opacity-0" : ""}`}>- {l}</p>
         </div>
       ))}
       {link && linked && (

@@ -61,7 +61,7 @@ export default function CardReveal({ data, shelfId, remote, onDone }: { data: Om
         )}
       </div>
       <div className="flex flex-col items-center gap-3 sm:items-start">
-        <p className="font-subtitle text-[clamp(15px,calc(.9vw+6px),26px)] text-[#ffde3b] [text-shadow:-1.5px_-1.5px_0_#000,1.5px_-1.5px_0_#000,-1.5px_1.5px_0_#000,1.5px_1.5px_0_#000]">
+        <p className="font-subtitle text-[clamp(15px,calc(.9vw+6px),26px)] text-[#f3da49] [text-shadow:-1.5px_-1.5px_0_#000,1.5px_-1.5px_0_#000,-1.5px_1.5px_0_#000,1.5px_1.5px_0_#000]">
           {card ? D.READY : failed ? D.FAIL : D.PRINTING}
         </p>
         {card && <p className="font-mono text-[10px] tracking-[.2em] text-foreground/40">{D.HOLD}</p>}

@@ -1,6 +1,7 @@
 import { setDefaultResultOrder } from 'node:dns';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 
@@ -8,7 +9,9 @@ import { AppModule } from './app.module.js';
 setDefaultResultOrder('ipv4first');
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // 배포 서버(Railway)는 프록시 뒤 — 이게 없으면 모든 사용자 IP 가 프록시 하나로 보여 IP 당 제한(로그인 잠금·이메일 확인·던지기)을 다 같이 나눠 쓴다
+  app.set('trust proxy', 1);
 
   // 프론트(:3000)에서 부른다
   app.enableCors({ origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000', credentials: true });

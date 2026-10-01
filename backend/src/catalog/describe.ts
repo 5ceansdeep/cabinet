@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Gemini, MODELS } from './gemini.js';
-import { findLyrics } from './lyrics.js';
+import { findLyrics, type Lyrics } from './lyrics.js';
 
 /* 곡 설명 + 임베딩 — 추천의 "뜻" 재료 (docs/recommend-plan.md 5장). 곡당 한 번, 결과 영구 보관.
    가사(LRCLIB) + 제목·가수 + 소리 숫자를 Gemini 에 주고 정해진 틀(감정/상황/가사/소리)로 쓰게 한 뒤, 그 글을 임베딩한다.
@@ -17,7 +17,7 @@ const SCHEMA = {
   properties: {
     emotion: { type: 'STRING', description: '이 곡이 주는 감정. 미묘한 결까지 (예: 이별 뒤의 후련함, 약간의 씁쓸함)' },
     situation: { type: 'STRING', description: '어울리는 상황·때·장소 (예: 혼자 걷는 밤, 무언가를 정리하는 시기)' },
-    lyrics: { type: 'STRING', description: '가사가 말하는 것 한두 문장. 가사를 인용하지 말고 풀어서' },
+    lyrics: { type: 'STRING', description: '가사가 말하는 것 한두 문장. 가사를 인용하지 말고 풀어서. 소재가 분명하면(배고픔, 비, 운전) 그 낱말을 그대로 쓴다' },
     sound: { type: 'STRING', description: '소리의 느낌 (예: 잔잔하게 시작해 후렴에서 트인다)' },
   },
   required: ['emotion', 'situation', 'lyrics', 'sound'],
@@ -27,7 +27,7 @@ const level = (x: number) => (x < 0.33 ? '낮음' : x < 0.66 ? '중간' : '높�
 
 type Row = { id: string; title: string; artist: string; tags: string; energy: number | null; valence: number | null; acousticness: number | null };
 
-export function promptFor(t: Row, lyrics: string | null) {
+export function promptFor(t: Row, lyrics: Lyrics) {
   const tags = Object.keys(JSON.parse(t.tags) as Record<string, number>).slice(0, 8);
   const sound =
     t.energy === null || t.valence === null
@@ -38,12 +38,16 @@ export function promptFor(t: Row, lyrics: string | null) {
   return [
     '음악 추천 서비스의 곡 설명을 쓴다. 사용자가 자연어로 적은 상황·기분과 이 설명을 비교해 곡을 고른다.',
     '각 항목을 한국어 한두 문장으로. 장르 이름·가수 소개·발매 정보는 쓰지 않는다 — 어떤 기분·상황에 맞는 곡인지만.',
-    '가사가 없으면 제목과 소리로 조심스럽게 짐작하고, 모르는 것을 지어내지 않는다.',
+    '가사를 못 받았으면 제목과 소리로 조심스럽게 짐작하고, 모르는 것을 지어내지 않는다.',
     '',
     `곡: ${t.artist} - ${t.title}`,
     `소리 숫자: ${sound}`,
     tags.length ? `사람들이 붙인 태그(참고만): ${tags.join(', ')}` : '',
-    lyrics ? `가사:\n${lyrics.slice(0, LYRICS_MAX)}` : '가사: 없음',
+    lyrics?.text
+      ? `가사:\n${lyrics.text.slice(0, LYRICS_MAX)}`
+      : lyrics?.instrumental
+        ? '가사: 없음 — 노래 없는 연주곡이다(가사 사이트 기록). 가사 항목에 연주곡이라고 쓴다'
+        : '가사: 못 찾음 — 노래가 있는 곡일 수 있다. "연주곡"·"가사가 없는" 이라고 쓰지 않는다. 가사 항목은 제목에서 짐작되는 주제만 짧게',
   ]
     .filter((l) => l !== '')
     .join('\n');
@@ -95,10 +99,10 @@ export class DescribeService implements OnModuleInit, OnModuleDestroy {
         const embedding = await this.gemini.embed(description);
         await this.prisma.track.update({
           where: { id: t.id },
-          data: { description, embedding: JSON.stringify(embedding), hasLyrics: !!lyrics, describedAt: new Date() },
+          data: { description, embedding: JSON.stringify(embedding), hasLyrics: !!lyrics?.text, instrumental: lyrics?.instrumental ?? null, describedAt: new Date() },
         });
         this.status.done++;
-        if (!lyrics) this.status.noLyrics++;
+        if (!lyrics?.text) this.status.noLyrics++;
         streak = 0;
       } catch (e) {
         this.status.failed++; // 다음 배치가 다시 한다 — describedAt 을 안 찍었으니

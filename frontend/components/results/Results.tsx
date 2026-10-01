@@ -11,12 +11,11 @@ import { thud } from "@/lib/thud";
 import { speak } from "@/lib/voice";
 import CabinetWall from "./CabinetWall";
 import Playlist from "./Playlist";
-import Riffle from "./Riffle";
 import { findLine, findTracks, logThrow, type Track } from "./tracks";
 import { apiUrl } from "@/lib/api";
 import { genreLabel } from "@/lib/genres";
 
-const RIFFLE_MS = 1600; // 카드가 촤르르 넘어가는 시간 — 곡 찾기는 그동안 같이 한다
+const SEARCH_MS = 1200; // 서랍을 뒤지는 최소 시간 — 곡 찾기는 그동안 같이 한다(보통 이보다 오래 걸린다)
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const noop = () => () => {};
 
@@ -39,7 +38,7 @@ const choice =
 /* 4·4-1번 페이지 — 서랍 속에서 건져 올린 플로피 디스크들. 디스크도 서류함도 전부 3D 이고,
    그 위에 얹힌 DOM 은 제목·재생바 같은 글자뿐이다 */
 export default function Results({ query, genres }: { query: string; genres: string[] }) {
-  /* riffle 카드 넘김 → discs 고르기 → saving 서랍이 삼킴 → naming 네임택에 이름 적기 → printing 타자기로 인쇄 */
+  /* riffle 서랍 뒤지기 → discs 고르기 → saving 서랍이 삼킴 → naming 네임택에 이름 적기 → printing 타자기로 인쇄 */
   const [phase, setPhase] = useState<"riffle" | "discs" | "saving" | "naming" | "printing">("riffle");
   const router = useRouter();
   const [tag, setTag] = useState("");
@@ -53,6 +52,7 @@ export default function Results({ query, genres }: { query: string; genres: stri
   const [failed, setFailed] = useState(false); // 서버가 오류를 냈다 — 다시 뒤지기만
   const [playing, setPlaying] = useState<Track | null>(null); // 드라이브에 꽂힌 디스크
   const [index, setIndex] = useState(0); // 가운데 앞에 나온 곡 (늘어선 줄 기준)
+  const [reveal, setReveal] = useState(0); // 곡이 올 때마다 하나씩 — 정면 서랍이 쭉 빠진다
 
   /* 서랍에 넣는 동안 걸어 둔 타이머들 — 도중에 다른 화면으로 가면 전부 끈다.
      안 끄면 떠난 뒤에도 이름이 마저 찍히고, 서랍이 저장되고, 보관함으로 끌려간다 */
@@ -60,14 +60,14 @@ export default function Results({ query, genres }: { query: string; genres: stri
   useEffect(() => () => timers.current.forEach((id) => clearTimeout(id)), []);
   const later = (fn: () => void, ms: number) => void timers.current.push(setTimeout(fn, ms));
 
-  /* 서랍을 뒤진다 — 카드가 촤르르 넘어가는 동안 곡을 찾고, 둘 다 끝나면 딱 멈추며 디스크가 나온다 */
+  /* 서랍을 뒤진다 — 벽 서랍들이 탁탁 빠지는 동안 곡을 찾고, 둘 다 끝나면 정면 서랍에서 디스크가 나온다 */
   const digs = useRef(0); // 가장 최근 뒤지기만 반영한다 — 개발 모드의 이중 실행·연타에 늦게 온 결과가 덮어쓰지 않게
   const dig = useCallback(
     async (opt: { seen?: string[]; thrown?: string[] } = {}) => {
       const run = ++digs.current;
       setPhase("riffle");
       setPlaying(null);
-      const [found] = await Promise.all([findTracks(query, { ...opt, genres }), wait(RIFFLE_MS)]);
+      const [found] = await Promise.all([findTracks(query, { ...opt, genres }), wait(SEARCH_MS)]);
       if (run !== digs.current) return;
       thud(70);
       setInterpretation(found.interpretation);
@@ -79,6 +79,7 @@ export default function Results({ query, genres }: { query: string; genres: stri
       setIndex(Math.floor(found.tracks.length / 2));
       setPhase("discs");
       if (!found.tracks.length) return;
+      setReveal((r) => r + 1);
       // 신의 한마디·이유는 디스크를 띄운 뒤 — 기다리면 3~4초 늦게 뜬다
       const { line, reasons } = await findLine(query, found.tracks.map((t) => t.id));
       if (run !== digs.current) return;
@@ -164,15 +165,15 @@ export default function Results({ query, genres }: { query: string; genres: stri
 
   return (
     <main data-theme="void" className="relative flex min-h-full flex-1 flex-col overflow-hidden bg-background text-foreground">
-      {phase === "riffle" ? (
-        <Riffle />
-      ) : (
-        <>
+      <>
+          {/* 처음부터 3D 방 — 곡을 찾는 동안 벽 서랍들이 탁탁 뒤져지고, 오면 정면 서랍에서 디스크가 솟아오른다(10/1, 검은 카드 넘김 대신) */}
           <CabinetWall
-            tracks={row}
+            tracks={phase === "riffle" ? [] : row}
             index={index}
             playing={playing}
-            saving={phase !== "discs"}
+            saving={phase !== "discs" && phase !== "riffle"}
+            searching={phase === "riffle"}
+            reveal={reveal}
             tag={phase === "printing" ? tag.slice(0, printed) : ""}
             onInsert={insert}
             onEject={eject}
@@ -278,7 +279,6 @@ export default function Results({ query, genres }: { query: string; genres: stri
             CLICK TO PLAY · DRAG TO ROTATE · FLICK UP TO DISCARD
           </footer>
         </>
-      )}
     </main>
   );
 }

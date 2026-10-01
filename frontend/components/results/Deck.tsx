@@ -7,6 +7,7 @@ import { CanvasTexture, type Group, type Mesh } from "three";
 import { thud } from "@/lib/thud";
 import { DISK, FloppyBody, useLabel } from "./floppy";
 import { MOUTH } from "./SaveDrawer";
+import { REVEAL_LEAD, REVEAL_MOUTH } from "./room";
 import { tossDisk } from "./flying";
 import type { Track } from "./tracks";
 
@@ -61,6 +62,7 @@ const FRONT = { x: X0, y: SLOT_Y, z: FRONT_Z + DISK / 2 + 0.04 }; // 입구 바�
 const IN = { x: X0, y: SLOT_Y, z: FRONT_Z + DISK * (SHOWN - 0.5) }; // 들어간 자리
 type P = { x: number; y: number; z: number };
 const near = (a: P, b: P) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) < 0.03;
+const SPAWN: [number, number, number] = [REVEAL_MOUTH[0], REVEAL_MOUTH[1] - 0.1, REVEAL_MOUTH[2] - 0.3]; // 결과 서랍 입구 안쪽
 
 function Disk({
   track,
@@ -68,6 +70,7 @@ function Disk({
   slot,
   perPx,
   swallow,
+  rise,
   onInsert,
   onEject,
   onDiscard,
@@ -77,6 +80,7 @@ function Disk({
   slot: boolean; // 드라이브에 꽂혀 재생 중
   perPx: number; // 화면 1px 이 이 깊이에서 몇 월드인가
   swallow: number; // 0 이상이면 서랍으로 빨려 든다 — 값은 순서대로 늦어지는 지연(초)
+  rise: number; // 생기고 이만큼(초) 뒤 결과 서랍에서 솟아오른다 — 그전엔 서랍 속에 숨어 있다
   onInsert: () => void;
   onEject: () => void;
   onDiscard: () => void;
@@ -96,6 +100,7 @@ function Disk({
   const [hover, setHover] = useState(false);
   const [thrown, setThrown] = useState(false);
   const stage = useRef<"row" | "front" | "in" | "out">("row"); // 드라이브로 가는 길 — 줄 → 입구 앞 → 안, 뺄 때는 안 → 입구 앞(out) → 줄
+  const born = useRef(-1); // 생긴 시각(첫 프레임)
   const { invalidate } = useThree();
 
   /* 손을 떠난다 — 손놀림(vx)이 있으면 그 방향으로, 꾹 눌러 던지면 곧장 위로 */
@@ -112,6 +117,12 @@ function Disk({
   useFrame(({ clock }, dt) => {
     if (thrown) return;
     const o = g.current;
+    // 결과 서랍이 빠질 때까지 서랍 속에 숨어 있다가, 차례가 되면 작게 나타나 커지며 줄로 날아간다
+    if (born.current < 0) born.current = clock.elapsedTime;
+    const hidden = clock.elapsedTime - born.current < rise;
+    o.visible = !hidden;
+    if (hidden) return invalidate();
+    if (o.scale.x < 1 && swallow < 0) o.scale.setScalar(Math.min(1, o.scale.x + dt * 3));
     // 서랍에 넣는 중 — 차례로 아래 서랍 입으로 빨려 들며 눕고 작아진다
     if (swallow >= 0) {
       if (sank.current === Infinity) sank.current = clock.elapsedTime + swallow;
@@ -235,7 +246,8 @@ function Disk({
   return (
     <group
       ref={g}
-      position={[X0 + offset * GAP, 0, DEPTH]}
+      position={SPAWN} // 결과 서랍 입구 안쪽에서 시작 — 매 렌더 같은 값이라 다시 옮겨지지 않는다
+      scale={0.5}
       onPointerOver={(e) => {
         e.stopPropagation();
         setHover(true);
@@ -318,6 +330,7 @@ export default function Deck({
           slot={t === playing}
           perPx={perPx}
           swallow={saving ? i * 0.12 : -1}
+          rise={REVEAL_LEAD + i * 0.07}
           onInsert={() => onInsert(t)}
           onEject={onEject}
           onDiscard={() => onDiscard(t)}

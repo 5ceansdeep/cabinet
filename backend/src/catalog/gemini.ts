@@ -7,10 +7,13 @@ import { PT } from './youtube.js';
    ponytail: 무료 한도에선 보낸 글이 Google 모델 개선에 쓰일 수 있다 — 실제 사용자에게 열기 전에 유료로 바꾼다 */
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+/* 무료 하루 한도는 모델마다 따로 — 앞 모델이 차면 다음으로(call). 10/1 Lite·3.8-flash 가 아침에 다 차서 요청 풀어 쓰기가
+   멈췄다 → 무료 키로 되는 모델을 뒤에 더 단다(3.7-flash 는 503 이 잦아 끝에). 목록에서 빠진 모델은 404 라 다음으로 넘어간다 */
+const SPARE = ['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.7-flash'];
 export const MODELS = {
-  describe: ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite'], // 곡당 한 번 — 좋은 것부터
-  query: ['gemini-3.5-flash-lite', 'gemini-3.8-flash'], // 요청 풀어 쓰기 — 요청마다, 빠른 것부터
-  rerank: ['gemini-3.5-flash-lite', 'gemini-3.8-flash'], // 2단계 고르기 + 신의 한마디 — 요청마다라 하루 한도가 큰 Lite(500) 부터. 3.8-flash 는 하루 20번
+  describe: ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'], // 곡당 한 번 — 좋은 것부터
+  query: ['gemini-3.5-flash-lite', ...SPARE, 'gemini-3.8-flash'], // 요청 풀어 쓰기 — 요청마다, 빠른 것부터
+  rerank: ['gemini-3.5-flash-lite', ...SPARE, 'gemini-3.8-flash'], // 신의 한마디·이유 — 요청마다라 하루 한도가 큰 Lite(500) 부터. 3.8-flash 는 하루 20번
   embed: 'gemini-embedding-2',
 };
 export const DIM = 768; // 3072 중 앞 768 — 곡 수천 개를 JSON 으로 들고 다녀도 가볍게. 바꾸면 곡 벡터를 전부 다시 만든다
@@ -47,7 +50,7 @@ export class Gemini {
   /** 모델을 돌아가며 — 503·500·연결 실패는 다음 모델로, 하루 한도면 그 모델을 오늘 빼고, 분당 한도면 알려 준 만큼 기다렸다가 */
   private async call<T>(models: string[], method: string, body: unknown): Promise<T> {
     let last = '';
-    for (let i = 0; i < TRIES; i++) {
+    for (let i = 0; i < TRIES + models.length; i++) { // 한도 찬·없는 모델을 거르는 데도 한 번씩 쓴다
       const pool = this.live(models);
       if (!pool.length) break;
       const model = pool[i % pool.length];
@@ -68,6 +71,10 @@ export class Gemini {
             continue;
           }
           await sleep(Math.min(retryAfter(text) ?? 30000, 65000));
+          continue;
+        }
+        if (res.status === 404) {
+          this.spent.set(model, today()); // 없어진 모델 — 오늘은 빼고 다음으로
           continue;
         }
         if (res.status < 500) break; // 요청이 틀렸다 — 다시 불러도 같다

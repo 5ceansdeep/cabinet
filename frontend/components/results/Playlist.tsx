@@ -3,8 +3,8 @@
 import PlayerBar from "./PlayerBar";
 import type { Track } from "./tracks";
 
-/* 오른쪽 곡 목록 — 꺼낸 곡 전부를 파란 글씨로. 누르면 그 곡이 드라이브에 꽂혀 바로 재생된다.
-   꽂힌 곡은 밝게 + 왜 이 곡인지 한 줄, 목록 아래에 재생. 글자 크기는 프레임 높이(cqh)를 따라간다 */
+/* 오른쪽 곡 목록 — 꺼낸 곡 전부를 파란 글씨로. 누르면 그 곡이 드라이브에 꽂혀 바로 재생된다(곡별 이유 한 줄은 10/1 사용자 요청으로 뺐다).
+   꽂힌 곡은 밝게, 목록 아래에 재생. 글자 크기는 프레임 높이(cqh)를 따라간다 */
 export default function Playlist({
   tracks,
   playing,
@@ -35,7 +35,6 @@ export default function Playlist({
                 </span>
                 {on && <span aria-hidden className="shrink-0 text-[.7em]">▶</span>}
               </button>
-              {on && t.reason && <p className="pb-[.4em] pl-[2.4em] text-[.8em] leading-snug text-accent/60">{t.reason}</p>}
             </li>
           );
         })}

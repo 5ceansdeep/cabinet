@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { checkSession, clearSession, getSession, hasAccounts, login, requestReset, sendToSignupOnce, signup, subscribeSession, emailTaken } from "@/lib/auth";
+import { checkSession, clearSession, emailTaken, getSession, hasAccounts, login, requestReset, resetPassword, sendToSignupOnce, signup, subscribeSession } from "@/lib/auth";
 import { startChoir } from "@/lib/choir";
 import { whenQuiet } from "@/lib/voice";
 import { thud } from "@/lib/thud";
@@ -15,10 +15,10 @@ import { Halo } from "./LoadingOverlay";
 
 type Mode = keyof typeof FIELDS;
 const CLOSE_MS = 700; // 서랍이 닫히는 동안 후광은 기다린다
-const DRAWER: Record<Mode, number> = { login: 0, signup: 0, forgot: 1 }; // 열쇠 찾기는 두 번째 서랍이 덜컹거린다
+const DRAWER: Record<Mode, number> = { login: 0, signup: 0, forgot: 1, reset: 1 }; // 열쇠 찾기·새 열쇠는 두 번째 서랍이 덜컹거린다
 const GREET_MS = 2600; // 환영 인사를 들려주고 나서 로딩 문구로
 
-export default function AuthFlow({ mode }: { mode: Mode }) {
+export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: string }) {
   const router = useRouter();
   const fields = FIELDS[mode];
   const [phase, setPhase] = useState<Phase>("auth");
@@ -89,16 +89,21 @@ export default function AuthFlow({ mode }: { mode: Mode }) {
     const last = fields.length - 1;
 
     if (mode === "forgot") {
-      const r = await requestReset();
+      const r = await requestReset(email);
       await whenQuiet(); // "서류 정리 중이네"를 끝까지 듣고 나서 결과로
       setFlow(r.ok ? LINES.resetSent : LINES.server);
       return r.ok ? null : last;
     }
 
-    const r = mode === "login" ? await login(email, values.password) : await signup(email, values.nickname, values.password);
+    const r =
+      mode === "reset"
+        ? await resetPassword(token, values.password)
+        : mode === "login"
+          ? await login(email, values.password)
+          : await signup(email, values.nickname, values.password);
     await whenQuiet(); // "서류 정리 중이네"를 끝까지 듣고 나서 결과(환영·꾸지람)로 — 화면이 목소리를 앞지르지 않게
     if (r.ok) {
-      setFlow((mode === "login" ? LINES.welcomeBack : LINES.welcomeNew)(r.nickname));
+      setFlow((mode === "reset" ? LINES.resetDone : mode === "login" ? LINES.welcomeBack : LINES.welcomeNew)(r.nickname));
       setPhase("loading");
       return null;
     }
@@ -110,7 +115,9 @@ export default function AuthFlow({ mode }: { mode: Mode }) {
           ? [LINES.noAccount, 0]
           : r.reason === "emailTaken"
             ? [LINES.emailTaken, 0]
-            : [LINES.server, last]; // 쓴 값은 그대로 두고 Enter 로 다시
+            : r.reason === "expired"
+              ? [LINES.resetExpired, 0] // 링크가 낡았다 — 다시 받기(/forgot)
+              : [LINES.server, last]; // 쓴 값은 그대로 두고 Enter 로 다시
     setFlow(line);
     return back;
   }

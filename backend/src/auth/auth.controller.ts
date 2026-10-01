@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Ip, Post, Req, UseGuards } from '@nest
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
-import { CheckEmailDto, LoginDto, MeDto, SignupDto, TokenDto } from './dto.js';
+import { CheckEmailDto, LoginDto, MeDto, ResetDto, SignupDto, TokenDto } from './dto.js';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -24,6 +24,23 @@ export class AuthController {
   @ApiResponse({ status: 429, description: '같은 곳에서 10분에 30번 넘게' })
   checkEmail(@Body() dto: CheckEmailDto, @Ip() ip: string) {
     return this.auth.checkEmail(dto.email, ip);
+  }
+
+  @Post('forgot')
+  @HttpCode(200)
+  @ApiOperation({ summary: '열쇠 찾기 — 가입된 이메일이면 30분짜리 재설정 링크를 메일로. 있든 없든 같은 대답' })
+  @ApiResponse({ status: 200, description: '{ ok: true }' })
+  @ApiResponse({ status: 429, description: '같은 곳에서 10분에 5번 넘게' })
+  forgot(@Body() dto: CheckEmailDto, @Ip() ip: string) {
+    return this.auth.forgot(dto.email, ip);
+  }
+
+  @Post('reset')
+  @ApiOperation({ summary: '새 열쇠 — 메일 링크의 토큰으로 비밀번호를 바꾸고 바로 들어간다' })
+  @ApiResponse({ status: 201, type: TokenDto })
+  @ApiResponse({ status: 400, description: '토큰이 틀렸거나 30분이 지났다' })
+  reset(@Body() dto: ResetDto) {
+    return this.auth.reset(dto.token, dto.password);
   }
 
   @Post('login')

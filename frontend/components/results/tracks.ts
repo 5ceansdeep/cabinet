@@ -14,7 +14,7 @@ export type Track = {
 
 /** 신의 한마디 — ko 는 자막, en 은 음성(ElevenLabs 붙기 전엔 안 쓴다) */
 export type GodLine = { ko: string; en: string; voice?: string | null }; // voice = 영어 음성 id (ElevenLabs 를 켰을 때만)
-export type Found = { interpretation: string[]; tracks: Track[]; failed?: boolean }; // failed = 서버가 오류를 냈다
+export type Found = { interpretation: string[]; tracks: Track[]; line?: GodLine | null; failed?: boolean }; // failed = 서버가 오류를 냈다. 곡별 이유는 tracks[].reason
 
 const GRADIENTS = [
   "linear-gradient(135deg,#1e3a5f,#8ec5fc)",
@@ -52,10 +52,10 @@ export async function findTracks(query: string, opt: { seen?: string[]; thrown?:
   if (opt.genres?.length) qs.set("g", opt.genres.join(","));
   if (opt.seen?.length) qs.set("seen", opt.seen.join(","));
   if (opt.thrown?.length) qs.set("thrown", opt.thrown.join(","));
-  const r = await api<{ interpretation: string[]; tracks: Scored[] }>(`/recommend?${qs}`);
+  const r = await api<{ interpretation: string[]; tracks: Scored[]; line: GodLine | null }>(`/recommend?${qs}`);
   if (r.ok) {
     r.data.tracks.forEach((t) => t.artwork && void loadArt(t.artwork)); // 표지는 곡 목록을 받자마자 — 3D 디스크가 생길 때 받으면 늦다
-    return { interpretation: r.data.interpretation, tracks: r.data.tracks.map((t) => ({ ...t, cover: gradientOf(t.id) })) };
+    return { interpretation: r.data.interpretation, line: r.data.line, tracks: r.data.tracks.map((t) => ({ ...t, cover: gradientOf(t.id) })) };
   }
   if (r.status !== 0) return { interpretation: [], tracks: [], failed: true };
   const skip = new Set([...(opt.seen ?? []), ...(opt.thrown ?? [])]);
@@ -81,14 +81,6 @@ export function loadArt(artwork: string) {
     arts.set(url, p);
   }
   return p;
-}
-
-/* 보여 준 곡들을 건네는 신의 한마디 + 곡마다 이유 — 곡 목록보다 늦게(Gemini 한 번 더). 실패·서버 없음이면 없이 */
-export async function findLine(query: string, ids: string[]): Promise<{ line: GodLine | null; reasons: Record<string, string> }> {
-  const r = await api<{ line: GodLine | null; reasons: Record<string, string> }>(
-    `/recommend/line?${new URLSearchParams({ q: query, ids: ids.join(",") })}`,
-  );
-  return r.ok ? r.data : { line: null, reasons: {} };
 }
 
 /* 곡 하나를 요청문에 대 본다 — 보고서. 백엔드가 없으면 가짜 곡에서 */

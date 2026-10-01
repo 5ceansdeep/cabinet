@@ -11,7 +11,7 @@ export type ShareData = {
 
 const BG = "#07090d";
 const ACCENT = "#00e5ff";
-const YELLOW = "#ffde3b";
+const YELLOW = "#f3da49";
 const OUTLINE = "-2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000";
 
 /* 플로피 한 장 — 검은 몸체, 금속 셔터, 표지가 인쇄된 라벨(Deck 의 3D 디스크와 같은 생김새) */

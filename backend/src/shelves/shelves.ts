@@ -95,6 +95,19 @@ export class ShelvesService {
     };
   }
 
+  /** 공개 서랍 — 공유 링크(/s/:id)로 누구나 본다. 요청문·네임택·곡까지만(누가 만들었는지는 안 보낸다, 10/1 사용자: 요청문은 공개).
+      유튜브는 이미 찾아 둔 영상만으로 링크 — 여기서 새로 찾으면 아무나 검색 상한을 써 버린다 */
+  async findPublic(id: string) {
+    const shelf = await this.prisma.shelf.findUnique({ where: { id }, include: this.include });
+    if (!shelf) throw new NotFoundException('그런 서랍은 없네');
+    const ids = shelf.tracks.flatMap(({ track }) => (track.videoId ? [track.videoId] : []));
+    return {
+      ...this.toResponse(shelf),
+      youtube: ids.length ? watchUrl(ids.slice(0, 50)) : null,
+      missing: shelf.tracks.filter(({ track }) => !track.videoId).map(({ track }) => ({ title: track.title, artist: track.artist, search: searchUrl(track) })),
+    };
+  }
+
   async remove(userId: string, id: string) {
     const shelf = await this.prisma.shelf.findFirst({ where: { id, userId } });
     if (!shelf) throw new NotFoundException('그런 서랍은 없네');
@@ -135,5 +148,18 @@ export class ShelvesController {
   }
 }
 
-@Module({ imports: [CatalogModule], controllers: [ShelvesController], providers: [ShelvesService] })
+/* 로그인 없이 — 공유 링크로 들어온 사람이 보는 서랍 */
+@ApiTags('shelves')
+@Controller('shelves/public')
+export class PublicShelvesController {
+  constructor(private readonly shelves: ShelvesService) {}
+
+  @Get(':id')
+  @ApiOperation({ summary: '공개 서랍 — 공유 링크로 보는 요청문·네임택·곡(로그인 없이). 유튜브는 이미 찾아 둔 영상만' })
+  findPublic(@Param('id') id: string) {
+    return this.shelves.findPublic(id);
+  }
+}
+
+@Module({ imports: [CatalogModule], controllers: [PublicShelvesController, ShelvesController], providers: [ShelvesService] })
 export class ShelvesModule {}

@@ -51,10 +51,12 @@ body {
 /* 영화 비율 프레임 — 모든 화면이 2.39:1 스크린 안에서 돌아간다. 남는 위아래(또는 좌우)는 검은 띠.
    프레임은 size 컨테이너라 안에서는 vh 대신 cqh·cqmax 를 쓴다. transform 을 걸어 두어
    안쪽의 position:fixed 도 화면이 아니라 이 프레임을 기준으로 붙는다.
+   띠는 위아래 각 8% 까지만 — 2.39:1 을 고집하면 노트북(16:10)에서 띠가 각 150px 가까이 되어 화면이 답답했다(10/1).
+   그보다 높은 화면에선 비율을 조금 양보한다(3D 는 화면 비율을 따라간다).
    ponytail: 세로 화면(폰)은 띠만 남으니 전체 화면으로 둔다 — 모바일 대응 때 다시 */
 :root {
   --cinema: 2.39;
-  --cinema-h: min(100dvh, 100vw / var(--cinema));
+  --cinema-h: min(100dvh, max(100vw / var(--cinema), 84dvh));
 }
 .cinema {
   position: fixed;
@@ -79,7 +81,7 @@ body {
 .cinema-sub {
   position: fixed;
   inset: auto 0 0 0;
-  height: max(96px, calc((100dvh - var(--cinema-h)) / 2));
+  height: max(64px, calc((100dvh - var(--cinema-h)) / 2)); /* 자막 두 줄이 띠 안에 들어가게 — 줄 간격은 Subtitle 에서 좁혔다 */
   display: flex;
   align-items: center;
   justify-content: center;

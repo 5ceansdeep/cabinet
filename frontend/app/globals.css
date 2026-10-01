@@ -97,11 +97,6 @@ body {
 @keyframes rise {
   from { opacity: 0; transform: translateY(24px) scale(0.97); }
 }
-/* 수백 장의 카드가 촤르르륵 스쳐 지나가다 딱 멈춘다 */
-@keyframes riffle {
-  from { transform: translateY(0); }
-  to { transform: translateY(-85%); }
-}
 /* 슬롯에서 쇽! 튀어나오는 디스크 */
 @keyframes pop {
   from { opacity: 0; transform: translateY(140px) scale(0.6); }

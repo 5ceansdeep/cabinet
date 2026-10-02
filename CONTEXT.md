@@ -1,43 +1,58 @@
-# cabinet 작업 컨텍스트 (2026-10-02)
+# cabinet 작업 컨텍스트 (2026-10-02 밤)
 
 ## 지금 어디까지
-- **베타 직전**. 백엔드(Railway)·프론트(Vercel) 배포, 가입 → 편지 → 결과 → 서랍 → 공유까지 배포 주소에서 돈다.
-  프론트 https://cabinet-flame-zeta.vercel.app · 백엔드 https://cabinet-production-9cf8.up.railway.app (`main` 푸시마다 자동 배포)
-- **추천은 2단계로 정착** — 곡 설명·요청 풀어 쓰기 모두 "[핵심어 3개] + 묘사", 1단계(임베딩+소리) 후보 20곡을 LLM 이 다시 골라 그 순서로 보여 준다(평가 41%).
-  새 요청은 디스크까지 4초 남짓(서랍 뒤지기가 채운다), 같은 요청 다시는 0.1초
+- **베타 진행 중**(10/2 첫 테스터 피드백 받음). 백엔드(Railway)·프론트(Vercel) 배포, `main` 푸시마다 자동 배포.
+  프론트 https://cabinet-flame-zeta.vercel.app · 백엔드 https://cabinet-production-9cf8.up.railway.app · 안내문 [docs/beta-guide.md](docs/beta-guide.md)
+- **추천**: 해석(Gemini — 핵심어형 풀어 쓰기 + 쓰임 장면 + words·alt·songs) → 1단계(임베딩 0.5 + 소리 0.5, 제목·핵심어 글자 가산) 후보 **30곡**
+  → 재정렬(Gemini) → 제목 일치·꼽은 곡 맨 앞 고정 → 10곡. 가수 곡이 적으면 Last.fm 비슷한 가수, 곡을 꼽으면 Last.fm 비슷한 곡을 가산
+- **곡 풀 604곡**(설명 있는 곡 기준). 평가(45개, 상위 5곡): 304곡 46% → 394곡 41% → 604곡 **33%** — 곡이 늘수록 떨어진다. 정답표가 곡 풀을 못 따라가는 탓이 큼
+  (다음 할 일: Gemini 심사 채점)
+- **음성은 다 꺼 둠**(`frontend/lib/voice.ts` `VOICE=false` — 자막만). 버튼·안내 글은 평범한 말투, 자막만 신(정체를 숨긴 관리인) 말투
 - 남은 일은 [docs/next.md](docs/next.md) 에 급한 순
 
-## 다른 PC 에서 이어 하기 (10/1 저녁)
+## 다른 PC 에서 이어 하기 (10/2 밤)
 - **작업은 `main`**(배포와 같음, 열린 브랜치 없음). `git pull`, `backend`·`frontend` 에서 `npm install`, `cd backend && npx prisma generate`
-- 곡 설명 305곡 중 304곡이 "[핵심어]+묘사"(1곡은 Gemini 빈 응답 — 배포 서버 새벽 배치가 채운다)
+- 루트 `npm run dev` = 프론트 3000 + 백엔드 4000 + Prisma Studio 5555. **끌 때 세 포트가 다 비었는지 확인**(10/2 옛 백엔드가 4000 에 남아 옛 코드가 응답했다)
+- **로컬도 배포와 같은 Neon DB** — 로컬에서 추천을 부르면 `SearchLog`(편지·곡·한마디)에 남고 곡 풀 넓히기 씨앗이 된다. **시험 편지는 끝나고 지운다**
+  (`delete from "SearchLog" where query = '...'`). 마이그레이션은 `npx prisma migrate deploy` 로 바로 적용해도 되고 `main` 푸시 때 Railway 도 돌린다
 - **강한 규칙**(CLAUDE.md): DB 전체를 다시 쓰는 배치는 표본으로 먼저 재고 숫자를 보여 준 뒤 확인받고 돌린다
-- `backend/.env`: `DATABASE_URL` = Neon direct 주소, **`GEMINI_API_KEY` 필수(10/1 유료 1 등급, 선불 ₩8,000·자동 충전 꺼짐)**, `ADMIN_EMAILS`,
-  `WEB_ORIGIN`, ElevenLabs(**ENABLED 는 false**), **`GMAIL_USER`·`GMAIL_APP_PASSWORD`**(비밀번호 찾기 메일 — 비우면 서버 로그에 링크를 찍는다)
-- Railway Variables 에도 `GMAIL_USER`·`GMAIL_APP_PASSWORD`·`WEB_ORIGIN`(Vercel 주소) 이 있어야 한다
-- 이 PC 망: IPv6 막힘 → 스크립트는 `setDefaultResultOrder('ipv4first')`, bash curl 로 한글 보내면 깨짐(node 로), PowerShell 5.1 은 `&&` 대신 `;`,
-  LRCLIB·Google·Neon 연결이 가끔 끊긴다(재시도). **한국 iTunes 스토어 검색이 이 망에선 0건**
-- **로컬도 배포와 같은 Neon DB** — 로컬에서 곡을 넣거나 지우면 배포에도 바로. 마이그레이션은 `main` 푸시 때 Railway 가 돌린다
-- Gemini: 유료라 하루 한도 걱정은 거의 없다. 모델 목록은 `gemini.ts MODELS`(차거나 없어진 모델은 다음으로). 스웨거 `[Gemini]` 표시 API 만 돈을 쓴다
+- `backend/.env`: `DATABASE_URL`(Neon direct), **`GEMINI_API_KEY`(유료 1 등급, AI Studio 월 한도 ₩4,000 — 10/2 기준 ₩2,881 씀)**, `ADMIN_EMAILS`, `WEB_ORIGIN`,
+  `LASTFM_API_KEY`, `YOUTUBE_API_KEY`, ElevenLabs(ENABLED false), `GMAIL_USER`·`GMAIL_APP_PASSWORD`, **`DESCRIBE_NIGHTLY`(비우면 새벽 곡 설명 안 돎)**
+- Railway Variables: `GMAIL_*`·`WEB_ORIGIN` 필요, `DESCRIBE_NIGHTLY` 는 없음(= 새벽 곡 설명 꺼짐). 체험 크레딧 10/2 기준 29일·$4.94 남음
+- 회사 PC 망: IPv6 막힘(`setDefaultResultOrder('ipv4first')`), bash curl 로 한글 보내면 깨짐(node 로), PowerShell 5.1 은 `&&` 대신 `;`,
+  LRCLIB·Google·Neon·Last.fm 이 가끔 끊긴다(재시도), **한국 iTunes 스토어 검색 0건**
+- **서버 기록 보는 법**: Neon SQL Editor —
+  `select "createdAt", query, tracks, line, asked from "SearchLog" where query <> '' order by "createdAt" desc limit 50;`
+  Railway → 서비스 → Deployments → View Logs 에서 `Recommend` 로 거르면 `"편지" → 곡 / … | 한마디: …` 가 실시간으로
 
-## 10/2 한 일
-- **추천: 글자 일치 가산 + 두 갈래 읽기** — 해석이 `words`(제목·가사 낱말, 한·영)·`alt`(애매한 짧은 요청의 두 번째 읽기)를 같이 낸다. 제목 일치 +0.1, [핵심어] +0.04,
-  두 읽기에서 번갈아 후보·최종 10곡(`stage1`, 서비스·평가 공용). 45개: 1단계 31→36%, 재정렬 후 41% 그대로. 미쳤어 → 신남/분노 갈래, Crazy 4위
-- 배포에서 서버에 못 닿으면 가짜 곡 대신 한 번 더 → "다시 뒤지기"(가짜 곡은 로컬 개발만), 보관함 견본 서랍 뺌, 같은 플레이리스트 다시 저장하면 그 서랍 갱신,
-  보관함 서랍 디스크 5장씩 두 줄(10곡이 서랍 밖으로 삐져나왔다)
-- 추천 개선 기록 [docs/recommend-journey.md](docs/recommend-journey.md)
-- 제목에 요청 낱말 든 곡은 맨 앞 고정(미쳤어 → Crazy 1위), `POST /catalog/refill`(넓히기→소리→설명 한 번에), 보관함 서랍 = 플레이리스트 수(0개면 한마디),
-  신의 한마디를 곡 소개 대신 상황 반응으로 + **모든 대사에서 신인 걸 티 안 냄**(다 아는 관리인, voice-persona.md 0장 — 바꾼 대사 mp3 4개 뺌, 다시 녹음 필요)
-- **요청 풀어 쓰기에 쓰임 장면**(드라마·예능 브금·밈·챌린지) 추가 → 재현율 41 → 46%(36/45). **곡 설명 쪽 쓰임은 표본 99곡에서 39% 로 나빠져 안 씀**(DB 그대로)
-- **공유 카드·공개 서랍 = 서류함 마트 영수증**(미국 마트풍 CABINET 로고·감열지 플로피·뒤에 앨범 표지·구김, `Card.tsx`·`thermal.ts`·`SharedShelf.tsx`), 자막 자글거림은 가장자리만·불규칙,
-  **등록 화면 없앰**(이메일 하나 → 가입 여부로 로그인/가입), 녹음 없는 대사는 자막만, 녹음 있던 대사 4개 원복
-- **곡 모으기 Gemini 없이**: `refill` = 넓히기·소리만(500곡·태그 20개까지), 새벽 곡 설명은 `DESCRIBE_NIGHTLY=true` 일 때만 — 모은 곡은 `POST /catalog/describe` 전엔 추천에 안 나옴
-- 다음: 곡 풀을 지금과 반대 결로 — `refill` 에 tags [metal, punk, soundtrack, classical, video game music, anime, dark, comedy, ost, edm](Last.fm 확인함, trot·suspense·k-drama 태그는 거의 없음)
-- **추천 API 호출 제한**: `/recommend`·`/line`·`/:id` 합쳐 IP 당 분당 10·하루 200(`Limiter`, 메모리), 넘으면 429 → 화면은 "서랍이 뻑뻑하네"
-- **행동 기록** `EventLog`(play·finish·save·share·youtube, trackId/shelfId, 재생·끝까지엔 요청문 `query` — 어떤 편지 → 어떤 곡. 사용자·IP 없음) + `POST /events`(IP 당 분당 30·하루 1000). Neon 에 마이그레이션 적용함
-- **Vercel Web Analytics**: 패키지 없이 `/_vercel/insights/script.js`(배포에서만) — Vercel 에서 Enable 해야 산다
-- 배포 주소 한 바퀴 헤드리스: 랜딩·편지·로딩·디스크·재생·서랍 넣기·공유 카드·보관함·공개 서랍·카톡 미리보기 이미지·휴대폰 공개 서랍 다 정상. 새 요청 5.3초·같은 요청 2.2초(회사망).
-  재설정 대사 음성 mp3 없음(404 → 기계 음성, 알던 것). 시험 계정은 지움
-- 테스터 안내문 초안 [docs/beta-guide.md](docs/beta-guide.md)
+## 10/2 한 일 (전부 main·배포됨)
+**베타 준비**
+- 추천 API IP 당 분당 10·하루 200(`Limiter`), 행동 기록 `EventLog`(재생·끝까지·저장·공유·유튜브 + 재생엔 요청문), Vercel Web Analytics(스크립트 한 줄, Enable 함)
+- **검색 기록 `SearchLog` 에 편지 글·나온 10곡·신의 한마디·편지에 쓴 가수(asked)** — Railway 로그에도 한 줄. 사용자·IP 는 안 남김(안내문에 고지)
+- 안내문 완성본 [docs/beta-guide.md](docs/beta-guide.md)(구글 폼 주소 포함), 음성 전부 끔, 녹음 없는 대사는 자막만
+- 등록 화면 없앰 — 이메일 하나로 가입 여부를 물어 로그인/가입(`/signup` 은 `/` 로)
+- 편지지 장르 칩 뺌(편지에 장르를 쓰면 서버가 거른다), 버튼·안내 글 평범한 말투(`.claude/rules/ui.md`)
+**추천**
+- 글자 일치 가산(`words` — 제목 +0.1, [핵심어] +0.04) + 제목 일치 곡 맨 앞 고정(`pinTitled`, 미쳤어 → Crazy), 짧고 애매한 요청은 두 갈래 읽기(`alt`)
+- 요청 풀어 쓰기에 쓰임 장면(드라마·예능 브금·밈·챌린지) — 41 → 46%. **곡 설명 쪽 쓰임은 표본 99곡에서 39% 로 나빠져 안 씀**
+- 신의 한마디: 곡 소개 대신 상황 반응, 정체 숨긴 관리인(녹음 있던 대사 4개는 원래대로)
+- 재정렬 후보 20 → 30곡(394곡: 37 → 41%, 604곡: 31 → 33%). 허브 누르기(CSLS)는 나빠져 버림
+- **편지에 쓴 가수가 없거나 적으면**: 화면 안내("아직 ○○ 님 곡은 서류함에 없어요 — 결이 비슷한 △·□ 곡으로…") + Last.fm 비슷한 가수 곡 +0.08
+  + 곡 풀 넓히기가 그 가수 인기곡을 먼저(`SearchLog.asked`). 박효신 10곡은 직접 넣음
+- **곡을 꼽으면**(`songs`): 곡 풀에 있으면 맨 앞 + 그 곡 벡터 반반 섞기 + Last.fm 비슷한 곡 +0.1, 없으면 그 가수 곡 2곡 맨 앞 + 비슷한 가수, 화면 안내
+- 평가 세트 29곡 추가(394곡 기준, Claude 판단·사용자 확인 전), 추천 개선 기록 [docs/recommend-journey.md](docs/recommend-journey.md)
+**곡 풀**
+- `POST /catalog/refill`(넓히기 → 소리, **Gemini 안 씀**, 500곡·태그 20개까지) / 곡 설명은 `POST /catalog/describe` 따로(곡당 Gemini 2번, 한도에 막혀도 다시 누르면 이어서)
+- 새벽 곡 설명 자동 실행은 `DESCRIBE_NIGHTLY=true` 일 때만. 곡 풀 395 → 604곡(refill 로 외국 보컬·반대 결 태그)
+**화면**
+- 공유 카드·공개 서랍·카톡 미리보기 = **서류함 마트 영수증**(Anton 로고·감열지 플로피·뒤에 앨범 표지·실제 구김 질감 `public/paper-crumple.png`
+  — ambientCG Paper003(CC0) 기울기 지도에 빛을 구움, `frontend/scripts/paper-bake.html`)
+- 카드 인쇄 9.4 → 5.5초(넓은 흐림 그림자·바코드 div 64개가 범인), 서버 서랍은 `GET /api/share/:id` 로 같은 카드를 다시(캐시 — 두 번째부터 0.5초)
+- **보관함 공유 버그**(카드 다 그린 뒤 공유 창 → 클릭 만료로 거부 → 아무 일 없음) 고침 — 결과 화면과 같은 카드 화면(CardReveal), 거부되면 내려받기
+- 보관함: 서랍 = 플레이리스트 수(0개면 안내), 디스크 5장씩 두 줄, 조명 낮춤, **디스크를 누르면 곡 카드**(표지·곡 설명·미리듣기, `TrackSheet`)
+- 결과: 마우스 휠로 디스크 넘기기, 서랍 이름표는 화면 가운데에 크게
+- 자막 자글거림 가장자리만·불규칙·잘게, 녹음 없는 대사 자막만, 가짜 곡은 로컬 개발에서만(배포에선 한 번 더 부르고 "다시 찾기")
+**테스터 피드백(10/2)** — 버그(보관함 공유)·휠·이름표·카드 다시 보기·디스크 곡 카드는 고침. "포기하고 싶을 때 → 이센스 비행 아쉬움" 은 기록이 쌓이면 판단
 
 ## 10/1 한 일 (전부 main·배포됨)
 **추천**

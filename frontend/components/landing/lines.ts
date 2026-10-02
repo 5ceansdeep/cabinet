@@ -20,7 +20,7 @@ export const AUTH_DIALOGUE = {
     missing: "주소가 없으면 자네를 어떻게 찾나?",
     invalid: "내가 만든 세상엔 이런 주소가 없는데? @는 어디 두고 왔나.",
     alreadyExists: "그 주소는 이미 내 서랍에 있네. 자네, 나보다 건망증이 심하군.",
-    alreadyExistsAction: "그 서랍 열러 가기",
+    alreadyExistsAction: "로그인하기",
   },
 
   // 비밀번호 (로그인)
@@ -60,7 +60,7 @@ export const AUTH_DIALOGUE = {
   PASSWORD_RESET: {
     prompt: "열쇠를 또 잃어버렸나? 괜찮네, 다들 그래. 이메일부터 대보게.",
     sent: "그 주소가 내 서류함에 있다면, 새 열쇠를 소포로 보냈네. 이번엔 잘 챙기게.",
-    action: "돌아가지",
+    action: "처음으로",
     // 메일 링크로 들어온 새 열쇠 화면(/reset)
     intro: "소포는 잘 받았나? 새 열쇠를 깎을 차례네.",
     newPrompt: "새 비밀을 정하게. 이번엔 자네만 아는 걸로.",
@@ -136,12 +136,12 @@ export const LINES = {
   resetDone: (nickname: string): Line => ({ text: D.RESET_SUCCESS(nickname), voice: D.RESET_SUCCESS_VOICE, voiceKey: "RESET_SUCCESS_VOICE" }),
 } satisfies Record<string, Line | string | ((nickname: string) => Line) | Record<keyof typeof FIELDS, Line>>;
 
-/* ─ 화면 구석 링크 ─ */
+/* ─ 화면 구석 링크 — 버튼·링크·안내 글은 평범한 말투(10/2 사용자). 신의 말투는 자막(목소리로 나오는 대사)에만 ─ */
 export const NAV = {
-  forgot: "열쇠를 잃어버렸나?",
-  login: "이미 등록했나? — 들어가기",
+  forgot: "비밀번호 찾기",
+  login: "로그인",
   back: "돌아가기",
-  notMe: (nickname: string) => `${nickname} 말고 다른 사람인가? — 다른 이름으로`, // 받침 상관없게 "말고"
+  notMe: (nickname: string) => `${nickname} 님이 아니라면 — 다른 계정으로`,
 };
 
 // 자동 재촉까지 기다리는 시간
@@ -150,12 +150,12 @@ export const STALE_MS = 30_000;
 /* ─ 4번 결과: 꺼낸 디스크를 전부 던져 버렸을 때 ─ */
 export const RESULT_DIALOGUE = {
   EMPTY: "하나도 안 남기고 던졌네? 까다롭기로는 자네가 나보다 한 수 위야. 다시 뒤져 보지.",
-  RETRY: "던진 곡은 빼고 다시 찾기", // 던진 곡들 쪽에서 멀어지게 다시 꺼낸다
-  MORE: "같은 편지로 몇 곡 더", // 이어서 더 꺼낸다
+  RETRY: "던진 곡 빼고 다시 찾기", // 던진 곡들 쪽에서 멀어지게 다시 꺼낸다
+  MORE: "같은 편지로 더 찾기", // 이어서 더 꺼낸다
   DRY: "이 편지로는 서랍이 텅 비었네. 새로 한 장 써 주면 또 뒤져 보지.",
   DRY_ACTION: "새 편지 쓰기",
   FAILED: "서랍이 뻑뻑해서 안 열리네. 이 서랍장도 나만큼 오래돼서 말이야. 한 번 더 당겨 보게.", // 서버 오류
-  FAILED_ACTION: "다시 뒤지기",
+  FAILED_ACTION: "다시 찾기",
 } as const;
 
 export const RESULT_LINES = {
@@ -166,42 +166,42 @@ export const RESULT_LINES = {
 
 /* ─ 5번 보관함: 아직 넣은 서랍이 없을 때 (읽지 않는 짧은 안내) ─ */
 export const ARCHIVE_DIALOGUE = {
-  EMPTY: "아직 건져 올린 게 없군. 편지부터 써 보게.",
-  WRITE: "편지 쓰러 가기",
+  EMPTY: "아직 저장한 서랍이 없어요. 편지를 써서 곡을 받아 보세요.",
+  WRITE: "편지 쓰기",
 };
 
 /* ─ 5번 보관함: 서랍을 유튜브에서 이어 듣기 (읽지 않는 짧은 안내) ─ */
 export const PLAYLIST_DIALOGUE = {
   ACTION: "유튜브에서 이어 듣기",
-  WORKING: "영상을 찾는 중이네.",
+  WORKING: "영상을 찾는 중이에요.",
   OPEN: "재생목록 열기",
-  ALL: "다 찾았네. 가서 듣게.",
-  SOME: (n: number) => `${n}곡은 못 찾았네. 아래에서 직접 찾아 듣게.`,
-  TIRED: "오늘 몫은 다 썼네. 나머지는 직접 찾아 듣게.",
-  LOCAL: "이 서랍은 자네 브라우저에만 있네. 곡마다 직접 찾아 듣게.",
-  FAIL: "이런, 내 손이 미끄러졌군. 다시 눌러보게.",
+  ALL: "모든 곡을 찾았어요.",
+  SOME: (n: number) => `${n}곡은 영상을 못 찾았어요. 아래에서 직접 찾아 들어 주세요.`,
+  TIRED: "오늘 검색 한도를 다 썼어요. 나머지는 직접 찾아 들어 주세요.",
+  LOCAL: "이 서랍은 이 브라우저에만 저장돼 있어요. 곡마다 직접 찾아 들어 주세요.",
+  FAIL: "문제가 생겼어요. 다시 눌러 주세요.",
   // 공유 카드
   SHARE: "공유 카드",
-  SHARING: "카드를 인쇄하는 중이네.",
-  SAVED: "카드를 내려받았네. 스토리에 붙여 보게.",
-  SHARE_FAIL: "인쇄기가 걸렸군. 다시 눌러보게.",
+  SHARING: "카드를 만드는 중이에요.",
+  SAVED: "카드를 내려받았어요. 스토리에 올려 보세요.",
+  SHARE_FAIL: "카드를 만들지 못했어요. 다시 눌러 주세요.",
 } as const;
 
 /* 공유 링크로 들어온 서랍(/s/:id) — 처음 온 사람이 본다 */
 export const SHARED_DIALOGUE = {
   YOUTUBE: "유튜브에서 이어 듣기",
-  SOME_MISSING: (n: number) => `${n}곡은 영상을 못 찾았네 — 직접 찾아 듣게`,
+  SOME_MISSING: (n: number) => `${n}곡은 영상을 못 찾았어요 — 직접 찾아 듣기`,
   SEARCH: "곡마다 유튜브에서 찾아 듣기",
-  CTA: "자네도 편지 한 장 써 보게",
+  CTA: "나도 편지 써 보기",
 } as const;
 
 /* 서랍에 넣고 나면 인쇄돼 나오는 공유 카드 */
 export const CARD_DIALOGUE = {
-  PRINTING: "증명서 한 장 떼어 주는 중이네.",
+  PRINTING: "카드를 인쇄하는 중이에요.",
   HOLD: "길게 눌러 저장", // 조작 안내
   STORY: "스토리에 올리기",
   COPY: "링크 복사",
-  COPIED: "링크를 복사했네.",
+  COPIED: "링크를 복사했어요.",
   ARCHIVE: "보관함으로",
-  FAIL: "인쇄기가 걸렸군. 보관함에서 다시 뽑아 보게.",
+  FAIL: "카드를 만들지 못했어요. 보관함에서 다시 만들 수 있어요.",
 } as const;

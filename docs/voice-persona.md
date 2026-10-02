@@ -1,6 +1,7 @@
 # UI Subtitle & Voiceover Persona Guidelines
 
-앱/웹의 모든 자막, 텍스트, 검증 메시지는 영화 **<브루스 올마이티>의 '신(God — 모건 프리먼)'** 이 말하는 것처럼 쓴다.
+앱/웹의 자막(목소리로 나오는 대사)과 검증 꾸지람은 영화 **<브루스 올마이티>의 '신(God — 모건 프리먼)'** 이 말하는 것처럼 쓴다.
+**버튼·링크·화면 안내 글은 평범한 말투**다(버튼은 "다시 찾기"처럼 짧게, 안내는 "~요") — 10/2 사용자.
 랜딩 문구는 [frontend/components/landing/lines.ts](../frontend/components/landing/lines.ts) 에 모여 있다.
 
 ## 0. 정체를 드러내지 않는다 (10/2 사용자)

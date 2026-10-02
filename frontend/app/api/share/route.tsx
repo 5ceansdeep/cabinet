@@ -13,7 +13,7 @@ const YOUTUBE = /^https:\/\/www\.youtube\.com\/watch_videos\?video_ids=[\w,-]{11
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as Partial<ShareData> | null;
-  if (!body || !Array.isArray(body.tracks)) return new Response("곡이 없네", { status: 400 });
+  if (!body || !Array.isArray(body.tracks)) return new Response("곡이 없어요", { status: 400 });
   const shelfLink = new RegExp(`^${new URL(req.url).origin.replace(/[.]/g, "\\.")}/s/[\\w-]{1,40}$`);
   const link = typeof body.link === "string" ? body.link : "";
   const shelf = shelfLink.test(link);

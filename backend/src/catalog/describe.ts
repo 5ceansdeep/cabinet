@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Gemini, MODELS } from './gemini.js';
 import { findLyrics, type Lyrics } from './lyrics.js';
@@ -108,6 +109,7 @@ export class DescribeService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gemini: Gemini,
+    private readonly config: ConfigService,
   ) {}
 
   getStatus() {
@@ -156,7 +158,10 @@ export class DescribeService implements OnModuleInit, OnModuleDestroy {
     this.log.log(`곡 설명 끝 — ${this.status.done}곡(가사 없이 ${this.status.noLyrics}), 실패 ${this.status.failed}, 남음 ${this.status.left}`);
   }
 
+  // 새벽 자동 실행은 DESCRIBE_NIGHTLY=true 일 때만 — 10/2 사용자: 곡을 먼저 잔뜩 모으고 Gemini(돈 드는 설명)는 나중에 한 번에 붙인다.
+  // 꺼져 있으면 설명 없는 곡은 추천에 안 나온다. 붙일 땐 POST /catalog/describe 또는 이 값을 켠다
   onModuleInit() {
+    if (this.config.get('DESCRIBE_NIGHTLY') !== 'true') return;
     const now = new Date();
     const next = new Date(now);
     next.setHours(NIGHT_HOUR, 0, 0, 0);

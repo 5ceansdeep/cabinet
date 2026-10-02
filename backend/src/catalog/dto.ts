@@ -32,17 +32,17 @@ export class TrackDto {
 }
 
 export class GrowDto {
-  @ApiProperty({ required: false, default: 30, maximum: 100, description: '새로 담을 곡 수 — iTunes 제한 때문에 곡당 3초쯤 걸린다' })
+  @ApiProperty({ required: false, default: 30, maximum: 500, description: '새로 담을 곡 수 — iTunes 제한 때문에 곡당 3초쯤 걸린다(500곡 ≈ 25분)' })
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(500)
   target?: number;
 
   @ApiProperty({ required: false, type: [String], example: ['j-pop', 'chanson'], description: '이 Last.fm 태그의 인기곡만 모은다 — 비우면 검색 기록·장르·차트를 섞어서' })
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(10)
+  @ArrayMaxSize(20)
   @IsString({ each: true })
   @MaxLength(40, { each: true })
   tags?: string[];

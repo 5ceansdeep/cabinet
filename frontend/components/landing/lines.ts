@@ -18,7 +18,7 @@ export const AUTH_DIALOGUE = {
     label: "EMAIL",
     prompt: "소식받을 이메일 하나 남겨보게. 스팸은 안 보내네, 약속하지.",
     missing: "주소가 없으면 자네를 어떻게 찾나?",
-    invalid: "이런 주소로는 편지가 갈 데가 없네. @는 어디 두고 왔나.",
+    invalid: "내가 만든 세상엔 이런 주소가 없는데? @는 어디 두고 왔나.",
     alreadyExists: "그 주소는 이미 내 서랍에 있네. 자네, 나보다 건망증이 심하군.",
     alreadyExistsAction: "그 서랍 열러 가기",
   },
@@ -70,20 +70,20 @@ export const AUTH_DIALOGUE = {
 
   // 입력 상태 및 시스템
   CAPS_LOCK: "Caps Lock이 켜져 있네!! 그렇게 소리 안 질러도 다 들린다네!!",
-  COOLDOWN: "천천히 하게. 기다리는 건 내 특기라네.",
-  SUBMITTING: "서류 정리 중이네. 여기선 뭐든 서류부터라서.",
+  COOLDOWN: "천천히 하게. 난 영원히 기다릴 수 있거든. 말 그대로.",
+  SUBMITTING: "서류 정리 중이네. 기적도 서류 작업은 필요하거든.",
   NO_ACCOUNT: "자네 이름은 내 서류함에 없군. 새 서랍 하나 짜줄까?",
   NO_ACCOUNT_ACTION: "새로 등록하기",
   ERROR: "이런, 내 손이 미끄러졌군. 다시 눌러보게. 비밀로 해주고.",
 
   // 성공 및 안내 — 자막은 닉네임을 넣는 함수, 목소리(_VOICE)는 닉네임 없이
   LOGIN_SUCCESS: (nickname: string) => `돌아왔군, ${nickname}. 자네 자리 그대로 비워뒀네.`,
-  SIGNUP_SUCCESS: (nickname: string) => `다 됐네, ${nickname}! 서랍 하나 짜는 데 이 정도면 빠른 편이지.`,
+  SIGNUP_SUCCESS: (nickname: string) => `완성됐네, ${nickname}! 어때, 천지창조보단 쉽지?`,
   WELCOME_BACK: (nickname: string) => `또 왔군, ${nickname}. 문은 열어뒀네.`,
   RESET_SUCCESS: (nickname: string) => `새 열쇠가 딱 맞네, ${nickname}. 들어오게.`,
   RESET_SUCCESS_VOICE: "새 열쇠가 딱 맞네. 들어오게.",
   LOGIN_SUCCESS_VOICE: "돌아왔군. 자네 자리 그대로 비워뒀네.",
-  SIGNUP_SUCCESS_VOICE: "다 됐네! 서랍 하나 짜는 데 이 정도면 빠른 편이지.",
+  SIGNUP_SUCCESS_VOICE: "완성됐네! 어때, 천지창조보단 쉽지?",
   WELCOME_BACK_VOICE: "또 왔군. 문은 열어뒀네.",
 } as const;
 

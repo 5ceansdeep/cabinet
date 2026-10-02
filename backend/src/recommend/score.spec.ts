@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { A, away, display, dot, rank, soundScore, throwPenalty, total } from './score.js';
+import { A, away, display, dot, lexical, rank, soundScore, throwPenalty, total } from './score.js';
 
 describe('score', () => {
   it('길이 1 벡터의 내적 = 코사인', () => {
@@ -44,5 +44,15 @@ describe('score', () => {
     expect(display(0.93, 0.8, 0.93)).toBe(99);
     expect(display(0.8, 0.8, 0.93)).toBe(60);
     expect(display(0.5, 0.5, 0.5)).toBe(99);
+  });
+});
+
+describe('글자 일치 가산', () => {
+  const b = { title: 0.1, key: 0.04 };
+  it('제목에 있으면 크게, [핵심어]에 있으면 작게, 없으면 0', () => {
+    expect(lexical({ title: 'Crazy (feat. X)' }, ['미친', 'crazy'], b)).toBe(0.1);
+    expect(lexical({ title: 'Song', description: '감정: [불안, 미친 듯이, 강렬함] …' }, ['미친'], b)).toBe(0.04);
+    expect(lexical({ title: 'Song', description: '감정: [평온] 미친 듯한 문장 속 낱말' }, ['미친'], b)).toBe(0);
+    expect(lexical({ title: 'Song' }, [], b)).toBe(0);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { finalOrder, Limiter } from './recommend.js';
+import { alternate, finalOrder, Limiter } from './recommend.js';
 
 const t = (id: string, artist: string) => ({ id, artist });
 const cands = [t('a', 'Oasis'), t('b', '아이유'), t('c', 'Oasis'), t('d', '검정치마')];
@@ -23,5 +23,13 @@ describe('Gemini 요청 제한', () => {
     expect(l.hit('a', 60_001)).toBe(true); // 분당은 풀렸고 하루 3번째
     expect(l.hit('a', 200_000)).toBe(false); // 하루 3번 다 씀
     expect(l.hit('a', 86_400_002)).toBe(true); // 하루 지남
+  });
+});
+
+describe('두 읽기 번갈아', () => {
+  it('두 줄에서 번갈아, 겹치는 곡은 한 번만', () => {
+    const a = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+    const b = [{ id: 'x' }, { id: 'a' }, { id: 'y' }];
+    expect(alternate(a, b).map((t) => t.id)).toEqual(['a', 'x', 'b', 'c', 'y']);
   });
 });

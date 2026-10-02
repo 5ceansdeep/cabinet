@@ -1,4 +1,4 @@
-# cabinet 작업 컨텍스트 (2026-10-01 밤)
+# cabinet 작업 컨텍스트 (2026-10-02)
 
 ## 지금 어디까지
 - **베타 직전**. 백엔드(Railway)·프론트(Vercel) 배포, 가입 → 편지 → 결과 → 서랍 → 공유까지 배포 주소에서 돈다.
@@ -18,6 +18,14 @@
   LRCLIB·Google·Neon 연결이 가끔 끊긴다(재시도). **한국 iTunes 스토어 검색이 이 망에선 0건**
 - **로컬도 배포와 같은 Neon DB** — 로컬에서 곡을 넣거나 지우면 배포에도 바로. 마이그레이션은 `main` 푸시 때 Railway 가 돌린다
 - Gemini: 유료라 하루 한도 걱정은 거의 없다. 모델 목록은 `gemini.ts MODELS`(차거나 없어진 모델은 다음으로). 스웨거 `[Gemini]` 표시 API 만 돈을 쓴다
+
+## 10/2 한 일 (main 에 합침, **푸시 전**)
+- **추천 API 호출 제한**: `/recommend`·`/line`·`/:id` 합쳐 IP 당 분당 10·하루 200(`Limiter`, 메모리), 넘으면 429 → 화면은 "서랍이 뻑뻑하네"
+- **행동 기록** `EventLog`(play·finish·save·share·youtube, trackId/shelfId, 사용자·IP·요청문 없음) + `POST /events`(IP 당 분당 30·하루 1000). Neon 에 마이그레이션 적용함
+- **Vercel Web Analytics**: 패키지 없이 `/_vercel/insights/script.js`(배포에서만) — Vercel 에서 Enable 해야 산다
+- 배포 주소 한 바퀴 헤드리스: 랜딩·편지·로딩·디스크·재생·서랍 넣기·공유 카드·보관함·공개 서랍·카톡 미리보기 이미지·휴대폰 공개 서랍 다 정상. 새 요청 5.3초·같은 요청 2.2초(회사망).
+  재설정 대사 음성 mp3 없음(404 → 기계 음성, 알던 것). 시험 계정은 지움
+- 테스터 안내문 초안 [docs/beta-guide.md](docs/beta-guide.md)
 
 ## 10/1 한 일 (전부 main·배포됨)
 **추천**

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Injectable, Ip, Module, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, Injectable, Ip, Module, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { IsString, MaxLength } from 'class-validator';
 import { CatalogModule } from '../catalog/catalog.module.js';
@@ -36,6 +36,28 @@ const SHOW = 10; // 한 번에 꺼내는 곡 수 — 6곡은 너무 적었다(10
 const MIN_GENRE = SHOW; // 고른 장르 곡이 이보다 적으면 나머지 곡으로 채운다 — 빈 서랍보다 낫다(장르 곡이 앞)
 const THROW_DAYS = 30; // 이만큼 지난 던진 기록은 순위에 안 쓴다 — 곡 설명을 고치면 다시 기회를
 const THROW_PER_IP = 100; // 한 곳에서 하루에 세는 던진 곡 수
+const ASK_PER_MIN = 10; // 한 곳(IP)에서 Gemini 를 쓰는 요청(꺼내기·한마디·보고서 합쳐) — 분당. "다시 찾기"·"몇 곡 더"를 빨리 눌러도 넉넉
+const ASK_PER_DAY = 200; // 하루 — 한 사람이 선불 크레딧을 바닥내지 못하게
+
+/** 한 곳에서 최근 1분·하루 동안 부른 시각을 세어 넘으면 false. 같은 요청 다시(캐시라 돈 안 듦)도 센다.
+    ponytail: 메모리 — 서버를 끄면 비고 여러 대면 따로 센다. 여러 IP 가 합쳐 쓰는 양은 AI Studio 비용 제한이 막는다 */
+export class Limiter {
+  private readonly hits = new Map<string, number[]>();
+  constructor(
+    private readonly perMin: number,
+    private readonly perDay: number,
+  ) {}
+
+  hit(ip: string, now = Date.now()) {
+    const day = now - 86_400_000;
+    if (this.hits.size > 10_000) for (const [k, ts] of this.hits) if (ts[ts.length - 1] < day) this.hits.delete(k);
+    const ts = (this.hits.get(ip) ?? []).filter((t) => t > day);
+    this.hits.set(ip, ts);
+    if (ts.length >= this.perDay || ts.filter((t) => t > now - 60_000).length >= this.perMin) return false;
+    ts.push(now);
+    return true;
+  }
+}
 
 type Row = {
   id: string;
@@ -192,6 +214,11 @@ function shown(t: Ranked, ranked: Ranked[]) {
 @Controller('recommend')
 export class RecommendController {
   constructor(private readonly svc: RecommendService) {}
+  private readonly limiter = new Limiter(ASK_PER_MIN, ASK_PER_DAY);
+
+  private guard(ip: string) {
+    if (!this.limiter.hit(ip)) throw new HttpException('천천히 하게. 서랍은 그렇게 빨리 안 열리네', HttpStatus.TOO_MANY_REQUESTS);
+  }
 
   @Get()
   @ApiOperation({ summary: '요청문으로 곡 꺼내기 — 요청 해석(짧은 말·풀어 쓴 설명) + 곡별 일치 점수 [Gemini]' })
@@ -199,7 +226,8 @@ export class RecommendController {
   @ApiQuery({ name: 'seen', required: false, description: '이미 보여 준 곡 id(쉼표) — "몇 곡 더"' })
   @ApiQuery({ name: 'thrown', required: false, description: '던져 버린 곡 id(쉼표) — 빼고, 그 곡들 쪽에서 멀어진다' })
   @ApiQuery({ name: 'g', required: false, description: `장르 키(쉼표) — ${Object.keys(GENRES).join(', ')}. 모르는 키는 버린다` })
-  get(@Query('q') q = '', @Query('seen') seen?: string, @Query('thrown') thrown?: string, @Query('g') g?: string) {
+  get(@Ip() ip: string, @Query('q') q = '', @Query('seen') seen?: string, @Query('thrown') thrown?: string, @Query('g') g?: string) {
+    this.guard(ip);
     const genres = ids(g).filter((k) => k in GENRES);
     return this.svc.recommend(q.slice(0, Q_MAX), { seen: ids(seen), thrown: ids(thrown), genres });
   }
@@ -208,7 +236,8 @@ export class RecommendController {
   @ApiOperation({ summary: '보여 준 곡들을 건네는 신의 한마디(자막·영어 음성 id) + 곡마다 이유 — 곡 목록 뒤에 따로 부른다 [Gemini]' })
   @ApiQuery({ name: 'q', example: '새벽에 혼자 걷는 기분' })
   @ApiQuery({ name: 'ids', description: `보여 준 곡 id(쉼표, 최대 ${LINE_MAX}개)` })
-  line(@Query('q') q = '', @Query('ids') list?: string) {
+  line(@Ip() ip: string, @Query('q') q = '', @Query('ids') list?: string) {
+    this.guard(ip);
     return this.svc.line(q.slice(0, Q_MAX), ids(list).slice(0, LINE_MAX));
   }
 
@@ -221,7 +250,8 @@ export class RecommendController {
 
   @Get(':id')
   @ApiOperation({ summary: '곡 하나를 요청문에 대 보기 — 보고서 [Gemini]' })
-  one(@Param('id') id: string, @Query('q') q = '') {
+  one(@Ip() ip: string, @Param('id') id: string, @Query('q') q = '') {
+    this.guard(ip);
     return this.svc.one(id, q.slice(0, Q_MAX));
   }
 }

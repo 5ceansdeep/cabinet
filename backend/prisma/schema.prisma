@@ -94,3 +94,15 @@ model ThrowLog {
 
   @@index([createdAt])
 }
+
+/// 행동 기록 — 재생·끝까지 들음(곡), 서랍에 저장·공유·유튜브로 이동(서랍). 무엇이 실제로 들리고 담기는지 = 진짜 평가 세트 재료.
+/// 사용자·IP·요청문 원문은 남기지 않는다(요청문은 서랍에 이미 있다). 모르는 id 도 그대로 — 가짜 곡·브라우저 서랍이면 그냥 안 맞는다
+model EventLog {
+  id        String   @id @default(cuid())
+  type      String // play | finish | save | share | youtube
+  trackId   String?
+  shelfId   String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

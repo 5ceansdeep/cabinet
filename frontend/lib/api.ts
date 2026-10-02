@@ -38,3 +38,7 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
     return { ok: false, status: 0 };
   }
 }
+
+/** 행동 기록(재생·끝까지 들음·서랍 저장·공유·유튜브 이동) — 기다리지 않고, 실패해도 그만. 무엇을 남기나는 backend/src/events.ts */
+export const logEvent = (type: "play" | "finish" | "save" | "share" | "youtube", ids: { trackId?: string; shelfId?: string }) =>
+  void api("/events", { method: "POST", body: { type, ...ids } });

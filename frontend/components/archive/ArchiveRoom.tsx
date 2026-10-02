@@ -9,7 +9,7 @@ import { Vector3, type Group } from "three";
 import { CABINET } from "@/components/landing/dimensions";
 import { labelMaterial, materials } from "@/components/landing/materials";
 import { Wall } from "@/components/results/CabinetWall";
-import { FloppyBody, useLabel } from "@/components/results/floppy";
+import { DISK, FloppyBody, useLabel } from "@/components/results/floppy";
 import type { Track } from "@/components/results/tracks";
 import { thud } from "@/lib/thud";
 import ListenPanel from "./ListenPanel";
@@ -22,6 +22,7 @@ import { parseShelves, shelvesRaw, subscribeShelves, syncShelves } from "./shelf
 const { W, H, D, T, GAP } = CABINET;
 const OPEN = 1.5; // 서랍이 빠지는 거리
 const PER_PAGE = 3; // 서류함 한 짝에 서랍 3개
+const ROW = 5; // 서랍 안 한 줄에 꽂는 플로피 수 — 서랍 폭(W)에 맞춘다
 const FRONT = new Vector3(0, 0, 3.2); // 서류함을 정면에서
 const LOOK_FRONT = new Vector3(0, 0, 0);
 const TOP = new Vector3(0, 2.3, 2.1); // 열린 서랍을 내려다보는 자리
@@ -45,7 +46,7 @@ function Rig({ open, drawerY }: { open: boolean; drawerY: number }) {
 }
 
 /* 서랍 속에 꽂힌 플로피 한 장 — 종이 파일에 기대어 비스듬히 선다 */
-function Filed({ track, x, onOpen }: { track: Track; x: number; onOpen: () => void }) {
+function Filed({ track, x, size, onOpen }: { track: Track; x: number; size: number; onOpen: () => void }) {
   const { invalidate } = useThree();
   const label = useLabel(track, invalidate); // 커버가 도착하면 다시 그린다
   const [hover, setHover] = useState(false);
@@ -67,7 +68,7 @@ function Filed({ track, x, onOpen }: { track: Track; x: number; onOpen: () => vo
         onOpen();
       }}
     >
-      <group scale={0.42}>
+      <group scale={size}>
         <FloppyBody map={label.tex} />
       </group>
     </group>
@@ -132,18 +133,21 @@ function Drawer({
         </mesh>
       ))}
 
-      {/* 종이 파일 사이에 꽂힌 플로피들 */}
+      {/* 종이 파일 사이에 꽂힌 플로피들 — 한 줄에 ROW 장, 넘치면 뒤 줄로(10/2: 10곡이 한 줄이면 서랍 밖으로 삐져나왔다) */}
       {open && (
-        <group position={[0, -H * 0.12, -D * 0.35]}>
+        <group position={[0, -H * 0.12, -D * 0.2]}>
           {kept.map((t, i) => {
-            const x = (i - (kept.length - 1) / 2) * 0.34;
+            const cols = Math.min(ROW, kept.length);
+            const row = Math.floor(i / ROW);
+            const step = Math.min(0.34, (W - 0.3) / cols);
+            const x = ((i % ROW) - (cols - 1) / 2) * step;
             return (
-              <group key={t.id}>
+              <group key={t.id} position={[0, row * 0.06, -row * 0.5]}>
                 {/* 앞뒤로 받쳐 주는 종이 파일 */}
-                <mesh position={[x - 0.17, -0.02, -0.02]} rotation={[-0.35, 0, 0]} material={m.manila}>
-                  <planeGeometry args={[0.3, 0.42]} />
+                <mesh position={[x - step / 2, -0.02, -0.02]} rotation={[-0.35, 0, 0]} material={m.manila}>
+                  <planeGeometry args={[step - 0.04, 0.42]} />
                 </mesh>
-                <Filed track={t} x={x} onOpen={() => onOpenTrack(t)} />
+                <Filed track={t} x={x} size={Math.min(0.42, (step * 0.9) / DISK)} onOpen={() => onOpenTrack(t)} />
               </group>
             );
           })}

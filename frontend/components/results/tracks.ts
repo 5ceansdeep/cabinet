@@ -14,7 +14,7 @@ export type Track = {
 
 /** 신의 한마디 — ko 는 자막, en 은 음성(ElevenLabs 붙기 전엔 안 쓴다) */
 export type GodLine = { ko: string; en: string; voice?: string | null }; // voice = 영어 음성 id (ElevenLabs 를 켰을 때만)
-export type Found = { interpretation: string[]; tracks: Track[]; line?: GodLine | null; failed?: boolean }; // failed = 서버가 오류를 냈다. 곡별 이유는 tracks[].reason
+export type Found = { interpretation: string[]; tracks: Track[]; line?: GodLine | null; failed?: boolean; missingArtist?: string | null }; // missingArtist = 편지에 쓴 가수 곡이 서류함에 없다 // failed = 서버가 오류를 냈다. 곡별 이유는 tracks[].reason
 
 const GRADIENTS = [
   "linear-gradient(135deg,#1e3a5f,#8ec5fc)",
@@ -52,7 +52,7 @@ export async function findTracks(query: string, opt: { seen?: string[]; thrown?:
   const qs = new URLSearchParams({ q: query });
   if (opt.seen?.length) qs.set("seen", opt.seen.join(","));
   if (opt.thrown?.length) qs.set("thrown", opt.thrown.join(","));
-  const get = () => api<{ interpretation: string[]; tracks: Scored[]; line: GodLine | null }>(`/recommend?${qs}`);
+  const get = () => api<{ interpretation: string[]; tracks: Scored[]; line: GodLine | null; missingArtist?: string | null }>(`/recommend?${qs}`);
   let r = await get();
   if (!r.ok && (r.status === 0 || r.status >= 500)) {
     await new Promise((ok) => setTimeout(ok, 1500));
@@ -60,7 +60,7 @@ export async function findTracks(query: string, opt: { seen?: string[]; thrown?:
   }
   if (r.ok) {
     r.data.tracks.forEach((t) => t.artwork && void loadArt(t.artwork)); // 표지는 곡 목록을 받자마자 — 3D 디스크가 생길 때 받으면 늦다
-    return { interpretation: r.data.interpretation, line: r.data.line, tracks: r.data.tracks.map((t) => ({ ...t, cover: gradientOf(t.id) })) };
+    return { interpretation: r.data.interpretation, line: r.data.line, missingArtist: r.data.missingArtist, tracks: r.data.tracks.map((t) => ({ ...t, cover: gradientOf(t.id) })) };
   }
   if (r.status !== 0 || process.env.NODE_ENV === "production") return { interpretation: [], tracks: [], failed: true };
   const skip = new Set([...(opt.seen ?? []), ...(opt.thrown ?? [])]);

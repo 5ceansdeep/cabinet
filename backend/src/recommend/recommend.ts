@@ -136,11 +136,14 @@ export class RecommendService {
             query: query.trim(),
             tracks: JSON.stringify(shownNames),
             line: line?.ko ?? "",
+            asked: JSON.stringify(asked.artists ?? []),
           },
         })
         .catch(() => undefined);
     }
-    return { interpretation: shownKeywords(asked), description: readings(asked), tracks, line };
+    // 편지에 쓴 가수 곡이 곡 풀에 하나도 없으면 — 화면이 "아직 없어요" 를 알린다(10/2 박효신 — 말없이 엉뚱한 곡을 줬다). 검색 기록 asked 로 다음 수집에 들어간다
+    const missingArtist = asked.artists?.length && !pool.some((t) => asked.artists!.some((a) => same(t.artist, a))) ? asked.artists[0] : null;
+    return { interpretation: shownKeywords(asked), description: readings(asked), tracks, line, missingArtist };
   }
 
   /** 최근 THROW_DAYS 일 동안 던져진 곡 → 깎을 점수 */

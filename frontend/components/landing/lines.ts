@@ -156,6 +156,8 @@ export const RESULT_DIALOGUE = {
   DRY_ACTION: "새 편지 쓰기",
   FAILED: "서랍이 뻑뻑해서 안 열리네. 이 서랍장도 나만큼 오래돼서 말이야. 한 번 더 당겨 보게.", // 서버 오류
   FAILED_ACTION: "다시 찾기",
+  // 편지에 쓴 가수 곡이 서류함에 없을 때 — 화면 머리에 한 줄(읽지 않는 안내, 평범한 말투)
+  MISSING_ARTIST: (name: string) => `아직 ${name} 님 곡은 서류함에 없어요 — 비슷한 결로 골랐어요. 곧 채워 둘게요.`,
 } as const;
 
 export const RESULT_LINES = {

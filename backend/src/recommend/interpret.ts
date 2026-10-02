@@ -33,6 +33,10 @@ const READING = {
   sound: { type: 'STRING', description: '[핵심어 3개] + 어울리는 소리 한두 문장. 예: "[잔잔함, 쓸쓸함, 애절함] 조용히 감정을 다독이는 소리다."' },
   energy: { type: 'NUMBER', nullable: true, description: '0(조용한)~1(격한). 요청이 세기를 드러낼 때만, 아니면 null' },
   valence: { type: 'NUMBER', nullable: true, description: '0(슬픈·어두운)~1(밝은). 요청이 밝기를 드러낼 때만, 아니면 null' },
+  usage: {
+    type: 'STRING',
+    description: '[핵심어 2~3개] + 이 요청에 맞는 곡이 쓰일 법한 장면 한 문장 — 드라마·영화 장면, 예능 자막 브금, 밈, 숏폼 챌린지. 예: "[예능 브금, 추리, 긴장] 누군가를 의심하며 몰래 뒤를 밟는 예능 장면에 깔리는 곡이다."',
+  },
 };
 
 const SCHEMA = {
@@ -81,6 +85,10 @@ export const promptFor = (query: string) =>
     `사용자: ${query}`,
   ].join('\n');
 
+/** 곡 설명 틀 + 쓰임 장면(요청 쪽에만) — 10/2 표본: 요청에 "이런 장면에 쓰일 곡"을 붙이면 재현율 41 → 46%.
+    곡 설명에도 쓰임을 넣으면 39% 로 나빠졌다(아는 곡만 칸이 생겨 그 곡들끼리 비슷해짐) — 그래서 곡 쪽엔 없다 */
+const withUsage = (p: Parts & { usage?: string }) => describeText(p) + (p.usage ? `\n쓰임: ${p.usage}` : '');
+
 const clamp = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? Math.min(1, Math.max(0, x)) : null);
 export const normalize = (q: string) => q.trim().replace(/\s+/g, ' ').toLowerCase();
 
@@ -103,7 +111,7 @@ export class Interpreter {
 
   private async fresh(query: string): Promise<Asked> {
     try {
-      type Read = Parts & { keywords?: string[]; energy?: number | null; valence?: number | null };
+      type Read = Parts & { keywords?: string[]; energy?: number | null; valence?: number | null; usage?: string };
       const p = JSON.parse(await this.gemini.generate(MODELS.query, promptFor(query), SCHEMA)) as Read & {
         tags?: string[];
         artists?: string[];
@@ -111,8 +119,8 @@ export class Interpreter {
         words?: string[];
         alt?: Read | null;
       };
-      const description = describeText(p);
-      const altText = p.alt?.emotion ? describeText(p.alt) : null;
+      const description = withUsage(p);
+      const altText = p.alt?.emotion ? withUsage(p.alt) : null;
       const [vector, altVector] = await Promise.all([this.gemini.embed(description), altText ? this.gemini.embed(altText) : null]); // 임베딩 둘은 같이
       return {
         keywords: (p.keywords ?? []).map((k) => k.trim()).filter(Boolean).slice(0, 5),

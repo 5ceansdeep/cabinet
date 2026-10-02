@@ -182,7 +182,7 @@ export default function Card({ q, keywords, tracks, qr, shelf, date, no }: Omit<
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 26, fontSize: 22, letterSpacing: 2 }}>
-          <span>ALL SALES FINAL · 감정은 환불되지 않네</span>
+          <span>ALL SALES FINAL</span>
           <span style={{ marginTop: 4 }}>THANK YOU FOR SHOPPING AT CABINET</span>
         </div>
       </div>

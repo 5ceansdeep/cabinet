@@ -1,0 +1,34 @@
+import { Body, Controller, HttpCode, Ip, Module, Post } from '@nestjs/common';
+import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { PrismaService } from './prisma/prisma.service.js';
+import { Limiter } from './recommend/recommend.js';
+
+/* 행동 기록 — 화면이 재생·끝까지 들음·서랍 저장·공유·유튜브 이동 때 부른다(로그인 없이, 기다리지 않음). 실패해도 화면은 그대로.
+   한 곳(IP)에서 분당 30·하루 1000건까지만 — 넘치면 조용히 버린다(DB 를 못 채우게) */
+
+const TYPES = ['play', 'finish', 'save', 'share', 'youtube'] as const;
+
+class EventDto {
+  @ApiProperty({ enum: TYPES }) @IsIn(TYPES) type!: (typeof TYPES)[number];
+  @ApiProperty({ required: false, description: '곡 id — play·finish' }) @IsOptional() @IsString() @MaxLength(40) trackId?: string;
+  @ApiProperty({ required: false, description: '서랍 id — save·share·youtube' }) @IsOptional() @IsString() @MaxLength(40) shelfId?: string;
+}
+
+@ApiTags('events')
+@Controller('events')
+export class EventsController {
+  constructor(private readonly prisma: PrismaService) {}
+  private readonly limiter = new Limiter(30, 1000);
+
+  @Post()
+  @HttpCode(204)
+  @ApiOperation({ summary: '행동 하나 기록 — 사용자·IP·요청문은 안 남긴다' })
+  async log(@Body() dto: EventDto, @Ip() ip: string) {
+    if (!this.limiter.hit(ip)) return;
+    await this.prisma.eventLog.create({ data: { type: dto.type, trackId: dto.trackId, shelfId: dto.shelfId } }).catch(() => undefined);
+  }
+}
+
+@Module({ controllers: [EventsController] })
+export class EventsModule {}

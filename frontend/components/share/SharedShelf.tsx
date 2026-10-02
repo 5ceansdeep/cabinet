@@ -6,23 +6,23 @@ import { SHARED_DIALOGUE as D } from "@/components/landing/lines";
 import PlayerBar from "@/components/results/PlayerBar";
 import type { Track } from "@/components/results/tracks";
 import { logEvent } from "@/lib/api";
-import { barsOf, INK, Logo, PAPER, PAPER_BG } from "./Card";
+import { barsOf, INK, Logo, PAPER, PAPER_IMAGE } from "./Card";
 import type { PublicShelf } from "./public";
 import { THERMAL_FLOPPY } from "./thermal";
 
 /* 공유 링크로 들어온 서랍 — 공유 카드와 같은 서류함 마트 영수증(10/2 사용자). 곡 줄을 누르면 30초 미리듣기, 아래에 유튜브 이어 듣기·"나도 편지 써 보기".
-   링크는 대부분 휴대폰에서 열린다 — 3D 없이 가볍게, 세로 화면 먼저. 넓은 화면이면 카드처럼 좌우에 앨범 표지를 깐다.
+   링크는 대부분 휴대폰에서 열린다 — 3D 없이 가볍게, 세로 화면 먼저. 뒤에는 카드처럼 앨범 표지를 깐다(10/2 — 넓은 화면만 깔았더니 휴대폰에선 안 보였다).
    로고·구김·바코드·감열지 플로피는 카드(Card.tsx·thermal.ts)와 같은 것. 글꼴은 page.tsx 가 next/font 변수로 건넨다 */
 
 const MONO = "var(--font-plex), var(--font-chosun), monospace";
 const SWATCH = ["#1e3a5f", "#5b3a5f", "#2f5f4a", "#6a4a2a", "#3a3f5f"];
 
-/* 뒤에 깔리는 앨범 표지 한 줄(다섯 장) — 넓은 화면에서만 */
+/* 뒤에 깔리는 앨범 표지 한 줄(다섯 장) — 넓은 화면은 영수증 좌우에, 휴대폰은 화면 반씩 채워 영수증 뒤·위아래로 보인다 */
 function Covers({ tracks, side }: { tracks: PublicShelf["tracks"]; side: "left" | "right" }) {
   const left = side === "left";
   const five = Array.from({ length: 5 }, (_, r) => tracks[(r + (left ? 0 : 5)) % Math.max(1, tracks.length)]);
   return (
-    <div aria-hidden className={`pointer-events-none fixed inset-y-0 hidden w-[22vw] max-w-[340px] flex-col justify-between py-2 lg:flex ${left ? "left-0" : "right-0"}`}>
+    <div aria-hidden className={`pointer-events-none fixed inset-y-0 flex w-1/2 flex-col justify-between py-2 lg:w-[22vw] lg:max-w-[340px] ${left ? "left-0" : "right-0"}`}>
       {five.map((t, r) => {
         const style: CSSProperties = { transform: `rotate(${[-4, 3, -2, 5, -3][r] * (left ? 1 : -1)}deg)`, background: `linear-gradient(135deg, ${SWATCH[r]}, #8ec5fc)` };
         return t?.artwork ? (
@@ -50,10 +50,10 @@ export default function SharedShelf({ shelf }: { shelf: PublicShelf }) {
       <Covers tracks={shelf.tracks} side="right" />
 
       <div className="relative mx-auto flex min-h-full w-full max-w-[460px] flex-col items-stretch px-4 py-8">
-        {/* 영수증 — 감열지(구김 빛), 고정폭 글씨. accent 를 잉크로 바꿔 재생바(PlayerBar)도 영수증 색으로 */}
+        {/* 영수증 — 구겨진 감열지(paper-crumple.png), 고정폭 글씨. accent 를 잉크로 바꿔 재생바(PlayerBar)도 영수증 색으로 */}
         <article
           className="flex flex-col px-6 pt-7 pb-6 text-[13.5px] leading-[1.45] shadow-[0_30px_70px_rgba(0,0,0,.55)] [word-break:keep-all]"
-          style={{ background: PAPER, backgroundImage: PAPER_BG, color: INK, fontFamily: MONO, ["--accent" as string]: INK }}
+          style={{ backgroundColor: PAPER, backgroundImage: `url(${PAPER_IMAGE})`, backgroundSize: "100% 100%", color: INK, fontFamily: MONO, ["--accent" as string]: INK }}
         >
           <Logo display="var(--font-anton)" scale={0.5} />
           {/* eslint-disable-next-line @next/next/no-img-element -- 감열지 플로피(SVG data URL) */}
@@ -64,7 +64,6 @@ export default function SharedShelf({ shelf }: { shelf: PublicShelf }) {
             <span>{shelf.tag}</span>
           </div>
           <p className="mt-1">“{shelf.query || shelf.tag}”</p>
-          <p className="mt-1 opacity-70">{D.INTRO}</p>
 
           <Rule />
           <div className="flex text-[12px]">

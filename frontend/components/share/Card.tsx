@@ -13,8 +13,6 @@ export type ShareData = {
   link?: string | null; // QR 로 넣을 주소 — 공개 서랍(/s/:id) 또는 유튜브 이어 듣기(watch_videos)
 };
 
-const BG = "#07090d";
-const ACCENT = "#00e5ff";
 export const INK = "#26262a"; // 감열지 잉크 — 새까맣지 않게 (공유 페이지도 같이 쓴다)
 export const PAPER = "#f7f6f2";
 const FONT = "Mono, Chosun";
@@ -23,18 +21,9 @@ const RULE = { borderTop: `2px dashed ${INK}`, opacity: 0.55, margin: "18px 0" }
 const COVER = 372; // 뒤에 깔리는 표지 한 장 — 세로 다섯 장이 1920 을 거의 채운다(겹쳐 쌓인다)
 const SWATCH = ["#1e3a5f", "#5b3a5f", "#2f5f4a", "#6a4a2a", "#3a3f5f"]; // 표지 없는 곡 자리
 
-/* 구겨진 감열지 — 접힌 자리마다 어두운 줄 하나 + 바로 옆 밝은 줄 하나(빛을 받은 면). 각도를 섞어 손으로 구긴 듯 */
-const CREASES = [
-  [112, 18],
-  [68, 31],
-  [97, 47],
-  [128, 58],
-  [74, 72],
-  [104, 86],
-  [61, 12],
-  [140, 39],
-].map(([deg, at]) => `linear-gradient(${deg}deg, rgba(0,0,0,0) ${at - 2}%, rgba(0,0,0,.04) ${at}%, rgba(255,255,255,.28) ${at + 0.8}%, rgba(0,0,0,0) ${at + 4}%)`);
-export const PAPER_BG = [...CREASES, "linear-gradient(160deg, rgba(255,255,255,.5) 10%, rgba(0,0,0,.035) 50%, rgba(255,255,255,.35) 90%)"].join(", ");
+/* 구겨진 감열지 — public/paper-crumple.png(scripts/crumple.mjs 가 만든 그늘·빛 반투명 층)을 종이색 위에 늘려 덮는다.
+   10/2 사용자: 빛줄기 몇 줄로 흉내 낸 구김이 "그래픽" 같았다 — 조각면마다 빛을 다르게 받는 진짜 구김 그림으로 */
+export const PAPER_IMAGE = "/paper-crumple.png";
 
 /* 막대 굵기를 글자에서 뽑은 장식 바코드 — 같은 편지면 같은 무늬 */
 export function barsOf(seed: string) {
@@ -99,9 +88,16 @@ function Covers({ tracks, side }: { tracks: ShareData["tracks"]; side: "left" | 
 }
 
 const upper = (s: string) => s.toUpperCase(); // 영문만 대문자로 — 한글은 그대로
+/** 한 줄에 들어갈 만큼 — 한글은 영문 두 칸으로 센다. 넘치면 … */
+const clip = (s: string, cols: number) => {
+  let w = 0;
+  for (let i = 0; i < s.length; i++) if ((w += /[가-힣ㄱ-ㅎ]/.test(s[i]) ? 2 : 1) > cols) return s.slice(0, i) + "…";
+  return s;
+};
 
 /** qr = QR 그림(data URL), shelf = QR 이 공개 서랍 주소인가(아니면 유튜브), date·no = 영수증 날짜·번호(서버가 붙인다) */
-export default function Card({ q, keywords, tracks, qr, shelf, date, no }: Omit<ShareData, "link"> & { qr?: string | null; shelf?: boolean; date: string; no: string }) {
+/** paper = 구김 그림(data URL — Satori 는 주소로 못 읽어 서버가 파일을 읽어 넘긴다) */
+export default function Card({ q, keywords, tracks, qr, shelf, date, no, paper }: Omit<ShareData, "link"> & { qr?: string | null; shelf?: boolean; date: string; no: string; paper?: string }) {
   const ten = tracks.slice(0, 10);
   const known = ten.filter((t) => t.semantic);
   const avg = known.length ? Math.round(known.reduce((s, t) => s + (t.semantic ?? 0), 0) / known.length) : null;
@@ -115,8 +111,8 @@ export default function Card({ q, keywords, tracks, qr, shelf, date, no }: Omit<
           flexDirection: "column",
           width: W,
           padding: "44px 48px 40px",
-          background: PAPER,
-          backgroundImage: PAPER_BG,
+          backgroundColor: PAPER,
+          ...(paper && { backgroundImage: `url(${paper})`, backgroundSize: "100% 100%" }),
           boxShadow: "0 30px 70px rgba(0,0,0,.55)",
           color: INK,
           fontFamily: FONT,
@@ -193,38 +189,60 @@ export default function Card({ q, keywords, tracks, qr, shelf, date, no }: Omit<
   );
 }
 
-/* 플로피 한 장 — 링크 미리보기용(검은 몸체, 금속 셔터, 표지가 인쇄된 라벨 — Deck 의 3D 디스크와 같은 생김새) */
-function Floppy({ title, artwork }: { title: string; artwork?: string | null }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 176, height: 176, borderRadius: 10, background: "#1c2230", padding: "10px 14px 14px" }}>
-      <div style={{ width: 80, height: 46, background: "#aab1bb", borderRadius: 3 }} />
-      <div style={{ display: "flex", flexDirection: "column", width: 148, marginTop: 8, background: "#ece8dc", borderRadius: 3, overflow: "hidden" }}>
-        {artwork ? (
+/* 링크 미리보기(1200×630) — 카톡·DM 에 공개 서랍 링크를 붙이면 뜬다. 같은 영수증의 윗부분(로고·편지·곡 네 줄) + 좌우에 앨범 표지 두 장씩.
+   카톡은 그림 가운데를 잘라 보여 주기도 해서 중요한 건 가운데에 모은다. 10/2 사용자: 카드처럼 영수증 느낌으로 */
+export function OgCard({ q, tag, tracks, paper }: { q: string; tag: string; tracks: ShareData["tracks"]; paper?: string }) {
+  const side = (from: number, dir: 1 | -1) => (
+    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", width: 330, height: 630 }}>
+      {[0, 1].map((r) => {
+        const t = tracks[(from + r) % Math.max(1, tracks.length)];
+        const style = { width: 290, height: 290, flexShrink: 0, margin: "8px 20px", transform: `rotate(${(r ? -3 : 4) * dir}deg)`, boxShadow: "0 12px 30px rgba(0,0,0,.4)" } as const;
+        return t?.artwork ? (
           // eslint-disable-next-line @next/next/no-img-element -- Satori 는 img 만 그린다
-          <img src={artwork} width={148} height={76} style={{ objectFit: "cover" }} alt="" />
+          <img key={r} src={t.artwork} width={290} height={290} style={{ ...style, objectFit: "cover" }} alt="" />
         ) : (
-          <div style={{ width: 148, height: 76, background: "linear-gradient(135deg,#1e3a5f,#8ec5fc)" }} />
-        )}
-        <div style={{ display: "flex", padding: "4px 6px", fontSize: 13, color: "#212529", whiteSpace: "nowrap", overflow: "hidden" }}>{title.slice(0, 14)}</div>
-      </div>
+          <div key={r} style={{ ...style, background: `linear-gradient(135deg, ${SWATCH[r + from]}, #8ec5fc)` }} />
+        );
+      })}
     </div>
   );
-}
-
-/* 링크 미리보기(1200×630) — 카톡·DM 에 공개 서랍 링크를 붙이면 뜬다. 편지 문장 + 플로피 5장 */
-export function OgCard({ q, tag, tracks }: { q: string; tag: string; tracks: ShareData["tracks"] }) {
+  const four = tracks.slice(0, 4);
   return (
-    <div style={{ display: "flex", flexDirection: "column", width: 1200, height: 630, background: BG, color: "#e2e8f0", padding: "56px 64px", fontFamily: "Chosun", wordBreak: "keep-all" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 22, letterSpacing: 6, color: "rgba(226,232,240,.45)" }}>
-        <span>CABINET</span>
-        <span style={{ color: ACCENT }}>{tag}</span>
-      </div>
-      <div style={{ display: "flex", marginTop: 34, fontSize: 52, lineHeight: 1.3, color: "#ffffff" }}>“{q.slice(0, 40)}”</div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: "auto" }}>
-        {tracks.slice(0, 5).map((t, i) => (
-          <Floppy key={i} title={t.title} artwork={t.artwork} />
+    <div style={{ display: "flex", width: 1200, height: 630, background: "#1b1b1f", overflow: "hidden" }}>
+      {side(0, 1)}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          width: 540,
+          height: 660,
+          marginTop: 20,
+          padding: "26px 40px 0",
+          backgroundColor: PAPER,
+          ...(paper && { backgroundImage: `url(${paper})`, backgroundSize: "100% 100%" }),
+          boxShadow: "0 20px 50px rgba(0,0,0,.55)",
+          color: INK,
+          fontFamily: FONT,
+          fontSize: 21,
+          lineHeight: 1.36,
+          wordBreak: "keep-all",
+        }}
+      >
+        <Logo scale={0.62} />
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16 }}>
+          <span>“{q.slice(0, 22)}”</span>
+          <span>{tag}</span>
+        </div>
+        <div style={{ ...RULE, margin: "12px 0" }} />
+        {four.map((t, i) => (
+          <div key={i} style={{ display: "flex", marginBottom: 6, whiteSpace: "nowrap", overflow: "hidden" }}>
+            <span style={{ width: 46, flexShrink: 0 }}>{String(i + 1).padStart(2, "0")}</span>
+            <span>{clip(upper(`${t.title} - ${t.artist}`), 30)}</span>
+          </div>
         ))}
+        {tracks.length > 4 && <div style={{ display: "flex", marginTop: 4, opacity: 0.7 }}>+ {tracks.length - 4} MORE ITEMS</div>}
       </div>
+      {side(2, -1)}
     </div>
   );
 }

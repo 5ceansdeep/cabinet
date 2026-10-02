@@ -189,7 +189,6 @@ export const PLAYLIST_DIALOGUE = {
 
 /* 공유 링크로 들어온 서랍(/s/:id) — 처음 온 사람이 본다 */
 export const SHARED_DIALOGUE = {
-  INTRO: "누군가 내 서류함에서 건져 올린 곡들이네.",
   YOUTUBE: "유튜브에서 이어 듣기",
   SOME_MISSING: (n: number) => `${n}곡은 영상을 못 찾았네 — 직접 찾아 듣게`,
   SEARCH: "곡마다 유튜브에서 찾아 듣기",
@@ -199,7 +198,6 @@ export const SHARED_DIALOGUE = {
 /* 서랍에 넣고 나면 인쇄돼 나오는 공유 카드 */
 export const CARD_DIALOGUE = {
   PRINTING: "증명서 한 장 떼어 주는 중이네.",
-  READY: "자, 증명서네. 자랑하고 다니게.",
   HOLD: "길게 눌러 저장", // 조작 안내
   STORY: "스토리에 올리기",
   COPY: "링크 복사",

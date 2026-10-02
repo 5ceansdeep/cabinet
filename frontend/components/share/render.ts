@@ -5,7 +5,16 @@ import { join } from "node:path";
 
 const files = new Map<string, Promise<Buffer>>();
 const file = (name: string) => files.get(name) ?? files.set(name, readFile(join(process.cwd(), "app/fonts", name))).get(name)!; // 한 번만 읽는다
-/** 고정폭 Plex Mono(영수증 — 영문·숫자) + 자막과 같은 조선굴림(한글은 이쪽으로 받친다) */
+/** 영수증 구김 그림(public/paper-crumple.png) → data URL. Satori 는 주소를 못 읽고, Vercel 서버 함수엔 public/ 이 없을 수 있어
+    자기 사이트에서 받아 온다(정적 파일은 CDN). 한 번 받은 건 다시 안 받는다. 못 받으면 구김 없이 */
+let paperUrl: Promise<string | undefined> | null = null;
+export const paper = (origin: string) =>
+  (paperUrl ??= fetch(new URL("/paper-crumple.png", origin))
+    .then(async (r) => (r.ok ? `data:image/png;base64,${Buffer.from(await r.arrayBuffer()).toString("base64")}` : undefined))
+    .catch(() => undefined)
+    .then((u) => (u ? u : ((paperUrl = null), undefined)))); // 실패면 다음에 다시
+
+/** 고정폭 Plex Mono(영수증 — 영문·숫자) + 자막과 같은 조선굴림(한글은 이쪽으로 받친다) + Anton(영수증 로고) */
 export const fonts = async () => [
   { name: "Mono", data: await file("IBMPlexMono-Regular.ttf"), weight: 400 as const, style: "normal" as const },
   { name: "Mono", data: await file("IBMPlexMono-SemiBold.ttf"), weight: 600 as const, style: "normal" as const },

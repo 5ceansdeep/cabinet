@@ -19,7 +19,12 @@
 - **로컬도 배포와 같은 Neon DB** — 로컬에서 곡을 넣거나 지우면 배포에도 바로. 마이그레이션은 `main` 푸시 때 Railway 가 돌린다
 - Gemini: 유료라 하루 한도 걱정은 거의 없다. 모델 목록은 `gemini.ts MODELS`(차거나 없어진 모델은 다음으로). 스웨거 `[Gemini]` 표시 API 만 돈을 쓴다
 
-## 10/2 한 일 (main 에 합침, **푸시 전**)
+## 10/2 한 일
+- **추천: 글자 일치 가산 + 두 갈래 읽기** — 해석이 `words`(제목·가사 낱말, 한·영)·`alt`(애매한 짧은 요청의 두 번째 읽기)를 같이 낸다. 제목 일치 +0.1, [핵심어] +0.04,
+  두 읽기에서 번갈아 후보·최종 10곡(`stage1`, 서비스·평가 공용). 45개: 1단계 31→36%, 재정렬 후 41% 그대로. 미쳤어 → 신남/분노 갈래, Crazy 4위
+- 배포에서 서버에 못 닿으면 가짜 곡 대신 한 번 더 → "다시 뒤지기"(가짜 곡은 로컬 개발만), 보관함 견본 서랍 뺌, 같은 플레이리스트 다시 저장하면 그 서랍 갱신,
+  보관함 서랍 디스크 5장씩 두 줄(10곡이 서랍 밖으로 삐져나왔다)
+- 추천 개선 기록 [docs/recommend-journey.md](docs/recommend-journey.md)
 - **추천 API 호출 제한**: `/recommend`·`/line`·`/:id` 합쳐 IP 당 분당 10·하루 200(`Limiter`, 메모리), 넘으면 429 → 화면은 "서랍이 뻑뻑하네"
 - **행동 기록** `EventLog`(play·finish·save·share·youtube, trackId/shelfId, 재생·끝까지엔 요청문 `query` — 어떤 편지 → 어떤 곡. 사용자·IP 없음) + `POST /events`(IP 당 분당 30·하루 1000). Neon 에 마이그레이션 적용함
 - **Vercel Web Analytics**: 패키지 없이 `/_vercel/insights/script.js`(배포에서만) — Vercel 에서 Enable 해야 산다

@@ -1,7 +1,7 @@
 import type { Field } from "./CabinetScene";
 
 // voice — 목소리로 읽을 문장이 자막과 다를 때 (닉네임은 자막에만)
-// voiceKey — 음성 파일 이름. public/voice/{voiceKey}.mp3 (없으면 기계 음성)
+// voiceKey — 음성 파일 이름. public/voice/{voiceKey}.mp3 (없으면 소리 없이 자막만)
 export type Line = { text: string; voice?: string; voiceKey?: string; link?: { href: string; label: string } };
 
 /* 자막·목소리 문구 — 서류함의 주인. 속은 브루스 올마이티의 신이지만 정체는 드러내지 않는 관리인 (docs/voice-persona.md).

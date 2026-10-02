@@ -1,6 +1,7 @@
 import { analyzeSpeech } from "./cues";
 
-/* 대사 한 줄을 목소리로. key 가 있으면 public/voice/{key}.mp3(주소면 그 주소 — 백엔드가 만든 신의 한마디)를 틀고, 파일이 없으면 브라우저 내장 음성합성으로 읽는다.
+/* 대사 한 줄을 목소리로. key 가 있으면 public/voice/{key}.mp3(주소면 그 주소 — 백엔드가 만든 신의 한마디)를 틀고, 파일이 없으면 소리 없이 자막만(읽는 시간만큼 기다린다).
+   10/2: 녹음 없는 대사를 브라우저 기계 음성으로 읽었더니 분위기가 깨졌다 — 사용자 결정으로 자막만.
    대사는 끊지 않는다 — 앞 대사가 말하는 중이면 새 대사는 기다렸다가 이어서 나온다 (파일 끝의 공백은 기다리지 않음). 예외: cut() — 사용자가 엔터를 치면 바로 끊는다.
    기다리는 사이 또 새 대사가 오면 가장 최근 것만 남긴다. 페이지를 옮겨도 하던 대사는 끝까지 나온다.
    onStart — 그 대사의 소리가 실제로 시작될 때 불린다. 자막 줄(lines 개)마다 "지금부터 몇 초 뒤"를 주거나, 모르면 null.
@@ -9,6 +10,7 @@ import { analyzeSpeech } from "./cues";
 type Job = { text: string; key?: string; lines: number; onStart?: (delays: number[] | null) => void };
 
 const TAIL = 0.25; // 말이 끝나고 다음 대사까지 숨 고르는 시간(초)
+const READ_CPS = 7; // 녹음 없는 대사는 자막을 읽는 시간만큼(초당 글자) 다음 대사를 기다린다
 const MAX_LINE = 20; // 끝을 모르는 대사도 이 초가 지나면 끝난 것으로 — 대기열이 영영 멈추지 않게
 const analyses = new Map<string, Promise<{ starts: number[]; end: number }>>(); // 파일·줄 수별 — 한 번만 분석
 let busyUntil = 0; // 지금 대사가 말을 마치는 시각 (performance.now 기준 ms)
@@ -63,32 +65,23 @@ const doneAt = (id: number, sec: number) => {
   next();
 };
 
-// 파일이 없을 때 — 낮고 느린 기계 음성 (한국어 목소리가 있으면 그걸로)
-function tts(job: Job, id: number) {
+// 파일이 없을 때 — 소리 없이 자막만. 자막은 글자 수 비례로 줄을 넘긴다(onStart null), 다음 대사는 읽는 시간 뒤에
+function silent(job: Job, id: number) {
   if (id !== gen) return;
   current?.pause(); // 앞 대사 파일의 끝소리도 멈춘다
   current = null;
   job.onStart?.(null);
-  if (typeof speechSynthesis === "undefined") return doneAt(id, 0);
-  const u = new SpeechSynthesisUtterance(job.text);
-  u.lang = "ko-KR";
-  u.pitch = 0.3;
-  u.rate = 0.8;
-  const ko = speechSynthesis.getVoices().find((v) => v.lang.startsWith("ko"));
-  if (ko) u.voice = ko;
-  u.onend = u.onerror = () => doneAt(id, 0);
-  busyUntil = untilKnown(); // 끝날 때까지
-  speechSynthesis.speak(u);
+  doneAt(id, job.text.length / READ_CPS);
 }
 
 function play(job: Job, id: number) {
-  if (!job.key) return tts(job, id);
+  if (!job.key) return silent(job, id);
   const src = /^https?:/.test(job.key) ? job.key : `/voice/${job.key}.mp3`;
   const a = new Audio(src);
   current?.pause(); // 앞 대사 파일의 남은 끝소리(잔향)까지 멈춘다 — 파일 두 개가 겹치면 엔터로도 앞 것이 안 끊긴다
   current = a;
   busyUntil = untilKnown(); // 말을 언제 마치는지 알 때까지
-  a.onerror = () => tts(job, id); // 파일이 아직 없으면 기계 음성으로
+  a.onerror = () => silent(job, id); // 파일이 아직 없으면 자막만
   a.addEventListener(
     "playing",
     () => {
@@ -139,7 +132,6 @@ export function cut() {
   gen++;
   current?.pause();
   current = null;
-  if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
   clearTimeout(timer);
   pending = null;
   playing = "";
@@ -147,7 +139,7 @@ export function cut() {
 }
 
 /* 기다리는 대사까지 다 말하고 조용해지면 — 화면 전환이 목소리를 앞지르지 않게.
-   소리 쪽이 꼬여도(파일이 안 끝나거나 기계 음성이 onend 를 안 주거나) 화면이 갇히지 않게 상한을 둔다 */
+   소리 쪽이 꼬여도(파일이 안 끝나거나) 화면이 갇히지 않게 상한을 둔다 */
 export function whenQuiet(maxMs = MAX_LINE * 1000): Promise<void> {
   const until = performance.now() + maxMs;
   return new Promise((resolve) => {

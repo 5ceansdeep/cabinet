@@ -74,7 +74,7 @@ export default function Results({ query, genres }: { query: string; genres: stri
       thud(70);
       setInterpretation(found.interpretation);
       // 신의 한마디·곡별 이유는 재정렬과 같은 호출로 곡 목록과 함께 온다(10/1 — 재정렬 순서를 쓰면서).
-      // 영어 음성은 백엔드가 ElevenLabs 로 만든 mp3(켜 뒀을 때만) — 꺼져 있으면 기계 음성이 한국어 자막을 읽는다
+      // 영어 음성은 백엔드가 ElevenLabs 로 만든 mp3(켜 뒀을 때만) — 꺼져 있으면 자막만
       setGreeting(found.line ? { text: found.line.ko, voiceKey: found.line.voice ? apiUrl(`/voice/${found.line.voice}`) : undefined } : null);
       setKept(found.tracks);
       setSeen((s) => [...s, ...found.tracks.map((t) => t.id)]);

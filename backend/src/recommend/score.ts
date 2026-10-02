@@ -42,8 +42,23 @@ export function centerer(vectors: number[][]) {
   };
 }
 
-export type Candidate = Sound & { id: string; artist: string; vector: number[] };
-export type Want = Sound & { vector: number[] };
+export type Candidate = Sound & { id: string; artist: string; vector: number[]; title?: string; description?: string | null };
+export type Want = Sound & { vector: number[]; words?: string[] };
+
+/* 글자 일치 가산 — 요청 낱말(해석의 words, 한·영)이 곡 제목에 있으면 크게, 곡 설명 [핵심어]에 있으면 작게.
+   "미쳤어" 의 뜻 벡터는 위로곡 쪽으로 가도 제목이 "Crazy" 인 곡은 올라온다. ponytail: 값은 평가 45개로 고른 것 */
+export const BONUS = { title: 0.1, key: 0.04 };
+const flat = (s: string) => s.toLowerCase().replace(/\s+/g, '');
+const keysOf = (description: string) => [...description.matchAll(/\[([^\]]*)\]/g)].flatMap((m) => m[1].split(',').map(flat)).filter(Boolean);
+
+export function lexical(t: { title?: string; description?: string | null }, words: string[] = [], bonus = BONUS) {
+  const ws = words.map(flat).filter(Boolean);
+  if (!ws.length) return 0;
+  const title = flat(t.title ?? '');
+  if (ws.some((w) => title.includes(w))) return bonus.title; // "비" 는 "비밀" 에도 걸린다 — 제목은 짧아 드물다
+  const keys = keysOf(t.description ?? '');
+  return ws.some((w) => keys.some((k) => k === w || (w.length > 1 && k.includes(w)))) ? bonus.key : 0;
+}
 
 const PER_ARTIST = 2; // 가수당 앞에 두는 곡 수 — 1 이면 같은 가수 둘째 곡이 100등 밖으로 밀렸다(9/30 FANCY 가 합산 2~3등감인데 111등)
 
@@ -58,16 +73,16 @@ export const throwPenalty = (n: number) => Math.min(THROW_MAX, THROW_STEP * n);
 export function rank<T extends Candidate>(
   pool: T[],
   want: Want,
-  opts: { seen?: string[]; thrown?: string[]; a?: number; center?: boolean; penalty?: Map<string, number> } = {},
+  opts: { seen?: string[]; thrown?: string[]; a?: number; center?: boolean; penalty?: Map<string, number>; bonus?: typeof BONUS } = {},
 ) {
-  const { seen = [], thrown = [], a = A, center = true, penalty } = opts;
+  const { seen = [], thrown = [], a = A, center = true, penalty, bonus = BONUS } = opts;
   const fix = center ? centerer(pool.map((t) => t.vector)) : (v: number[]) => v;
   const vecs = new Map(pool.map((t) => [t.id, fix(t.vector)]));
   const vector = away(fix(want.vector), thrown.map((id) => vecs.get(id)).filter((v) => !!v));
   const skip = new Set([...seen, ...thrown]);
   const ranked = pool
     .filter((t) => !skip.has(t.id))
-    .map((t) => ({ ...t, score: total(Math.max(0, dot(vector, vecs.get(t.id)!)), soundScore(t, want), a) - (penalty?.get(t.id) ?? 0) }))
+    .map((t) => ({ ...t, score: total(Math.max(0, dot(vector, vecs.get(t.id)!)), soundScore(t, want), a) + lexical(t, want.words, bonus) - (penalty?.get(t.id) ?? 0) }))
     .sort((x, y) => y.score - x.score);
   const count = new Map<string, number>();
   const first = ranked.filter((t) => {

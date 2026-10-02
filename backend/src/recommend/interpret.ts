@@ -18,9 +18,22 @@ export type Asked = {
   vector: number[];
   energy: number | null; // 요청이 소리의 세기·밝기를 말할 때만
   valence: number | null;
+  words?: string[]; // 곡 제목·가사에 그대로 나올 낱말(한·영) — 1단계 글자 일치 가산(score.ts lexical)
+  alt?: Reading; // 짧고 여러 뜻으로 읽히는 요청의 두 번째 읽기 — 10곡을 두 읽기로 반반(recommend.ts stage1)
 };
+export type Reading = Pick<Asked, 'keywords' | 'description' | 'vector' | 'energy' | 'valence'>;
 
 const CACHE_MAX = 500;
+
+/* 곡 설명 틀(감정/상황/가사/소리) + 세기·밝기 — 첫 읽기와 두 번째 읽기(alt)가 같이 쓴다 */
+const READING = {
+  emotion: { type: 'STRING', description: '[핵심어 3개] + 들려줄 곡이 주면 좋을 감정 한두 문장. 예: "[이별, 미련, 그리움] 헤어진 사람을 잊지 못하고 지난 기억을 되새기는 마음이다."' },
+  situation: { type: 'STRING', description: '[핵심어 3개] + 이 사람이 있는 상황·때·장소 한두 문장. 예: "[이별 후, 혼자 있을 때, 밤] 홀로 남아 지나간 사람을 생각하며 마음을 정리하는 시간이다."' },
+  lyrics: { type: 'STRING', description: '[핵심어 2~3개] + 곡의 가사가 말하면 좋을 것 한두 문장. 예: "[이별, 잊지 못함, 추억] 아직 상대를 보내지 못하고 그리워하는 가사다."' },
+  sound: { type: 'STRING', description: '[핵심어 3개] + 어울리는 소리 한두 문장. 예: "[잔잔함, 쓸쓸함, 애절함] 조용히 감정을 다독이는 소리다."' },
+  energy: { type: 'NUMBER', nullable: true, description: '0(조용한)~1(격한). 요청이 세기를 드러낼 때만, 아니면 null' },
+  valence: { type: 'NUMBER', nullable: true, description: '0(슬픈·어두운)~1(밝은). 요청이 밝기를 드러낼 때만, 아니면 null' },
+};
 
 const SCHEMA = {
   type: 'OBJECT',
@@ -33,12 +46,19 @@ const SCHEMA = {
       description: '사용자가 직접 말한 가수만, 한글·원래 표기 둘 다 (예: "오아시스" → ["오아시스", "Oasis"]). 말하지 않았으면 빈 배열',
     },
     genres: { type: 'ARRAY', items: { type: 'STRING', enum: Object.keys(GENRES) }, description: '사용자가 직접 말한 장르만. 말하지 않았으면 빈 배열' },
-    emotion: { type: 'STRING', description: '[핵심어 3개] + 들려줄 곡이 주면 좋을 감정 한두 문장. 예: "[이별, 미련, 그리움] 헤어진 사람을 잊지 못하고 지난 기억을 되새기는 마음이다."' },
-    situation: { type: 'STRING', description: '[핵심어 3개] + 이 사람이 있는 상황·때·장소 한두 문장. 예: "[이별 후, 혼자 있을 때, 밤] 홀로 남아 지나간 사람을 생각하며 마음을 정리하는 시간이다."' },
-    lyrics: { type: 'STRING', description: '[핵심어 2~3개] + 곡의 가사가 말하면 좋을 것 한두 문장. 예: "[이별, 잊지 못함, 추억] 아직 상대를 보내지 못하고 그리워하는 가사다."' },
-    sound: { type: 'STRING', description: '[핵심어 3개] + 어울리는 소리 한두 문장. 예: "[잔잔함, 쓸쓸함, 애절함] 조용히 감정을 다독이는 소리다."' },
-    energy: { type: 'NUMBER', nullable: true, description: '0(조용한)~1(격한). 요청이 세기를 드러낼 때만, 아니면 null' },
-    valence: { type: 'NUMBER', nullable: true, description: '0(슬픈·어두운)~1(밝은). 요청이 밝기를 드러낼 때만, 아니면 null' },
+    ...READING,
+    words: {
+      type: 'ARRAY',
+      items: { type: 'STRING' },
+      description: '요청에 나온 낱말 중 곡 제목·가사에 그대로 나올 법한 말 0~5개 — 원형·활용형과 영어 (예: "미쳤어" → ["미쳤어", "미친", "crazy"], "비 오는 밤" → ["비", "rain", "밤", "night"]). 풀어 쓴 감정·상황 말은 넣지 않는다',
+    },
+    alt: {
+      type: 'OBJECT',
+      nullable: true,
+      description: '요청이 짧고 여러 뜻으로 읽힐 때만 두 번째로 그럴듯한 읽기(예: "미쳤어" — 신나서 / 화나서 / 지쳐서). 첫 읽기와 결이 달라야 한다. 뜻이 하나로 분명하면 null',
+      properties: { keywords: { type: 'ARRAY', items: { type: 'STRING' }, description: '이 읽기를 짧은 한국어 말 2~4개로' }, ...READING },
+      required: ['keywords', 'emotion', 'situation', 'lyrics', 'sound'],
+    },
   },
   required: ['keywords', 'emotion', 'situation', 'lyrics', 'sound'],
 };
@@ -56,6 +76,7 @@ export const promptFor = (query: string) =>
     '- 인사처럼 음악과 상관없는 말("안녕하세요")이면 그 말을 하는 사람의 기분을 짐작한다.',
     '- 가수·장르를 직접 말하면("오아시스의 신나는 노래", "재즈 듣고 싶어") artists·genres 에 담는다. 그 가수·장르의 결을 소리 항목에도.',
     '사용자가 말하지 않은 가수·장르·곡 이름은 지어내지 않는다.',
+    '한두 낱말처럼 짧고 여러 뜻으로 읽히는 요청("미쳤어", "백색", "헐")은 가장 그럴듯한 읽기를 위 틀에, 결이 다른 두 번째 읽기를 alt 에. 처방(위로)으로만 몰지 말고 그 말의 기분 자체도 읽는다.',
     '',
     `사용자: ${query}`,
   ].join('\n');
@@ -82,24 +103,31 @@ export class Interpreter {
 
   private async fresh(query: string): Promise<Asked> {
     try {
-      const p = JSON.parse(await this.gemini.generate(MODELS.query, promptFor(query), SCHEMA)) as Parts & {
-        keywords?: string[];
+      type Read = Parts & { keywords?: string[]; energy?: number | null; valence?: number | null };
+      const p = JSON.parse(await this.gemini.generate(MODELS.query, promptFor(query), SCHEMA)) as Read & {
         tags?: string[];
         artists?: string[];
         genres?: string[];
-        energy?: number | null;
-        valence?: number | null;
+        words?: string[];
+        alt?: Read | null;
       };
       const description = describeText(p);
+      const altText = p.alt?.emotion ? describeText(p.alt) : null;
+      const [vector, altVector] = await Promise.all([this.gemini.embed(description), altText ? this.gemini.embed(altText) : null]); // 임베딩 둘은 같이
       return {
         keywords: (p.keywords ?? []).map((k) => k.trim()).filter(Boolean).slice(0, 5),
         tags: (p.tags ?? []).map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 3),
         artists: (p.artists ?? []).map((a) => a.trim()).filter(Boolean).slice(0, 6),
         genres: (p.genres ?? []).filter((g) => g in GENRES),
         description,
-        vector: await this.gemini.embed(description),
+        vector,
         energy: clamp(p.energy),
         valence: clamp(p.valence),
+        words: (p.words ?? []).map((w) => w.trim().toLowerCase()).filter(Boolean).slice(0, 5),
+        alt:
+          p.alt && altText && altVector
+            ? { keywords: (p.alt.keywords ?? []).map((k) => k.trim()).filter(Boolean).slice(0, 4), description: altText, vector: altVector, energy: clamp(p.alt.energy), valence: clamp(p.alt.valence) }
+            : undefined,
       };
     } catch (e) {
       // 대화 모델이 막혔다 — 요청문 그대로 (이것도 실패하면 위로 던진다)

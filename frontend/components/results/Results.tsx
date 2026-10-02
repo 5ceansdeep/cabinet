@@ -248,7 +248,7 @@ export default function Results({ query, genres }: { query: string; genres: stri
 
           {/* 오른쪽 곡 목록 + 재생 — 누르면 그 곡이 드라이브로. 디스크 밑 이름표는 10/1 뺐다(곡 이름·이유는 목록에).
               보고서 꺼 둠 — 되살릴 때 app/report/[id]/page.tsx 와 같이 목록에 "보고서 열람" 링크를 단다 */}
-          {phase === "discs" && kept.length > 0 && <Playlist tracks={kept} playing={playing} onPick={insert} onEject={eject} />}
+          {phase === "discs" && kept.length > 0 && <Playlist query={query} tracks={kept} playing={playing} onPick={insert} onEject={eject} />}
 
           {phase === "naming" && (
             /* 네임택 — 자동으로 지어 준 이름이 적혀 있고, 그 위에서 바로 고쳐 쓸 수 있다 */

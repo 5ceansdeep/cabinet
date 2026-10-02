@@ -56,7 +56,7 @@ export default function SharedShelf({ shelf }: { shelf: PublicShelf }) {
 
         {playing && (
           <div className="mt-4 text-sm">
-            <PlayerBar track={playing} onEject={() => setPlaying(null)} />
+            <PlayerBar track={playing} onEject={() => setPlaying(null)} from={{ query: shelf.query, shelfId: shelf.id }} />
           </div>
         )}
 

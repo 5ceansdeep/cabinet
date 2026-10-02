@@ -10,7 +10,9 @@ export default function Playlist({
   playing,
   onPick,
   onEject,
+  query,
 }: {
+  query: string;
   tracks: Track[];
   playing: Track | null;
   onPick: (t: Track) => void;
@@ -39,7 +41,7 @@ export default function Playlist({
           );
         })}
       </ol>
-      <PlayerBar track={playing} onEject={onEject} />
+      <PlayerBar track={playing} onEject={onEject} from={{ query }} />
     </aside>
   );
 }

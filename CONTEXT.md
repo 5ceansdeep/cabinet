@@ -21,7 +21,7 @@
 
 ## 10/2 한 일 (main 에 합침, **푸시 전**)
 - **추천 API 호출 제한**: `/recommend`·`/line`·`/:id` 합쳐 IP 당 분당 10·하루 200(`Limiter`, 메모리), 넘으면 429 → 화면은 "서랍이 뻑뻑하네"
-- **행동 기록** `EventLog`(play·finish·save·share·youtube, trackId/shelfId, 사용자·IP·요청문 없음) + `POST /events`(IP 당 분당 30·하루 1000). Neon 에 마이그레이션 적용함
+- **행동 기록** `EventLog`(play·finish·save·share·youtube, trackId/shelfId, 재생·끝까지엔 요청문 `query` — 어떤 편지 → 어떤 곡. 사용자·IP 없음) + `POST /events`(IP 당 분당 30·하루 1000). Neon 에 마이그레이션 적용함
 - **Vercel Web Analytics**: 패키지 없이 `/_vercel/insights/script.js`(배포에서만) — Vercel 에서 Enable 해야 산다
 - 배포 주소 한 바퀴 헤드리스: 랜딩·편지·로딩·디스크·재생·서랍 넣기·공유 카드·보관함·공개 서랍·카톡 미리보기 이미지·휴대폰 공개 서랍 다 정상. 새 요청 5.3초·같은 요청 2.2초(회사망).
   재설정 대사 음성 mp3 없음(404 → 기계 음성, 알던 것). 시험 계정은 지움

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fragment_Mono, Inter, Nanum_Myeongjo } from "next/font/google";
 import localFont from "next/font/local";
+import Script from "next/script";
 import "./globals.css";
 
 /* Main Sans-Serif — UI, 인풋, 데이터 수치. Pretendard 는 CSS 폴백 스택에서 받는다. */
@@ -43,6 +44,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <div className="cinema">{children}</div>
         {/* 자막 띠 — 프레임 아래 검은 영역. 자막은 여기로 옮겨 그린다 */}
         <div id="cinema-sub" className="cinema-sub" />
+        {/* Vercel Web Analytics(방문·이탈) — Vercel 대시보드에서 Analytics 를 켜야 이 주소가 산다. 배포에서만 */}
+        {process.env.VERCEL && <Script src="/_vercel/insights/script.js" strategy="afterInteractive" />}
       </body>
     </html>
   );

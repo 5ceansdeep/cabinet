@@ -10,6 +10,9 @@
 
 ## 2. 공개 전 꼭 할 것
 
+- [사용자] **곡 설명 붙이기** — 10/2 부터 새벽 곡 설명(Gemini) 자동 실행을 껐다(`DESCRIBE_NIGHTLY`). `refill` 로 모은 곡은 설명이 붙기 전엔 추천에 안 나온다.
+  다 모으면 AI Studio 한도를 보고 `POST /catalog/describe`(설명 없는 곡 전부) — 곡당 Gemini 2번
+
 - [사용자] Railway Variables 에 `GMAIL_USER`·`GMAIL_APP_PASSWORD` 확인 → 배포 사이트 `/forgot` 으로 본인 메일 시험 → 그 김에 **관리자 비밀번호 바꾸기**(대화에 노출됨)
 - [사용자] AI Studio **비용 제한**(월 한도), **Railway Hobby 전환**(체험 크레딧 30일·$5 끝나기 전)
 - [사용자] **`main` 푸시**(10/2 호출 제한·행동 기록·Analytics) → Vercel 프로젝트 **Analytics 탭에서 Enable**

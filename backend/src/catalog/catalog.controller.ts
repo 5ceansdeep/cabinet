@@ -107,12 +107,13 @@ export class CatalogController {
     return this.describe.getStatus();
   }
 
-  /* 새벽 배치 셋(4시 넓히기 → 5시 소리 → 6시 설명)을 지금 한 번에 — 앞 배치가 끝나면 다음을. 새 곡만 손대니 DB 통째 다시 쓰기는 아니다.
+  /* 곡 모으기를 한 번에 — 넓히기(iTunes·Last.fm) → 끝나면 소리 분석(ReccoBeats). 둘 다 Gemini 를 안 쓴다.
+     10/2 사용자: 곡을 먼저 잔뜩 모으고 Gemini 설명은 나중에 POST /catalog/describe 로 한 번에 — 설명이 붙기 전엔 추천에 안 나온다.
      영상 ID 는 추천에 안 쓰여 빼 둔다(재생목록을 열 때·밤 배치가 찾는다) */
   @Post('refill')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: '곡 풀 넓히기 → 소리 분석 → 곡 설명을 이어서 (관리자) — 새 곡이 추천에 나오기까지 한 번에. 뒤에서 돌고 바로 상태를 돌려준다 [Gemini]' })
+  @ApiOperation({ summary: '곡 풀 넓히기 → 소리 분석을 이어서 (관리자) — Gemini 없이 곡만 모은다. 추천에 나오려면 나중에 POST /catalog/describe. 뒤에서 돌고 바로 상태를 돌려준다' })
   @ApiResponse({ status: 403, description: 'ADMIN_EMAILS 에 없는 계정' })
   refill(@Body() dto: GrowDto, @Req() req: { user: { email: string } }) {
     if (!isAdmin(req.user.email)) throw new ForbiddenException('곡 풀은 관리자만 넓힐 수 있네');
@@ -123,8 +124,6 @@ export class CatalogController {
     void (async () => {
       await until(() => this.pool.getStatus().running);
       this.sound.start();
-      await until(() => this.sound.getStatus().running);
-      this.describe.start();
     })();
     return this.refillStatus(req);
   }
@@ -132,7 +131,7 @@ export class CatalogController {
   @Get('refill')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: '이어 돌기 진행 상황 (관리자) — 넓히기·소리·설명 셋' })
+  @ApiOperation({ summary: '이어 돌기 진행 상황 (관리자) — 넓히기·소리, 그리고 따로 돌린 설명' })
   refillStatus(@Req() req: { user: { email: string } }) {
     if (!isAdmin(req.user.email)) throw new ForbiddenException('곡 풀은 관리자만 볼 수 있네');
     return { grow: this.pool.getStatus(), sound: this.sound.getStatus(), describe: this.describe.getStatus() };

@@ -4,6 +4,7 @@ import { IsString, MaxLength } from 'class-validator';
 import { CatalogModule } from '../catalog/catalog.module.js';
 import { GENRES, inGenres } from '../catalog/genres.js';
 import { same } from '../catalog/itunes.js';
+import { similarArtists, similarTracks } from '../catalog/lastfm.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VoiceModule, VoiceService } from '../voice/voice.js';
 import { type Asked, Interpreter } from './interpret.js';
@@ -34,6 +35,11 @@ const POOL_CHECK_MS = 60_000; // 곡 목록을 메모리에 두고, 이만큼 �
 const LINE_MAX = 10; // 한마디에 넘기는 곡 수 상한
 const PIN_TITLE = 3; // 제목 일치로 맨 앞에 고정하는 곡 수 — "비" 처럼 제목 여러 개에 걸리는 낱말이 다 차지하지 못하게
 const SHOW = 10; // 한 번에 꺼내는 곡 수 — 6곡은 너무 적었다(10/1 사용자)
+const KIN_FEW = 5; // 편지에 쓴 가수 곡이 이보다 적으면 비슷한 가수 곡으로 채운다(10/2 박효신)
+const KIN_BONUS = 0.08; // 비슷한 가수 곡에 더하는 점수(1단계 0~1) — 뜻이 맞는 곡 중에서 그 가수들을 앞으로
+const KIN_MS = 2500; // Last.fm 비슷한 가수·곡이 이보다 늦으면 없이 간다
+const LOST_LEAD = 2; // 꼽은 곡이 서류함에 없을 때 그 가수 곡을 맨 앞에 몇 곡 — 가산만으론 재정렬이 걸러 냈다
+const LIKE_BONUS = 0.1; // 꼽은 곡과 Last.fm 이 비슷하다고 한 곡에 더하는 점수 — 실제 청취 기록 기반이라 가수보다 조금 더
 const MIN_GENRE = SHOW; // 고른 장르 곡이 이보다 적으면 나머지 곡으로 채운다 — 빈 서랍보다 낫다(장르 곡이 앞)
 const THROW_DAYS = 30; // 이만큼 지난 던진 기록은 순위에 안 쓴다 — 곡 설명을 고치면 다시 기회를
 const THROW_PER_IP = 100; // 한 곳에서 하루에 세는 던진 곡 수
@@ -114,12 +120,44 @@ export class RecommendService {
 
   async recommend(query: string, opts: { seen?: string[]; thrown?: string[]; genres?: string[]; limit?: number } = {}) {
     const { seen = [], thrown = [], genres = [], limit = SHOW } = opts;
-    const [asked, pool, penalty] = await Promise.all([this.interpreter.interpret(query), this.loadPool(), this.penalties()]); // 서로 필요 없다 — 같이
+    const [said, pool, throws] = await Promise.all([this.interpreter.interpret(query), this.loadPool(), this.penalties()]); // 서로 필요 없다 — 같이
+    // 편지에 꼽은 곡(10/2) — 곡 풀에 있으면 그 곡 벡터를 요청 벡터에 반반 섞어 결이 비슷한 곡을 찾고, 그 곡은 맨 앞에
+    const songs = said.songs ?? [];
+    const seeds = songs.map((g) => pool.find((t) => same(t.artist, g.artist) && sameTitle(t.title, g.title))).filter((t): t is Pooled => !!t);
+    // 꼽은 곡의 가수는 "말한 가수 곡 맨 앞 고정"에서 뺀다 — 해석이 artists 에도 넣어 그 가수 곡만 10곡 나왔다("검정치마 Everything 같은 노래")
+    const pinArtists = (said.artists ?? []).filter((a) => !songs.some((g) => same(g.artist, a)));
+    const asked = { ...said, artists: pinArtists, ...(seeds.length && { vector: blend(said.vector, seeds.map((t) => t.vector)) }) };
+    // 편지에 쓴 가수 곡이 적으면 Last.fm 비슷한 가수 중 곡 풀에 있는 가수, 꼽은 곡은 Last.fm 비슷한 곡 중 곡 풀에 있는 곡 — 감점표에 음수(가산)로
+    const named = asked.artists?.length ? pool.filter((t) => asked.artists!.some((a) => same(t.artist, a))) : [];
+    // 꼽은 곡이 서류함에 없으면 — 그 곡을 부른 가수의 다른 곡과 그 가수와 비슷한 가수 곡을 앞으로(10/2 "박효신 Shine Your Light 같은 노래" 에 제목 낱말만 보고 외국 곡이 나왔다)
+    const lostBy = songs.filter((g) => !seeds.some((t) => same(t.artist, g.artist) && sameTitle(t.title, g.title))).map((g) => g.artist);
+    const [kin, like] = await Promise.all([
+      (asked.artists?.length && named.length < KIN_FEW) || lostBy.length
+        ? within(this.kinOf([...(named.length < KIN_FEW ? (asked.artists ?? []) : []), ...lostBy], pool), KIN_MS).then((x) => x ?? [])
+        : [],
+      songs.length ? within(this.likeOf(songs, pool), KIN_MS).then((x) => x ?? []) : [],
+    ]);
+    const penalty = new Map(throws);
+    const add = (id: string, v: number) => penalty.set(id, (penalty.get(id) ?? 0) - v);
+    for (const t of pool) if (kin.some((k) => same(t.artist, k))) add(t.id, KIN_BONUS);
+    for (const t of pool) if (lostBy.some((a) => same(t.artist, a))) add(t.id, LIKE_BONUS); // 그 곡을 부른 가수 본인 곡이 제일 가깝다
+    for (const id of like) add(id, LIKE_BONUS);
     const { ranked, cands, pick } = stage1(pool, asked, { seen, thrown, penalty, genres });
-    // 2단계 — 후보 20곡의 곡 설명을 LLM 이 읽고 순서를 다시 매긴다(+ 곡별 이유·신의 한마디). 늦거나 실패하면 1단계 순서 그대로
-    const rr = cands.length ? await within(this.reranker.rerank(query, readings(asked), cands), RERANK_MS) : null;
-    const picked = pinTitled(pick(rr ? finalOrder(cands, rr.order, asked.artists) : ranked), asked).slice(0, limit);
-    // 화면 일치도는 1단계 점수로 늘린 값 — 순서가 바뀌면 아래 곡이 더 높아 보이니, 뽑힌 곡들의 % 를 큰 것부터 새 순서대로 나눠 준다
+    // 2단계 — 후보의 곡 설명을 LLM 이 읽고 순서를 다시 매긴다(+ 신의 한마디). 늦거나 실패하면 1단계 순서 그대로
+    const notes = [
+      kin.length && asked.artists?.length ? `편지에 쓴 가수(${asked.artists[0]})의 곡이 서류함에 ${named.length ? "적어" : "없어"}, 결이 비슷한 가수의 곡을 앞에: ${kin.join(", ")}` : "",
+      lostBy.length ? `편지에 꼽은 곡은 서류함에 없다 — 그 곡을 부른 ${lostBy.join(", ")} 의 다른 곡과 비슷한 가수(${kin.join(", ") || "없음"}) 곡을 앞에` : "",
+      songs.length ? `편지에 꼽은 곡: ${songs.map((g) => `${g.artist} - ${g.title}`).join(", ")} — 그 곡과 감정·소리 결이 비슷한 곡을 앞에` : "",
+    ].filter(Boolean);
+    const want = [readings(asked), ...notes].join("\n\n");
+    const rr = cands.length ? await within(this.reranker.rerank(query, want, cands), RERANK_MS) : null;
+    const ordered = pinTitled(pick(rr ? finalOrder(cands, rr.order, asked.artists) : ranked), asked);
+    // 맨 앞 — 꼽은 곡 그 자체, 꼽은 곡이 없으면 그 곡을 부른 가수 곡 중 가장 맞는 LOST_LEAD 곡(본·던진 곡은 ranked 에 없다)
+    const lead = [
+      ...ranked.filter((t) => seeds.some((x) => x.id === t.id)),
+      ...lostBy.flatMap((a) => ranked.filter((t) => same(t.artist, a)).slice(0, LOST_LEAD)),
+    ];
+    const picked = [...lead, ...ordered.filter((t) => !lead.includes(t))].slice(0, limit);
     const pct = picked.map((t) => shown(t, ranked).semantic).sort((a, b) => b - a);
     const tracks = picked.map((t, i) => ({ ...shown(t, ranked), semantic: pct[i], reason: rr?.reasons[t.id] ?? null }));
     const line = rr?.line ? { ...rr.line, voice: this.voice.register(rr.line.en) } : null; // 영어 음성 id — ElevenLabs 를 꺼 두면 null
@@ -136,14 +174,54 @@ export class RecommendService {
             query: query.trim(),
             tracks: JSON.stringify(shownNames),
             line: line?.ko ?? "",
-            asked: JSON.stringify(asked.artists ?? []),
+            asked: JSON.stringify([...new Set([...(said.artists ?? []), ...songs.map((g) => g.artist)])]), // 꼽은 곡의 가수도 다음 수집 씨앗으로
           },
         })
         .catch(() => undefined);
     }
     // 편지에 쓴 가수 곡이 곡 풀에 하나도 없으면 — 화면이 "아직 없어요" 를 알린다(10/2 박효신 — 말없이 엉뚱한 곡을 줬다). 검색 기록 asked 로 다음 수집에 들어간다
-    const missingArtist = asked.artists?.length && !pool.some((t) => asked.artists!.some((a) => same(t.artist, a))) ? asked.artists[0] : null;
-    return { interpretation: shownKeywords(asked), description: readings(asked), tracks, line, missingArtist };
+    const missingArtist = asked.artists?.length && !named.length ? asked.artists[0] : null;
+    const kinShown = kin.filter((k) => tracks.some((t) => same(t.artist, k))).slice(0, 3); // 화면 안내에 — 실제로 나온 비슷한 가수만
+    const missing = songs.find((g) => !seeds.some((t) => same(t.artist, g.artist) && sameTitle(t.title, g.title)));
+    const missingSong = missing ? `${missing.artist} - ${missing.title}` : null; // 꼽은 곡이 서류함에 없다 — 화면이 알린다
+    return { interpretation: shownKeywords(asked), description: readings(asked), tracks, line, missingArtist, kinArtists: kinShown, kinFor: kinShown.length && asked.artists?.length ? asked.artists[0] : null, missingSong };
+  }
+
+  /* 비슷한 가수 — 편지에 쓴 가수(한글·원래 표기 둘 다)의 Last.fm 비슷한 가수 중 곡 풀에 있는 가수(곡 풀 표기로). 가수마다 기억해 둔다(실패·빈 목록은 안 기억 — 다음에 다시) */
+  private readonly kin = new Map<string, Promise<string[]>>();
+  private async kinOf(artists: string[], pool: { artist: string }[]) {
+    const lists = await Promise.all(
+      artists.map((a) => {
+        const k = a.toLowerCase();
+        let p = this.kin.get(k);
+        if (!p) {
+          p = similarArtists(a, 30).catch(() => []);
+          this.kin.set(k, p);
+          void p.then((l) => !l.length && this.kin.delete(k));
+        }
+        return p;
+      }),
+    );
+    const names = [...new Set(lists.flat())].filter((n) => !artists.some((a) => same(n, a)));
+    return [...new Set(pool.filter((t) => names.some((n) => same(t.artist, n))).map((t) => t.artist))];
+  }
+
+  /* 비슷한 곡 — 꼽은 곡마다 Last.fm 비슷한 곡 중 곡 풀에 있는 곡 id. 곡마다 기억해 둔다(실패·빈 목록은 안 기억) */
+  private readonly like = new Map<string, Promise<{ title: string; artist: string }[]>>();
+  private async likeOf(songs: { title: string; artist: string }[], pool: Pooled[]) {
+    const lists = await Promise.all(
+      songs.map((g) => {
+        const k = `${g.artist}|${g.title}`.toLowerCase();
+        let p = this.like.get(k);
+        if (!p) {
+          p = similarTracks(g.title, g.artist, 50).catch(() => []);
+          this.like.set(k, p);
+          void p.then((l) => !l.length && this.like.delete(k));
+        }
+        return p;
+      }),
+    );
+    return pool.filter((t) => lists.flat().some((r) => same(t.artist, r.artist) && sameTitle(t.title, r.title))).map((t) => t.id);
   }
 
   /** 최근 THROW_DAYS 일 동안 던져진 곡 → 깎을 점수 */
@@ -229,6 +307,19 @@ export const readings = (asked: Asked) => (asked.alt ? `${asked.description}
 ${asked.alt.description}` : asked.description);
 /** 화면 "요청 해석" — 두 번째 읽기의 말도 두 개까지 */
 const shownKeywords = (asked: Asked) => (asked.alt ? [...asked.keywords.slice(0, 3), ...asked.alt.keywords.slice(0, 2)] : asked.keywords);
+
+/** 두 벡터를 반반 — 요청 벡터와 꼽은 곡(들)의 평균, 다시 길이 1 */
+export const blend = (a: number[], bs: number[][]) => {
+  const v = a.map((x, i) => x / 2 + bs.reduce((s, b) => s + b[i], 0) / bs.length / 2);
+  const n = Math.hypot(...v) || 1;
+  return v.map((x) => x / n);
+};
+const flatTitle = (s: string) => s.toLowerCase().replace(/\(.*?\)|\[.*?\]/g, "").replace(/[^\p{L}\p{N}]/gu, "");
+/** 같은 곡 제목인가 — 괄호(feat.·Remastered)·기호·대소문자는 무시, 한쪽이 다른 쪽으로 시작해도 같다 */
+export const sameTitle = (a: string, b: string) => {
+  const x = flatTitle(a), y = flatTitle(b);
+  return !!x && !!y && (x === y || x.startsWith(y) || y.startsWith(x));
+};
 
 /** 늦으면 null */
 const within = <T>(p: Promise<T>, ms: number) => Promise.race([p, new Promise<null>((ok) => setTimeout(() => ok(null), ms))]);

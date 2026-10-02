@@ -81,6 +81,11 @@ export async function similarArtists(artist: string, limit = 5): Promise<string[
   return (r?.similarartists?.artist ?? []).map((a) => a.name);
 }
 
+export async function similarTracks(title: string, artist: string, limit = 50): Promise<Ref[]> {
+  const r = await call<{ similartracks?: { track?: TrackList } }>({ method: 'track.getSimilar', track: title, artist, limit: String(limit), autocorrect: '1' });
+  return (r?.similartracks?.track ?? []).map((t) => ({ title: t.name, artist: t.artist.name }));
+}
+
 export async function artistTopTracks(artist: string, limit = 3): Promise<Ref[]> {
   const r = await call<{ toptracks?: { track?: TrackList } }>({ method: 'artist.getTopTracks', artist, limit: String(limit) });
   return (r?.toptracks?.track ?? []).map((t) => ({ title: t.name, artist: t.artist.name }));

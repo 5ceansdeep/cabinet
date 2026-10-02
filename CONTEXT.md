@@ -25,6 +25,10 @@
 - 배포에서 서버에 못 닿으면 가짜 곡 대신 한 번 더 → "다시 뒤지기"(가짜 곡은 로컬 개발만), 보관함 견본 서랍 뺌, 같은 플레이리스트 다시 저장하면 그 서랍 갱신,
   보관함 서랍 디스크 5장씩 두 줄(10곡이 서랍 밖으로 삐져나왔다)
 - 추천 개선 기록 [docs/recommend-journey.md](docs/recommend-journey.md)
+- 제목에 요청 낱말 든 곡은 맨 앞 고정(미쳤어 → Crazy 1위), `POST /catalog/refill`(넓히기→소리→설명 한 번에), 보관함 서랍 = 플레이리스트 수(0개면 한마디),
+  신의 한마디를 곡 소개 대신 상황 반응으로 + **모든 대사에서 신인 걸 티 안 냄**(다 아는 관리인, voice-persona.md 0장 — 바꾼 대사 mp3 4개 뺌, 다시 녹음 필요)
+- **요청 풀어 쓰기에 쓰임 장면**(드라마·예능 브금·밈·챌린지) 추가 → 재현율 41 → 46%(36/45). **곡 설명 쪽 쓰임은 표본 99곡에서 39% 로 나빠져 안 씀**(DB 그대로)
+- 다음: 곡 풀을 지금과 반대 결로 — `refill` 에 tags [metal, punk, soundtrack, classical, video game music, anime, dark, comedy, ost, edm](Last.fm 확인함, trot·suspense·k-drama 태그는 거의 없음)
 - **추천 API 호출 제한**: `/recommend`·`/line`·`/:id` 합쳐 IP 당 분당 10·하루 200(`Limiter`, 메모리), 넘으면 429 → 화면은 "서랍이 뻑뻑하네"
 - **행동 기록** `EventLog`(play·finish·save·share·youtube, trackId/shelfId, 재생·끝까지엔 요청문 `query` — 어떤 편지 → 어떤 곡. 사용자·IP 없음) + `POST /events`(IP 당 분당 30·하루 1000). Neon 에 마이그레이션 적용함
 - **Vercel Web Analytics**: 패키지 없이 `/_vercel/insights/script.js`(배포에서만) — Vercel 에서 Enable 해야 산다

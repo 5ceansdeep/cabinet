@@ -10,6 +10,7 @@ export const fonts = async () => [
   { name: "Mono", data: await file("IBMPlexMono-Regular.ttf"), weight: 400 as const, style: "normal" as const },
   { name: "Mono", data: await file("IBMPlexMono-SemiBold.ttf"), weight: 600 as const, style: "normal" as const },
   { name: "Chosun", data: await file("ChosunGu.woff"), weight: 400 as const, style: "normal" as const },
+  { name: "Anton", data: await file("Anton-Regular.ttf"), weight: 400 as const, style: "normal" as const }, // 영수증 로고
 ];
 
 const ART = /^https:\/\/is\d+-ssl\.mzstatic\.com\//;

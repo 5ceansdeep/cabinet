@@ -45,19 +45,25 @@ export const TRACKS: Track[] = [
 type Scored = Omit<Track, "cover">;
 
 /* 요청문으로 곡을 꺼낸다. seen = 이미 보여 준 곡(몇 곡 더), thrown = 던져 버린 곡(빼고 다시).
-   서버에 아예 닿지 못하면(개발 중 백엔드를 안 켬) 가짜 곡에서 같은 규칙으로. 서버가 오류를 내면 가짜 곡으로 덮지 않고 failed —
-   예전엔 오류도 가짜 곡으로 보여 줘서 결과처럼 보였다(9/30, 백엔드 재시작 중 요청) */
+   서버가 오류를 내면 가짜 곡으로 덮지 않고 failed — 예전엔 오류도 가짜 곡으로 보여 줘서 결과처럼 보였다(9/30, 백엔드 재시작 중 요청).
+   못 닿거나 5xx 면 한 번 더 부른다(배포 중 Railway 502 는 CORS 헤더가 없어 브라우저엔 "못 닿음"으로 보인다).
+   가짜 곡은 개발 중 백엔드를 안 켰을 때만 — 배포에서 못 닿으면 failed(다시 뒤지기). 10/2 사용자: 목데이터 띄우지 말 것 */
 export async function findTracks(query: string, opt: { seen?: string[]; thrown?: string[]; genres?: string[] } = {}): Promise<Found> {
   const qs = new URLSearchParams({ q: query });
   if (opt.genres?.length) qs.set("g", opt.genres.join(","));
   if (opt.seen?.length) qs.set("seen", opt.seen.join(","));
   if (opt.thrown?.length) qs.set("thrown", opt.thrown.join(","));
-  const r = await api<{ interpretation: string[]; tracks: Scored[]; line: GodLine | null }>(`/recommend?${qs}`);
+  const get = () => api<{ interpretation: string[]; tracks: Scored[]; line: GodLine | null }>(`/recommend?${qs}`);
+  let r = await get();
+  if (!r.ok && (r.status === 0 || r.status >= 500)) {
+    await new Promise((ok) => setTimeout(ok, 1500));
+    r = await get();
+  }
   if (r.ok) {
     r.data.tracks.forEach((t) => t.artwork && void loadArt(t.artwork)); // 표지는 곡 목록을 받자마자 — 3D 디스크가 생길 때 받으면 늦다
     return { interpretation: r.data.interpretation, line: r.data.line, tracks: r.data.tracks.map((t) => ({ ...t, cover: gradientOf(t.id) })) };
   }
-  if (r.status !== 0) return { interpretation: [], tracks: [], failed: true };
+  if (r.status !== 0 || process.env.NODE_ENV === "production") return { interpretation: [], tracks: [], failed: true };
   const skip = new Set([...(opt.seen ?? []), ...(opt.thrown ?? [])]);
   return { interpretation: [], tracks: TRACKS.filter((t) => !skip.has(t.id)).slice(0, 10) };
 }

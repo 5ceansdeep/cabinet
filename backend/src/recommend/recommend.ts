@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { VoiceModule, VoiceService } from '../voice/voice.js';
 import { type Asked, Interpreter } from './interpret.js';
 import { Reranker } from './rerank.js';
-import { display, rank, throwPenalty } from './score.js';
+import { BONUS, type Candidate, display, rank, throwPenalty } from './score.js';
 
 class ThrowDto {
   @ApiProperty({ description: '던진 곡 id' })
@@ -113,11 +113,10 @@ export class RecommendService {
   async recommend(query: string, opts: { seen?: string[]; thrown?: string[]; genres?: string[]; limit?: number } = {}) {
     const { seen = [], thrown = [], genres = [], limit = SHOW } = opts;
     const [asked, pool, penalty] = await Promise.all([this.interpreter.interpret(query), this.loadPool(), this.penalties()]); // 서로 필요 없다 — 같이
-    const ranked = arrange(rank(pool, asked, { seen, thrown, penalty }), asked, genres);
+    const { ranked, cands, pick } = stage1(pool, asked, { seen, thrown, penalty, genres });
     // 2단계 — 후보 20곡의 곡 설명을 LLM 이 읽고 순서를 다시 매긴다(+ 곡별 이유·신의 한마디). 늦거나 실패하면 1단계 순서 그대로
-    const cands = ranked.slice(0, CANDIDATES);
-    const rr = cands.length ? await within(this.reranker.rerank(query, asked.description, cands), RERANK_MS) : null;
-    const picked = (rr ? finalOrder(cands, rr.order, asked.artists) : ranked).slice(0, limit);
+    const rr = cands.length ? await within(this.reranker.rerank(query, readings(asked), cands), RERANK_MS) : null;
+    const picked = pick(rr ? finalOrder(cands, rr.order, asked.artists) : ranked).slice(0, limit);
     // 화면 일치도는 1단계 점수로 늘린 값 — 순서가 바뀌면 아래 곡이 더 높아 보이니, 뽑힌 곡들의 % 를 큰 것부터 새 순서대로 나눠 준다
     const pct = picked.map((t) => shown(t, ranked).semantic).sort((a, b) => b - a);
     const tracks = picked.map((t, i) => ({ ...shown(t, ranked), semantic: pct[i], reason: rr?.reasons[t.id] ?? null }));
@@ -129,7 +128,7 @@ export class RecommendService {
         .create({ data: { tags: JSON.stringify(Object.fromEntries((asked.tags ?? []).map((t) => [t, 100]))), artists: JSON.stringify([...new Set(tracks.map((t) => t.artist))].slice(0, 3)) } })
         .catch(() => undefined);
     }
-    return { interpretation: asked.keywords, description: asked.description, tracks, line };
+    return { interpretation: shownKeywords(asked), description: readings(asked), tracks, line };
   }
 
   /** 최근 THROW_DAYS 일 동안 던져진 곡 → 깎을 점수 */
@@ -159,7 +158,7 @@ export class RecommendService {
     const [asked, pool] = await Promise.all([this.interpreter.interpret(query), this.loadPool()]);
     const cands = ids.map((id) => pool.find((t) => t.id === id)).filter((t) => !!t);
     if (!cands.length) return { line: null, reasons: {} };
-    const { reasons, line } = await this.reranker.rerank(query, asked.description, cands);
+    const { reasons, line } = await this.reranker.rerank(query, readings(asked), cands);
     // 영어 음성 id — ELEVENLABS_ENABLED 가 꺼져 있으면 null(프론트는 기계 음성)
     return { line: line && { ...line, voice: this.voice.register(line.en) }, reasons };
   }
@@ -176,6 +175,46 @@ export class RecommendService {
 
 /** 점수 순위 뒤 손질 — 요청문에서 직접 말한 가수 곡이 맨 앞(점수 순 — "신나는" 은 소리 점수가 가른다),
     말한 장르는 편지지 칩과 같이 거른다(모자라면 나머지로 채움). 평가(eval.ts)도 같은 순서로 잰다 */
+/** 1단계 — 점수 순위(+ 말한 가수·장르 손질)에서 재정렬 후보를 뽑는다. 서비스·평가(eval.ts)가 같이 쓴다.
+    두 번째 읽기(alt)가 있으면 두 읽기의 순위에서 번갈아 후보를 뽑고, pick 이 최종 순서도 두 읽기로 번갈아 세운다 —
+    "미쳤어" 처럼 애매한 요청에 10곡이 한쪽(지친 위로곡)으로 몰리지 않게. 사용자가 맞는 쪽만 남기고 던지면 된다 */
+export function stage1<T extends Candidate & { tags: string }>(
+  pool: T[],
+  asked: Asked,
+  opts: { seen?: string[]; thrown?: string[]; penalty?: Map<string, number>; genres?: string[]; a?: number; center?: boolean; bonus?: typeof BONUS } = {},
+) {
+  const { genres = [], ...rankOpts } = opts;
+  const main = arrange(rank(pool, asked, rankOpts), asked, genres);
+  if (!asked.alt) return { ranked: main, cands: main.slice(0, CANDIDATES), pick: <U extends { id: string }>(xs: U[]) => xs };
+  const second = arrange(rank(pool, { ...asked.alt, words: asked.words }, rankOpts), asked, genres);
+  const both = alternate(main, second);
+  const at = (xs: T[], t: T) => (xs.includes(t) ? xs.indexOf(t) : Infinity);
+  const side = new Map(both.map((t) => [t.id, at(main, t) <= at(second, t) ? 0 : 1] as const)); // 더 높이 둔 읽기 쪽
+  const pick = <U extends { id: string }>(xs: U[]) => alternate(xs.filter((t) => side.get(t.id) !== 1), xs.filter((t) => side.get(t.id) === 1));
+  return { ranked: both, cands: both.slice(0, CANDIDATES), pick };
+}
+
+/** 두 줄에서 번갈아 — 겹치는 곡은 한 번만 */
+export function alternate<T extends { id: string }>(a: T[], b: T[]) {
+  const out: T[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < Math.max(a.length, b.length); i++)
+    for (const t of [a[i], b[i]])
+      if (t && !seen.has(t.id)) {
+        seen.add(t.id);
+        out.push(t);
+      }
+  return out;
+}
+
+/** 재정렬·보고서에 넘기는 요청 설명 — 두 번째 읽기가 있으면 같이 */
+export const readings = (asked: Asked) => (asked.alt ? `${asked.description}
+
+또는
+${asked.alt.description}` : asked.description);
+/** 화면 "요청 해석" — 두 번째 읽기의 말도 두 개까지 */
+const shownKeywords = (asked: Asked) => (asked.alt ? [...asked.keywords.slice(0, 3), ...asked.alt.keywords.slice(0, 2)] : asked.keywords);
+
 /** 늦으면 null */
 const within = <T>(p: Promise<T>, ms: number) => Promise.race([p, new Promise<null>((ok) => setTimeout(() => ok(null), ms))]);
 

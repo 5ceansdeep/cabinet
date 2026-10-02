@@ -55,9 +55,9 @@ const MAP: Record<string, string[]> = {
   acoustic: ['acoustic'],
 };
 
-/* 편지지에서 고르는 장르 — 키 → 곡 태그(Last.fm·iTunes 장르). 겹치는 장르는 하나로 묶었다(9/30 사용자:
+/* 장르 키 → 곡 태그(Last.fm·iTunes 장르) — 편지에 장르를 쓰면(해석의 genres) 그 장르로 거른다. 편지지 칩은 10/2 뺐다(/recommend?g= 는 API 로 남김). 겹치는 장르는 하나로 묶었다(9/30 사용자:
    인디 팝·인디 록·k-indie → 인디, 하우스·EDM·디스코 → 하우스·일렉트로닉, 랩·k-hiphop → 힙합 등).
-   화면 이름은 frontend/lib/genres.ts — 키를 바꾸면 둘 다 */
+   (예전 화면 이름표 frontend/lib/genres.ts 는 지웠다) */
 export const GENRES: Record<string, string[]> = {
   kpop: ['k-pop', 'kpop', 'girl group', 'boy band', 'girlband'],
   pop: ['pop', 'dance pop', 'electropop', 'synth-pop', 'synthpop', 'teen pop'],

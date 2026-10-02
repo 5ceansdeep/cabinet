@@ -14,7 +14,7 @@ export default function SearchPage() {
       <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 h-full w-full" />
       <RequestForm
         onType={scatter}
-        onSubmit={(q, g) => router.push(`/results?q=${encodeURIComponent(q)}${g.length ? `&g=${g.join(",")}` : ""}`)}
+        onSubmit={(q) => router.push(`/results?q=${encodeURIComponent(q)}`)}
       />
     </main>
   );

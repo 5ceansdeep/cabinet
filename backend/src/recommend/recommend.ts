@@ -177,7 +177,7 @@ export class RecommendService {
             asked: JSON.stringify([...new Set([...(said.artists ?? []), ...songs.map((g) => g.artist)])]), // 꼽은 곡의 가수도 다음 수집 씨앗으로
           },
         })
-        .catch(() => undefined);
+        .catch((e) => this.log.warn(`검색 기록 저장 실패: ${e}`)); // 결과는 그대로 준다 — 실패는 Railway 로그에 남겨 조용히 사라지지 않게(10/2)
     }
     // 편지에 쓴 가수 곡이 곡 풀에 하나도 없으면 — 화면이 "아직 없어요" 를 알린다(10/2 박효신 — 말없이 엉뚱한 곡을 줬다). 검색 기록 asked 로 다음 수집에 들어간다
     const missingArtist = asked.artists?.length && !named.length ? asked.artists[0] : null;

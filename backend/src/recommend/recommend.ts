@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, Injectable, Ip, Module, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, Injectable, Ip, Logger, Module, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { IsString, MaxLength } from 'class-validator';
 import { CatalogModule } from '../catalog/catalog.module.js';
@@ -23,7 +23,7 @@ class ThrowDto {
    그땐 곡 설명이 "가사 없는 연주곡" 투성이였다). 디스크가 1~2초 늦게 뜨는 대신 그 시간은 서랍 뒤지기 연출이 채운다.
    GET /recommend/line 은 예전 화면용으로 남겨 둔다.
    곡 설명·벡터는 배치(catalog/describe.ts)가 미리 만들어 둔다 — 설명이 없는 곡은 아직 후보가 아니다.
-   검색은 해석 태그(Last.fm 영어)와 결과 상위 가수만 SearchLog 에, 던진 곡은 ThrowLog 에 남긴다 — 곡 풀 넓히기(catalog/pool.ts)가 씨앗으로 쓴다. 요청문 원문은 안 남긴다.
+   검색은 해석 태그(Last.fm 영어)·결과 상위 가수·편지 글·나온 곡을 SearchLog 에, 던진 곡은 ThrowLog 에 남긴다 — 곡 풀 넓히기(catalog/pool.ts)가 씨앗으로 쓴다. 사용자·IP 는 안 남긴다.
    ponytail: 요청마다 곡 벡터 JSON 을 전부 읽어 푼다 — 곡이 수천 개를 넘으면 메모리에 두거나 Neon pgvector 로 */
 
 export const CANDIDATES = 30; // 1단계가 재정렬에 넘기는 후보 수 — 여기서 버린 곡은 2단계가 못 살린다. 10/2 곡 394곡: 20곡 37% · 30곡 41% · 40곡 36%(길면 Gemini 가 흐려진다), 시간은 거의 같다
@@ -77,6 +77,7 @@ const SELECT = { id: true, title: true, artist: true, artwork: true, previewUrl:
 
 @Injectable()
 export class RecommendService {
+  private readonly log = new Logger('Recommend');
   constructor(
     private readonly prisma: PrismaService,
     private readonly interpreter: Interpreter,
@@ -123,10 +124,20 @@ export class RecommendService {
     const tracks = picked.map((t, i) => ({ ...shown(t, ranked), semantic: pct[i], reason: rr?.reasons[t.id] ?? null }));
     const line = rr?.line ? { ...rr.line, voice: this.voice.register(rr.line.en) } : null; // 영어 음성 id — ElevenLabs 를 꺼 두면 null
 
-    // 처음 뒤질 때만 남긴다("다시 찾기"·"몇 곡 더"는 같은 요청) — 실패해도 결과는 준다
+    // 처음 뒤질 때만 남긴다("다시 찾기"·"몇 곡 더"는 같은 요청) — 실패해도 결과는 준다. 편지 글·나온 곡·신의 한마디도(10/2) — Railway 로그에도 한 줄
     if (!seen.length && !thrown.length && query.trim()) {
+      const shownNames = tracks.map((t) => `${t.artist} - ${t.title}`);
+      this.log.log(`"${query.trim()}" → ${shownNames.join(" / ")}${line ? ` | 한마디: ${line.ko}` : ""}`);
       void this.prisma.searchLog
-        .create({ data: { tags: JSON.stringify(Object.fromEntries((asked.tags ?? []).map((t) => [t, 100]))), artists: JSON.stringify([...new Set(tracks.map((t) => t.artist))].slice(0, 3)) } })
+        .create({
+          data: {
+            tags: JSON.stringify(Object.fromEntries((asked.tags ?? []).map((t) => [t, 100]))),
+            artists: JSON.stringify([...new Set(tracks.map((t) => t.artist))].slice(0, 3)),
+            query: query.trim(),
+            tracks: JSON.stringify(shownNames),
+            line: line?.ko ?? "",
+          },
+        })
         .catch(() => undefined);
     }
     return { interpretation: shownKeywords(asked), description: readings(asked), tracks, line };

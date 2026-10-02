@@ -26,7 +26,7 @@ class ThrowDto {
    검색은 해석 태그(Last.fm 영어)와 결과 상위 가수만 SearchLog 에, 던진 곡은 ThrowLog 에 남긴다 — 곡 풀 넓히기(catalog/pool.ts)가 씨앗으로 쓴다. 요청문 원문은 안 남긴다.
    ponytail: 요청마다 곡 벡터 JSON 을 전부 읽어 푼다 — 곡이 수천 개를 넘으면 메모리에 두거나 Neon pgvector 로 */
 
-export const CANDIDATES = 20; // 1단계가 재정렬에 넘기는 후보 수 — 여기서 버린 곡은 2단계가 못 살린다. 늘리면 Gemini 입력이 길어진다
+export const CANDIDATES = 30; // 1단계가 재정렬에 넘기는 후보 수 — 여기서 버린 곡은 2단계가 못 살린다. 10/2 곡 394곡: 20곡 37% · 30곡 41% · 40곡 36%(길면 Gemini 가 흐려진다), 시간은 거의 같다
 const RERANK_MS = 6000; // 재정렬이 이보다 늦으면 1단계 순서로 — 화면이 멈추면 안 된다
 export const Q_MAX = 300; // 요청문 글자 — 길수록 Gemini 한도·비용을 먹는다
 const ids = (s?: string) => (s ? s.split(',').filter(Boolean) : []);

@@ -125,6 +125,21 @@ export default function Results({ query }: { query: string }) {
     return () => removeEventListener("keydown", onKey);
   });
 
+  // 마우스 휠로도 넘긴다 — 10/2 테스터: PC 에서 키보드로만 넘기니 애매했다. 한 번 굴릴 때 한 칸(0.25초에 한 번까지)
+  useEffect(() => {
+    if (phase !== "discs") return;
+    let last = 0;
+    const onWheel = (e: WheelEvent) => {
+      const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      const now = performance.now();
+      if (Math.abs(d) < 4 || now - last < 250) return;
+      last = now;
+      move(d > 0 ? 1 : -1);
+    };
+    addEventListener("wheel", onWheel, { passive: true });
+    return () => removeEventListener("wheel", onWheel);
+  }, [phase, move]);
+
   /* 서랍에 넣기 — 디스크가 아래 서랍으로 빨려 들고, 다 삼키면 "탁" 닫히며 네임택을 내민다 */
   function store() {
     setPhase("saving");
@@ -148,7 +163,7 @@ export default function Results({ query }: { query: string }) {
       setPrinted(n);
       thud(420 + (n % 3) * 40); // 타자기 소리
       if (n < name.length) later(() => type(n + 1), 90);
-      else later(() => void saveShelf(name, query, kept).then(setSaved), 900); // 저장되면 공유 카드가 인쇄돼 올라온다
+      else later(() => void saveShelf(name, query, kept, interpretation).then(setSaved), 900); // 저장되면 공유 카드가 인쇄돼 올라온다
     };
     later(() => type(1), 90);
   }
@@ -259,30 +274,32 @@ export default function Results({ query }: { query: string }) {
           {phase === "discs" && kept.length > 0 && <Playlist query={query} tracks={kept} playing={playing} onPick={insert} onEject={eject} />}
 
           {phase === "naming" && (
-            /* 네임택 — 자동으로 지어 준 이름이 적혀 있고, 그 위에서 바로 고쳐 쓸 수 있다 */
+            /* 네임택 — 자동으로 지어 준 이름이 적혀 있고, 그 위에서 바로 고쳐 쓸 수 있다.
+               10/2 테스터: 화면 아래 작게 붙어 있어 안 보였다 — 가운데에 크게, 버튼도 눈에 띄게 */
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 print();
               }}
-              className="relative mx-auto mb-4 flex w-fit items-center gap-3 rounded-sm border border-white/20 bg-neutral-200/90 px-4 py-2 shadow-[0_8px_30px_rgba(0,0,0,.5)]"
+              className="pointer-events-auto absolute top-[44%] left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 rounded-md border border-white/20 bg-neutral-200/95 px-8 py-6 shadow-[0_12px_40px_rgba(0,0,0,.6)] animate-[appear_.35s_both]"
             >
+              <p className="font-mono text-[10px] tracking-[.25em] text-neutral-500">{RESULT_DIALOGUE.NAME_HINT}</p>
               <input
                 autoFocus
                 value={tag}
                 onChange={(e) => setTag(e.target.value.slice(0, 16))}
                 aria-label="서랍 이름"
-                className="w-44 bg-transparent text-center font-mono text-sm tracking-[.2em] text-neutral-800 outline-none"
+                className="w-64 border-b border-neutral-400 bg-transparent pb-1 text-center font-mono text-xl tracking-[.2em] text-neutral-800 outline-none focus:border-neutral-700"
               />
-              <button type="submit" className="font-mono text-[10px] tracking-[.2em] text-neutral-600 hover:text-neutral-900">
-                붙이기 ⏎
+              <button type="submit" className="mt-1 rounded-full bg-neutral-800 px-6 py-2 font-mono text-xs tracking-[.2em] text-neutral-100 transition hover:bg-neutral-950">
+                {RESULT_DIALOGUE.NAME_ACTION} ⏎
               </button>
             </form>
           )}
 
           {/* 아래 가운데는 드라이브 자리 — 안내는 왼쪽 아래로 */}
           <footer className="pointer-events-none absolute bottom-[3cqh] left-6 font-mono text-[10px] tracking-[.2em] text-foreground/40">
-            CLICK TO PLAY · DRAG TO ROTATE · FLICK UP TO DISCARD
+            CLICK TO PLAY · WHEEL TO BROWSE · DRAG TO ROTATE · FLICK UP TO DISCARD
           </footer>
         </>
       {saved && (

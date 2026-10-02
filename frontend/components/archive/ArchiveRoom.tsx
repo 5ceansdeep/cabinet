@@ -12,6 +12,7 @@ import { Wall } from "@/components/results/CabinetWall";
 import { DISK, FloppyBody, useLabel } from "@/components/results/floppy";
 import type { Track } from "@/components/results/tracks";
 import { thud } from "@/lib/thud";
+import { ARCHIVE_DIALOGUE } from "@/components/landing/lines";
 import ListenPanel from "./ListenPanel";
 import { parseShelves, shelvesRaw, subscribeShelves, syncShelves } from "./shelf";
 
@@ -76,11 +77,12 @@ function Filed({ track, x, size, onOpen }: { track: Track; x: number; size: numb
 }
 
 /* 서류함 몸통 — 재료(절차적 텍스처)는 캔버스 안에서만 만든다. 바깥에서 부르면 서버 렌더에서 터진다 */
-function Carcass() {
+/* 서랍 수(n)만큼의 높이 — 플레이리스트가 없는 빈 서랍은 두지 않는다(10/2 사용자) */
+function Carcass({ n }: { n: number }) {
   const pitch = H + GAP;
   return (
     <mesh position={[0, 0, -0.1]} material={materials().dark}>
-      <boxGeometry args={[W + 2 * T, 3 * pitch + 2 * T, D]} />
+      <boxGeometry args={[W + 2 * T, n * pitch + 2 * T, D]} />
     </mesh>
   );
 }
@@ -176,7 +178,7 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
   };
   useEffect(() => void syncShelves(), []); // 로그인했으면 서버 원본으로 사본을 새로 고친다
   const pitch = H + GAP;
-  const drawerY = (i: number) => (1 - i) * pitch;
+  const drawerY = (i: number) => ((shown.length - 1) / 2 - i) * pitch; // 보이는 서랍들의 가운데가 화면 가운데
 
   return (
     <main data-theme="void" className="relative flex min-h-full flex-1 flex-col overflow-hidden bg-background text-foreground">
@@ -191,11 +193,7 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
           <Wall />
           <Rig open={open !== null} drawerY={open === null ? 0 : drawerY(open)} />
 
-          <Carcass />
-          {/* 마지막 칸에서 서랍이 모자라면 이름 없는 빈 서랍으로 채운다 — 구멍 뚫린 서류함이 되지 않게 */}
-          {Array.from({ length: PER_PAGE - shown.length }, (_, k) => (
-            <Drawer key={`empty-${k}`} y={drawerY(shown.length + k)} tag=" " kept={[]} open={false} onToggle={() => {}} onOpenTrack={() => {}} />
-          ))}
+          {shown.length > 0 && <Carcass n={shown.length} />}
           {shown.map((s, i) => (
             <Drawer
               key={s.id}
@@ -227,6 +225,16 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
 
       <div className="flex-1" />
 
+      {/* 아직 넣은 서랍이 없다 — 빈 서류함 대신 한마디와 편지 쓰러 가기 */}
+      {shelves.length === 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center">
+          <p className="font-letter text-sm text-foreground/70">{ARCHIVE_DIALOGUE.EMPTY}</p>
+          <Link href="/search" className="rounded-full border border-accent/40 px-4 py-1.5 font-mono text-[10px] tracking-[.15em] text-accent/90 hover:bg-accent/10">
+            {ARCHIVE_DIALOGUE.WRITE} →
+          </Link>
+        </div>
+      )}
+
       {pages > 1 && (
         /* 다른 서랍 칸으로 — 위가 최근에 넣은 것 */
         <nav className="absolute top-1/2 right-6 flex -translate-y-1/2 flex-col items-center gap-3 font-mono text-[10px] tracking-[.2em] text-accent/70">
@@ -245,7 +253,7 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
       {openShelf && openShelf.kept.length > 0 && <ListenPanel key={openShelf.id} shelf={openShelf} />}
 
       <footer className="relative px-6 pb-8 text-center font-mono text-[10px] tracking-[.2em] text-foreground/40">
-        {openShelf ? `${openShelf.tag} — ${openShelf.kept.length}장` : "CLICK A DRAWER TO OPEN"}
+        {openShelf ? `${openShelf.tag} — ${openShelf.kept.length}장` : shown.length ? "CLICK A DRAWER TO OPEN" : null}
       </footer>
     </main>
   );

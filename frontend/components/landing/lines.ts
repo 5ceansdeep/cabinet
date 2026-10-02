@@ -165,6 +165,12 @@ export const RESULT_LINES = {
   failed: { text: RESULT_DIALOGUE.FAILED, voiceKey: "RESULT_FAILED" },
 } satisfies Record<string, Line>;
 
+/* ─ 5번 보관함: 아직 넣은 서랍이 없을 때 (읽지 않는 짧은 안내) ─ */
+export const ARCHIVE_DIALOGUE = {
+  EMPTY: "아직 건져 올린 게 없군. 편지부터 써 보게.",
+  WRITE: "편지 쓰러 가기",
+};
+
 /* ─ 5번 보관함: 서랍을 유튜브에서 이어 듣기 (읽지 않는 짧은 안내) ─ */
 export const PLAYLIST_DIALOGUE = {
   ACTION: "유튜브에서 이어 듣기",

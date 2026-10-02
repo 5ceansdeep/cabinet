@@ -45,6 +45,9 @@ export default function Results({ query }: { query: string }) {
   const [printed, setPrinted] = useState(0); // 네임택에 찍힌 글자 수
   const [interpretation, setInterpretation] = useState<string[]>([]); // 요청 해석 — 요청문을 어떤 표식으로 읽었나
   const [missingArtist, setMissingArtist] = useState<string | null>(null); // 편지에 쓴 가수 곡이 서류함에 없다
+  const [kinArtists, setKinArtists] = useState<string[]>([]); // 그래서 대신 채운 비슷한 가수(곡이 적을 때도)
+  const [kinFor, setKinFor] = useState<string | null>(null); // 곡이 적은 그 가수
+  const [missingSong, setMissingSong] = useState<string | null>(null); // 편지에 꼽은 곡이 서류함에 없다
   const [greeting, setGreeting] = useState<Line | null>(null); // 곡을 건네며 하는 신의 한마디 — 뒤질 때마다 새로
   const [kept, setKept] = useState<Track[]>([]); // 위로 던져 뺀 곡은 여기서 빠진다
   const [seen, setSeen] = useState<string[]>([]); // 지금까지 보여 준 곡
@@ -74,6 +77,9 @@ export default function Results({ query }: { query: string }) {
       thud(70);
       setInterpretation(found.interpretation);
       setMissingArtist(found.missingArtist ?? null);
+      setKinArtists(found.kinArtists ?? []);
+      setKinFor(found.kinFor ?? null);
+      setMissingSong(found.missingSong ?? null);
       // 신의 한마디·곡별 이유는 재정렬과 같은 호출로 곡 목록과 함께 온다(10/1 — 재정렬 순서를 쓰면서).
       // 영어 음성은 백엔드가 ElevenLabs 로 만든 mp3(켜 뒀을 때만) — 꺼져 있으면 자막만
       setGreeting(found.line ? { text: found.line.ko, voiceKey: found.line.voice ? apiUrl(`/voice/${found.line.voice}`) : undefined } : null);
@@ -189,7 +195,12 @@ export default function Results({ query }: { query: string }) {
                   요청 해석 — <span className="normal-case tracking-normal text-accent/80">{interpretation.slice(0, 5).join(" · ")}</span>
                 </p>
               )}
-              {missingArtist && <p className="normal-case tracking-normal text-[#e2cd5a]/90">{RESULT_DIALOGUE.MISSING_ARTIST(missingArtist)}</p>}
+              {(missingArtist || (kinFor && kinArtists.length > 0)) && (
+                <p className="normal-case tracking-normal text-[#e2cd5a]/90">
+                  {missingArtist ? RESULT_DIALOGUE.MISSING_ARTIST(missingArtist, kinArtists) : RESULT_DIALOGUE.FEW_ARTIST(kinFor!, kinArtists)}
+                </p>
+              )}
+              {missingSong && <p className="normal-case tracking-normal text-[#e2cd5a]/90">{RESULT_DIALOGUE.MISSING_SONG(missingSong)}</p>}
             </div>
             <span className="flex shrink-0 gap-4">
               {phase === "discs" && kept.length > 0 && (

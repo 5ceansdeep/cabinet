@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alternate, finalOrder, Limiter, pinTitled } from './recommend.js';
+import { alternate, blend, finalOrder, Limiter, pinTitled, sameTitle } from './recommend.js';
 
 const t = (id: string, artist: string) => ({ id, artist });
 const cands = [t('a', 'Oasis'), t('b', '아이유'), t('c', 'Oasis'), t('d', '검정치마')];
@@ -42,5 +42,20 @@ describe('제목 일치 고정', () => {
   it('가수를 말했거나 낱말이 없으면 그대로', () => {
     expect(pinTitled(xs, { words: ['crazy'], artists: ['Oasis'] }).map((t) => t.id)).toEqual(['a', 'b', 'c']);
     expect(pinTitled(xs, {}).map((t) => t.id)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('꼽은 곡 찾기', () => {
+  it('괄호·기호·대소문자는 무시하고 같은 제목', () => {
+    expect(sameTitle('Everything', 'everything')).toBe(true);
+    expect(sameTitle('Crazy (feat. BANG YONGGUK)', 'Crazy')).toBe(true);
+    expect(sameTitle('Shine Your Light', 'shine-your-light')).toBe(true);
+    expect(sameTitle('야생화', '눈의 꽃')).toBe(false);
+    expect(sameTitle('', 'x')).toBe(false);
+  });
+  it('요청 벡터와 꼽은 곡 벡터를 반반 섞어 길이 1', () => {
+    const v = blend([1, 0], [[0, 1]]);
+    expect(v[0]).toBeCloseTo(Math.SQRT1_2);
+    expect(v[1]).toBeCloseTo(Math.SQRT1_2);
   });
 });

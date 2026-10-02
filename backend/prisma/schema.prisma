@@ -25,6 +25,7 @@ model Shelf {
   id        String       @id @default(cuid())
   tag       String
   query     String       @default("")
+  keywords  String       @default("[]") // 그때 요청 해석 — 공유 카드 MOOD 칸(10/2 카드를 다시 보여 주려고)
   createdAt DateTime     @default(now())
   userId    String
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -67,6 +68,7 @@ model ShelfTrack {
   shelfId String
   trackId String
   order   Int
+  semantic Int? // 그때 화면 일치도(%) — 공유 카드 MATCH 칸
   shelf   Shelf  @relation(fields: [shelfId], references: [id], onDelete: Cascade)
   track   Track  @relation(fields: [trackId], references: [id], onDelete: Cascade)
 

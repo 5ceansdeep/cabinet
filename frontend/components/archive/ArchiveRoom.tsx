@@ -12,8 +12,10 @@ import { Wall } from "@/components/results/CabinetWall";
 import { DISK, FloppyBody, useLabel } from "@/components/results/floppy";
 import type { Track } from "@/components/results/tracks";
 import { thud } from "@/lib/thud";
-import { ARCHIVE_DIALOGUE } from "@/components/landing/lines";
+import { ARCHIVE_DIALOGUE, PLAYLIST_DIALOGUE } from "@/components/landing/lines";
+import CardReveal from "@/components/share/CardReveal";
 import ListenPanel from "./ListenPanel";
+import TrackSheet from "./TrackSheet";
 import { parseShelves, shelvesRaw, subscribeShelves, syncShelves } from "./shelf";
 
 /* 5번 아카이빙 메인 룸 — 나만의 서류함. 서랍 전면에 감정 테마 태그가 네임택으로 붙어 있고,
@@ -166,6 +168,8 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
   const shelves = useMemo(() => parseShelves(raw), [raw]);
   // 서류함은 3단이라 서랍 3개씩 넘겨 본다 — 4번째로 저장한 서랍부터는 다음 칸에
   const [page, setPage] = useState(0);
+  const [sheet, setSheet] = useState<Track | null>(null); // 디스크를 눌렀다 — 곡 카드(표지·설명·미리듣기)
+  const [sharing, setSharing] = useState(false); // 공유 카드 화면
   const pages = Math.max(1, Math.ceil(shelves.length / PER_PAGE));
   const shown = shelves.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
   const openShelf = open === null ? null : shown[open];
@@ -206,9 +210,11 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
                 thud(open === i ? 60 : 120);
                 setOpen(open === i ? null : i);
               }}
-              // 보고서 꺼 둠 — 되살릴 때 app/report/[id]/page.tsx 와 같이
-              // onOpenTrack={(t) => router.push(`/report/${t.id}`)}
-              onOpenTrack={() => {}}
+              // 디스크를 누르면 곡 카드(10/2). 예전엔 보고서(app/report/[id], 꺼 둠)로 갔다
+              onOpenTrack={(t) => {
+                thud(140);
+                setSheet(t);
+              }}
             />
           ))}
         </Canvas>
@@ -250,7 +256,19 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
         </nav>
       )}
 
-      {openShelf && openShelf.kept.length > 0 && <ListenPanel key={openShelf.id} shelf={openShelf} />}
+      {openShelf && openShelf.kept.length > 0 && <ListenPanel key={openShelf.id} shelf={openShelf} onShare={() => setSharing(true)} />}
+
+      {openShelf && sheet && <TrackSheet track={sheet} query={openShelf.query} shelfId={openShelf.id} onClose={() => setSheet(null)} />}
+      {openShelf && sharing && (
+        <CardReveal
+          key={openShelf.id}
+          data={{ q: openShelf.query || openShelf.tag, keywords: openShelf.keywords?.length ? openShelf.keywords : [openShelf.tag.replace(/^#/, "")], tracks: openShelf.kept }}
+          shelfId={openShelf.id}
+          remote={!!openShelf.remote}
+          onDone={() => setSharing(false)}
+          doneLabel={PLAYLIST_DIALOGUE.CLOSE}
+        />
+      )}
 
       <footer className="relative px-6 pb-8 text-center font-mono text-[10px] tracking-[.2em] text-foreground/40">
         {openShelf ? `${openShelf.tag} — ${openShelf.kept.length}장` : shown.length ? "CLICK A DRAWER TO OPEN" : null}

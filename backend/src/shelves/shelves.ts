@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Injectable, Module, NotFoundException, P
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
 import { CatalogModule } from '../catalog/catalog.module.js';
 import { searchUrl, VideoService, watchUrl } from '../catalog/videos.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -14,11 +14,19 @@ class ShelfTrackDto {
   @ApiProperty({ example: '검정치마' }) @IsString() artist!: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() artwork?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() previewUrl?: string;
+  @ApiProperty({ required: false, description: '그때 일치도 %(0~100) — 공유 카드 MATCH' }) @IsOptional() @IsInt() @Min(0) @Max(100) semantic?: number;
 }
 
 export class CreateShelfDto {
   @ApiProperty({ example: '#LATE-NIGHT' }) @IsString() @MinLength(1) @MaxLength(16) tag!: string;
   @ApiProperty({ example: '새벽에 혼자 걷는 기분', required: false }) @IsOptional() @IsString() @MaxLength(500) query?: string;
+  @ApiProperty({ required: false, type: [String], description: '그때 요청 해석 — 공유 카드 MOOD' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(8)
+  @IsString({ each: true })
+  @MaxLength(30, { each: true })
+  keywords?: string[];
   @ApiProperty({ type: [ShelfTrackDto] })
   @IsArray()
   @ArrayMaxSize(50)
@@ -38,13 +46,22 @@ export class ShelvesService {
 
   private readonly include = { tracks: { orderBy: { order: 'asc' as const }, include: { track: true } } };
 
-  private toResponse(s: { id: string; tag: string; query: string; createdAt: Date; tracks: { track: { id: string; title: string; artist: string; artwork: string | null; previewUrl: string | null } }[] }) {
+  /* 곡 설명(description)은 보관함에서 디스크를 누르면 뜨는 카드에(10/2), keywords·semantic 은 공유 카드를 다시 그릴 때 */
+  private toResponse(s: {
+    id: string;
+    tag: string;
+    query: string;
+    keywords: string;
+    createdAt: Date;
+    tracks: { semantic: number | null; track: { id: string; title: string; artist: string; artwork: string | null; previewUrl: string | null; description: string | null } }[];
+  }) {
     return {
       id: s.id,
       tag: s.tag,
       query: s.query,
+      keywords: JSON.parse(s.keywords) as string[],
       createdAt: s.createdAt.toISOString(),
-      tracks: s.tracks.map(({ track: t }) => ({ id: t.id, title: t.title, artist: t.artist, artwork: t.artwork, previewUrl: t.previewUrl })),
+      tracks: s.tracks.map(({ track: t, semantic }) => ({ id: t.id, title: t.title, artist: t.artist, artwork: t.artwork, previewUrl: t.previewUrl, description: t.description, semantic })),
     };
   }
 
@@ -68,6 +85,7 @@ export class ShelvesService {
       );
     }
     const ids = [...new Set(tracks.map((t) => t.id))];
+    const pct = new Map(tracks.map((t, i) => [t.id, dto.tracks[i].semantic ?? null]));
     const query = dto.query ?? '';
     // 같은 요청문·같은 곡 묶음을 또 넣으면 새 서랍 대신 그 서랍(이름만 새것으로) — 10/2 같은 "미쳤어" 서랍이 두 개 생겼다
     const same = await this.prisma.shelf.findMany({ where: { userId, query }, select: { id: true, tracks: { select: { trackId: true } } } });
@@ -75,7 +93,7 @@ export class ShelvesService {
     const shelf = dup
       ? await this.prisma.shelf.update({ where: { id: dup.id }, data: { tag: dto.tag }, include: this.include })
       : await this.prisma.shelf.create({
-          data: { userId, tag: dto.tag, query, tracks: { create: ids.map((trackId, order) => ({ trackId, order })) } },
+          data: { userId, tag: dto.tag, query, keywords: JSON.stringify(dto.keywords ?? []), tracks: { create: ids.map((trackId, order) => ({ trackId, order, semantic: pct.get(trackId) ?? null })) } },
           include: this.include,
         });
     return this.toResponse(shelf);

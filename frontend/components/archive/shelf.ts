@@ -5,12 +5,12 @@
 import { api, getToken, logEvent } from "@/lib/api";
 import { TRACKS, type Track } from "@/components/results/tracks";
 
-export type Shelf = { id: string; tag: string; query: string; kept: Track[]; remote?: boolean }; // remote = 서버에 있는 서랍
+export type Shelf = { id: string; tag: string; query: string; kept: Track[]; keywords?: string[]; remote?: boolean }; // remote = 서버에 있는 서랍, keywords = 그때 요청 해석(공유 카드 MOOD)
 
 const KEY = "cabinet.shelves";
 const EVENT = "cabinet-shelves"; // 같은 탭 안에서 바뀐 걸 알린다 (storage 이벤트는 다른 탭에만 온다)
 // ids 는 예전 형식(가짜 곡 번호) — 읽을 때만 받아 준다
-type Saved = { id: string; tag: string; query?: string; tracks?: Track[]; ids?: (number | string)[]; at: number; remote?: boolean };
+type Saved = { id: string; tag: string; query?: string; keywords?: string[]; tracks?: Track[]; ids?: (number | string)[]; at: number; remote?: boolean };
 
 function read(): Saved[] {
   try {
@@ -26,26 +26,39 @@ function write(list: Saved[]) {
   dispatchEvent(new Event(EVENT));
 }
 
-type Remote = { id: string; tag: string; query: string; createdAt: string; tracks: { id: string; title: string; artist: string; artwork: string | null; previewUrl: string | null }[] };
+type Remote = {
+  id: string;
+  tag: string;
+  query: string;
+  keywords?: string[];
+  createdAt: string;
+  tracks: { id: string; title: string; artist: string; artwork: string | null; previewUrl: string | null; description?: string | null; semantic?: number | null }[];
+};
 const fromRemote = (s: Remote, scores?: Track[]): Saved => ({
   id: s.id,
   remote: true,
   tag: s.tag,
   query: s.query,
+  keywords: s.keywords ?? [],
   at: Date.parse(s.createdAt),
-  // 서버는 점수를 모른다 — 방금 저장한 곡이면 화면에 있던 점수를 그대로 둔다
+  // 일치도는 서버가 10/2 부터 서랍에 저장한다 — 그 전 서랍이면 화면에 있던 점수를 이어받는다
   tracks: s.tracks.map((t) => {
     const had = scores?.find((k) => k.title === t.title && k.artist === t.artist);
-    return { semantic: 0, cover: had?.cover ?? TRACKS[0].cover, ...had, ...t };
+    return { cover: had?.cover ?? TRACKS[0].cover, ...had, ...t, semantic: t.semantic ?? had?.semantic ?? 0 };
   }),
 });
 
 /* 서랍에 넣는다 — 로그인했으면 서버에, 아니면 이 브라우저에만. 새 서랍 id 와 서버 서랍인지(공유 링크 /s/:id 가 되나)를 돌려준다 */
-export async function saveShelf(tag: string, query: string, kept: Track[]) {
+export async function saveShelf(tag: string, query: string, kept: Track[], keywords: string[] = []) {
   if (getToken()) {
     const r = await api<Remote>("/shelves", {
       method: "POST",
-      body: { tag, query, tracks: kept.map((t) => ({ title: t.title, artist: t.artist, artwork: t.artwork ?? undefined, previewUrl: t.previewUrl ?? undefined })) },
+      body: {
+        tag,
+        query,
+        keywords: keywords.slice(0, 8),
+        tracks: kept.map((t) => ({ title: t.title, artist: t.artist, artwork: t.artwork ?? undefined, previewUrl: t.previewUrl ?? undefined, semantic: t.semantic || undefined })),
+      },
     });
     if (r.ok) {
       write([fromRemote(r.data, kept), ...read().filter((x) => x.id !== r.data.id)]); // 같은 서랍을 또 넣으면 서버가 그 서랍을 돌려준다 — 사본도 하나만
@@ -53,7 +66,7 @@ export async function saveShelf(tag: string, query: string, kept: Track[]) {
       return { id: r.data.id, remote: true };
     }
   }
-  const shelf: Saved = { id: `s${Date.now().toString(36)}`, tag, query, tracks: kept, at: Date.now() };
+  const shelf: Saved = { id: `s${Date.now().toString(36)}`, tag, query, keywords, tracks: kept, at: Date.now() };
   write([shelf, ...read()]);
   logEvent("save", { shelfId: shelf.id });
   return { id: shelf.id, remote: false };
@@ -116,6 +129,7 @@ export function parseShelves(raw: string): Shelf[] {
       id: s.id,
       tag: s.tag,
       query: s.query ?? "",
+      keywords: s.keywords ?? [],
       remote: s.remote,
       kept: s.tracks ?? (s.ids ?? []).map((id) => TRACKS.find((t) => t.id === String(id))).filter((t): t is Track => !!t),
     }));

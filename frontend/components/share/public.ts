@@ -4,7 +4,9 @@ export type PublicShelf = {
   id: string;
   tag: string;
   query: string;
-  tracks: { id: string; title: string; artist: string; artwork: string | null; previewUrl: string | null }[];
+  keywords?: string[]; // 그때 요청 해석 — 공유 카드 MOOD
+  createdAt?: string;
+  tracks: { id: string; title: string; artist: string; artwork: string | null; previewUrl: string | null; description?: string | null; semantic?: number | null }[];
   youtube: string | null; // 이미 찾아 둔 영상으로 만든 이어 듣기 링크
   missing: { title: string; artist: string; search: string }[]; // 영상을 아직 못 찾은 곡 — 곡별 유튜브 검색
 };

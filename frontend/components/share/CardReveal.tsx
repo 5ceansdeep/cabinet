@@ -64,9 +64,12 @@ export default function CardReveal({ data, shelfId, remote, onDone }: { data: Om
         )}
       </div>
       <div className="flex flex-col items-center gap-3 sm:items-start">
-        <p className="font-subtitle text-[clamp(15px,calc(.9vw+6px),26px)] text-[#e2cd5a] [text-shadow:-1.5px_-1.5px_0_#000,1.5px_-1.5px_0_#000,-1.5px_1.5px_0_#000,1.5px_1.5px_0_#000]">
-          {card ? D.READY : failed ? D.FAIL : D.PRINTING}
-        </p>
+        {/* 다 찍히면 말없이 카드만(10/2 사용자 — "증명서네" 대사 뺌). 찍는 중·실패만 알린다 */}
+        {!card && (
+          <p className="font-subtitle text-[clamp(15px,calc(.9vw+6px),26px)] text-[#e2cd5a] [text-shadow:-1.5px_-1.5px_0_#000,1.5px_-1.5px_0_#000,-1.5px_1.5px_0_#000,1.5px_1.5px_0_#000]">
+            {failed ? D.FAIL : D.PRINTING}
+          </p>
+        )}
         {card && <p className="font-mono text-[10px] tracking-[.2em] text-foreground/40">{D.HOLD}</p>}
         <div className="flex flex-wrap justify-center gap-2 sm:flex-col sm:items-stretch">
           <button onClick={story} disabled={!card} className={btn}>

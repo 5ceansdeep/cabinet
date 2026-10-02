@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- 구겨진 감열지 그림자 굽기 — public/paper-crumple.png 를 만든다(공유 카드·공개 서랍 영수증 위에 얹는 반투명 그늘·빛 층).
+     원본: ambientCG "Paper003"(CC0, https://ambientcg.com/view?id=Paper003) 2K-JPG 의 NormalGL·Color. 실제로 구긴 종이를 스캔한 기울기 지도에
+     왼쪽 위에서 낮게 비추는 빛을 계산해 그늘(검정)·빛(흰색)을 투명도로 싣는다. 한 장을 영수증 세로 길이로 키워 가운데만 쓴다.
+     굽기: 받은 zip 을 풀고
+       chrome --headless --allow-file-access-from-files --default-background-color=00000000 --hide-scrollbars --window-size=760,1760
+              --screenshot=public/paper-crumple.png "file:///.../scripts/paper-bake.html?n=<NormalGL.jpg 경로>&c=<Color.jpg 경로>" -->
+<meta charset="utf-8">
+<style>html,body{margin:0;background:transparent}canvas{display:block}</style>
+<canvas id="c" width="760" height="1760"></canvas>
+<script>
+const q = new URLSearchParams(location.search);
+const load = (src) => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
+Promise.all([load(q.get("n")), load(q.get("c"))]).then(([n, c]) => {
+  const W = 760, H = 1760, T = H; // 질감 한 장을 세로 길이만큼 크게 깔고 가운데만 — 이어 붙이면 반복이 보였다
+  const read = (img) => { const k = document.createElement("canvas"); k.width = W; k.height = H; const x = k.getContext("2d"); x.drawImage(img, (W - T) / 2, 0, T, T); return x.getImageData(0, 0, W, H).data; };
+  const N = read(n), C = read(c);
+  let mean = 0; for (let i = 0; i < C.length; i += 4) mean += C[i]; mean /= C.length / 4;
+  const L = [-0.66, 0.6, 0.42]; const ln = Math.hypot(...L); L.forEach((v, i) => (L[i] = v / ln)); // 왼쪽 위에서 낮게
+  const out = new ImageData(W, H);
+  for (let i = 0; i < N.length; i += 4) {
+    const nx = N[i] / 127.5 - 1, ny = N[i + 1] / 127.5 - 1, nz = N[i + 2] / 127.5 - 1; // OpenGL 식 — +y 가 위
+    const len = Math.hypot(nx, ny, nz) || 1;
+    let s = (nx * L[0] + ny * L[1] + nz * L[2]) / len - L[2]; // 평평한 종이보다 밝으면 +, 어두우면 −
+    s += (C[i] - mean) / 255 * 0.8; // 질감 색 그림의 그늘(접힌 골)도 조금
+    const v = s < 0 ? 0 : 255;
+    out.data[i] = out.data[i + 1] = out.data[i + 2] = v;
+    out.data[i + 3] = Math.min(190, Math.round(Math.abs(s) * (s < 0 ? 620 : 480)));
+  }
+  document.getElementById("c").getContext("2d").putImageData(out, 0, 0);
+});
+</script>

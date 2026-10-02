@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import QRCode from "qrcode";
 import Card, { type ShareData } from "@/components/share/Card";
-import { art, fonts, str } from "@/components/share/render";
+import { art, fonts, paper, str } from "@/components/share/render";
 
 /* 공유 카드 PNG — 화면이 곡 정보를 보내면(POST) 1080×1920 이미지로 그려 돌려준다.
    QR 은 이 사이트의 공개 서랍(/s/:id) 또는 유튜브 이어 듣기(watch_videos)만 — 아무 주소나 QR 로 찍어 주지 않게. 글자 수·곡 수도 자른다 */
@@ -28,6 +28,7 @@ export async function POST(req: Request) {
       shelf={shelf}
       date={new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Seoul" }).toUpperCase()}
       no={String(Date.now() % 10000).padStart(4, "0")}
+      paper={await paper(new URL(req.url).origin)}
     />,
     { width: 1080, height: 1920, fonts: await fonts() },
   );

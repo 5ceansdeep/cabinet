@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { logEvent } from "@/lib/api";
 import type { Track } from "./tracks";
 
 /* 드라이브에 꽂힌 곡의 재생 — 오른쪽 곡 목록 아래. 동그란 재생 버튼, 곡 이름, 얇은 파란 진행선(누르거나 끌어서 옮긴다), 꺼내기.
@@ -25,6 +26,7 @@ export default function PlayerBar({ track, onEject }: { track: Track | null; onE
   const [paused, setPaused] = useState(true);
   const [at, setAt] = useState(0);
   const [length, setLength] = useState(30);
+  const played = useRef<string | null>(null); // 이 곡의 재생을 이미 기록했나 — 멈췄다 다시 틀면 안 센다
 
   // 곡이 바뀌면 처음부터 튼다
   useEffect(() => {
@@ -58,9 +60,15 @@ export default function PlayerBar({ track, onEject }: { track: Track | null; onE
       <audio
         ref={audio}
         preload="none"
-        onPlay={() => setPaused(false)}
+        onPlay={() => {
+          setPaused(false);
+          if (track && played.current !== track.id) logEvent("play", { trackId: (played.current = track.id) });
+        }}
         onPause={() => setPaused(true)}
-        onEnded={() => setPaused(true)}
+        onEnded={() => {
+          setPaused(true);
+          if (track) logEvent("finish", { trackId: track.id });
+        }}
         onTimeUpdate={(e) => setAt(e.currentTarget.currentTime)}
         onLoadedMetadata={(e) => setLength(e.currentTarget.duration || 30)}
       />

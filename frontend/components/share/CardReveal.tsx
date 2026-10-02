@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CARD_DIALOGUE as D } from "@/components/landing/lines";
+import { logEvent } from "@/lib/api";
 import { thud } from "@/lib/thud";
 import type { ShareData } from "./Card";
 
@@ -30,6 +31,7 @@ export default function CardReveal({ data, shelfId, remote, onDone }: { data: Om
 
   async function story() {
     if (!card) return;
+    logEvent("share", { shelfId });
     if (navigator.canShare?.({ files: [card.file] })) {
       await navigator.share({ files: [card.file], title: "cabinet", url: link ?? undefined }).catch(() => undefined);
       return;
@@ -42,6 +44,7 @@ export default function CardReveal({ data, shelfId, remote, onDone }: { data: Om
 
   async function copy() {
     if (!link) return;
+    logEvent("share", { shelfId });
     await navigator.clipboard.writeText(link).catch(() => undefined);
     setCopied(true);
   }

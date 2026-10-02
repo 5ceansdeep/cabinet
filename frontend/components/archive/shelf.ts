@@ -2,7 +2,7 @@
    로그인했으면 백엔드 /shelves 가 원본이고, 이 브라우저 localStorage 는 화면용 사본이다(없으면 사본이 전부).
    저장한 서랍은 아래 예시 서랍보다 앞에 놓는다 */
 
-import { api, getToken } from "@/lib/api";
+import { api, getToken, logEvent } from "@/lib/api";
 import { TRACKS, type Track } from "@/components/results/tracks";
 
 export type Shelf = { id: string; tag: string; query: string; kept: Track[]; remote?: boolean }; // remote = 서버에 있는 서랍
@@ -56,11 +56,13 @@ export async function saveShelf(tag: string, query: string, kept: Track[]) {
     });
     if (r.ok) {
       write([fromRemote(r.data, kept), ...read()]);
+      logEvent("save", { shelfId: r.data.id });
       return { id: r.data.id, remote: true };
     }
   }
   const shelf: Saved = { id: `s${Date.now().toString(36)}`, tag, query, tracks: kept, at: Date.now() };
   write([shelf, ...read()]);
+  logEvent("save", { shelfId: shelf.id });
   return { id: shelf.id, remote: false };
 }
 

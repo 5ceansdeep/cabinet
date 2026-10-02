@@ -5,6 +5,7 @@ import { useState } from "react";
 import { SHARED_DIALOGUE as D } from "@/components/landing/lines";
 import PlayerBar from "@/components/results/PlayerBar";
 import type { Track } from "@/components/results/tracks";
+import { logEvent } from "@/lib/api";
 import type { PublicShelf } from "./public";
 
 /* 공유 링크로 들어온 서랍 — 편지 문장, 네임택, 곡 목록(누르면 30초 미리듣기), 유튜브 이어 듣기, "나도 편지 써 보기".
@@ -61,7 +62,7 @@ export default function SharedShelf({ shelf }: { shelf: PublicShelf }) {
 
         <div className="mt-6 flex flex-col items-center gap-3">
           {shelf.youtube && (
-            <a href={shelf.youtube} target="_blank" rel="noreferrer" className="rounded-full bg-accent/90 px-5 py-2 font-mono text-xs tracking-[.15em] text-background hover:bg-accent">
+            <a href={shelf.youtube} onClick={() => logEvent("youtube", { shelfId: shelf.id })} target="_blank" rel="noreferrer" className="rounded-full bg-accent/90 px-5 py-2 font-mono text-xs tracking-[.15em] text-background hover:bg-accent">
               ▶ {D.YOUTUBE} ↗
             </a>
           )}
@@ -71,7 +72,7 @@ export default function SharedShelf({ shelf }: { shelf: PublicShelf }) {
               <ul className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1">
                 {shelf.missing.map((m) => (
                   <li key={m.search}>
-                    <a href={m.search} target="_blank" rel="noreferrer" className="text-accent/70 hover:text-accent">
+                    <a href={m.search} onClick={() => logEvent("youtube", { shelfId: shelf.id })} target="_blank" rel="noreferrer" className="text-accent/70 hover:text-accent">
                       {m.artist} · {m.title} ↗
                     </a>
                   </li>

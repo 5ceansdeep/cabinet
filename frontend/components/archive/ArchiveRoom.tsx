@@ -185,8 +185,9 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
           <color attach="background" args={["#000000"]} />
           <fog attach="fog" args={["#000000", 7, 14]} />
           <ambientLight intensity={0.12} />
-          <pointLight position={[0, 0.6, 2.4]} intensity={12} distance={9} decay={2} color="#ffffff" />
-          <pointLight position={[0, 2.2, 1.6]} intensity={8} distance={7} decay={2} color="#cfe6f5" />
+          {/* 정면 조명은 열린 서랍(z≈2.1) 바로 위에 놓여 안을 하얗게 날린다 — 열면 줄인다(10/2) */}
+          <pointLight position={[0, 0.6, 2.4]} intensity={open === null ? 6 : 1.5} distance={9} decay={2} color="#ffffff" />
+          <pointLight position={[0, 2.2, 1.6]} intensity={1.2} distance={7} decay={2} color="#cfe6f5" />
           <Wall />
           <Rig open={open !== null} drawerY={open === null ? 0 : drawerY(open)} />
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alternate, finalOrder, Limiter } from './recommend.js';
+import { alternate, finalOrder, Limiter, pinTitled } from './recommend.js';
 
 const t = (id: string, artist: string) => ({ id, artist });
 const cands = [t('a', 'Oasis'), t('b', '아이유'), t('c', 'Oasis'), t('d', '검정치마')];
@@ -31,5 +31,16 @@ describe('두 읽기 번갈아', () => {
     const a = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
     const b = [{ id: 'x' }, { id: 'a' }, { id: 'y' }];
     expect(alternate(a, b).map((t) => t.id)).toEqual(['a', 'x', 'b', 'c', 'y']);
+  });
+});
+
+describe('제목 일치 고정', () => {
+  const xs = [{ id: 'a', title: 'Rush' }, { id: 'b', title: 'Crazy (feat. X)' }, { id: 'c', title: 'Step' }];
+  it('제목에 요청 낱말이 든 곡을 맨 앞에', () => {
+    expect(pinTitled(xs, { words: ['crazy'] }).map((t) => t.id)).toEqual(['b', 'a', 'c']);
+  });
+  it('가수를 말했거나 낱말이 없으면 그대로', () => {
+    expect(pinTitled(xs, { words: ['crazy'], artists: ['Oasis'] }).map((t) => t.id)).toEqual(['a', 'b', 'c']);
+    expect(pinTitled(xs, {}).map((t) => t.id)).toEqual(['a', 'b', 'c']);
   });
 });

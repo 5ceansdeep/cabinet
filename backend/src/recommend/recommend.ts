@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { VoiceModule, VoiceService } from '../voice/voice.js';
 import { type Asked, Interpreter } from './interpret.js';
 import { Reranker } from './rerank.js';
-import { BONUS, type Candidate, display, rank, throwPenalty } from './score.js';
+import { BONUS, type Candidate, display, lexical, rank, throwPenalty } from './score.js';
 
 class ThrowDto {
   @ApiProperty({ description: '던진 곡 id' })
@@ -32,6 +32,7 @@ export const Q_MAX = 300; // 요청문 글자 — 길수록 Gemini 한도·비�
 const ids = (s?: string) => (s ? s.split(',').filter(Boolean) : []);
 const POOL_CHECK_MS = 60_000; // 곡 목록을 메모리에 두고, 이만큼 지나면 DB 가 바뀌었나 가볍게 확인(곡 수·마지막 분석 시각)
 const LINE_MAX = 10; // 한마디에 넘기는 곡 수 상한
+const PIN_TITLE = 3; // 제목 일치로 맨 앞에 고정하는 곡 수 — "비" 처럼 제목 여러 개에 걸리는 낱말이 다 차지하지 못하게
 const SHOW = 10; // 한 번에 꺼내는 곡 수 — 6곡은 너무 적었다(10/1 사용자)
 const MIN_GENRE = SHOW; // 고른 장르 곡이 이보다 적으면 나머지 곡으로 채운다 — 빈 서랍보다 낫다(장르 곡이 앞)
 const THROW_DAYS = 30; // 이만큼 지난 던진 기록은 순위에 안 쓴다 — 곡 설명을 고치면 다시 기회를
@@ -116,7 +117,7 @@ export class RecommendService {
     const { ranked, cands, pick } = stage1(pool, asked, { seen, thrown, penalty, genres });
     // 2단계 — 후보 20곡의 곡 설명을 LLM 이 읽고 순서를 다시 매긴다(+ 곡별 이유·신의 한마디). 늦거나 실패하면 1단계 순서 그대로
     const rr = cands.length ? await within(this.reranker.rerank(query, readings(asked), cands), RERANK_MS) : null;
-    const picked = pick(rr ? finalOrder(cands, rr.order, asked.artists) : ranked).slice(0, limit);
+    const picked = pinTitled(pick(rr ? finalOrder(cands, rr.order, asked.artists) : ranked), asked).slice(0, limit);
     // 화면 일치도는 1단계 점수로 늘린 값 — 순서가 바뀌면 아래 곡이 더 높아 보이니, 뽑힌 곡들의 % 를 큰 것부터 새 순서대로 나눠 준다
     const pct = picked.map((t) => shown(t, ranked).semantic).sort((a, b) => b - a);
     const tracks = picked.map((t, i) => ({ ...shown(t, ranked), semantic: pct[i], reason: rr?.reasons[t.id] ?? null }));
@@ -217,6 +218,14 @@ const shownKeywords = (asked: Asked) => (asked.alt ? [...asked.keywords.slice(0,
 
 /** 늦으면 null */
 const within = <T>(p: Promise<T>, ms: number) => Promise.race([p, new Promise<null>((ok) => setTimeout(() => ok(null), ms))]);
+
+/** 마지막 손질 — 제목에 요청 낱말이 든 곡(PIN_TITLE 곡까지)은 맨 앞에 고정. 재정렬·두 읽기 번갈기가 분위기로 밀어내지 않게.
+    10/2 "미쳤어" → Crazy 가 1단계 1위였는데 재정렬 5위, 번갈기 9위, 배포에선 10위 밖. 가수를 말했으면 그 곡들이 앞이라 손대지 않는다 */
+export function pinTitled<T extends { id: string; title?: string }>(xs: T[], asked: Pick<Asked, 'words' | 'artists'>) {
+  if (asked.artists?.length || !asked.words?.length) return xs;
+  const hit = xs.filter((t) => lexical(t, asked.words, { title: 1, key: 0 }) > 0).slice(0, PIN_TITLE);
+  return [...hit, ...xs.filter((t) => !hit.includes(t))];
+}
 
 /** 재정렬 순서로 — 말한 가수 곡은 맨 앞에 고정(재정렬이 섞지 않게). 평가(eval.ts)도 같은 순서로 잰다 */
 export function finalOrder<T extends { id: string; artist: string }>(cands: T[], order: string[], artists: string[] = []) {

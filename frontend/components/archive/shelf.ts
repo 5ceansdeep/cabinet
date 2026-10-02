@@ -48,7 +48,7 @@ export async function saveShelf(tag: string, query: string, kept: Track[]) {
       body: { tag, query, tracks: kept.map((t) => ({ title: t.title, artist: t.artist, artwork: t.artwork ?? undefined, previewUrl: t.previewUrl ?? undefined })) },
     });
     if (r.ok) {
-      write([fromRemote(r.data, kept), ...read()]);
+      write([fromRemote(r.data, kept), ...read().filter((x) => x.id !== r.data.id)]); // 같은 서랍을 또 넣으면 서버가 그 서랍을 돌려준다 — 사본도 하나만
       logEvent("save", { shelfId: r.data.id });
       return { id: r.data.id, remote: true };
     }

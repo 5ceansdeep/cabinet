@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PLAYLIST_DIALOGUE as D } from "@/components/landing/lines";
 import { shareCard } from "@/components/share/share";
+import { logEvent } from "@/lib/api";
 import { thud } from "@/lib/thud";
 import { playlistOf, type Playlist, type Shelf } from "./shelf";
 
@@ -33,6 +34,7 @@ export default function ListenPanel({ shelf }: { shelf: Shelf }) {
       link: shelf.remote ? `${location.origin}/s/${shelf.id}` : null,
     });
     setCard(r === "saved" ? "saved" : r ? "idle" : "fail");
+    if (r === "shared" || r === "saved") logEvent("share", { shelfId: shelf.id });
   }
   const cardNote = card === "working" ? D.SHARING : card === "saved" ? D.SAVED : card === "fail" ? D.SHARE_FAIL : null;
 
@@ -50,6 +52,7 @@ export default function ListenPanel({ shelf }: { shelf: Shelf }) {
           ? D.SOME(result.missing.length)
           : D.ALL;
 
+  const youtube = () => logEvent("youtube", { shelfId: shelf.id });
   const link = "pointer-events-auto text-accent/80 underline-offset-4 hover:text-accent hover:underline";
 
   return (
@@ -67,7 +70,7 @@ export default function ListenPanel({ shelf }: { shelf: Shelf }) {
       {note && <p className="font-letter text-xs tracking-normal text-foreground/70">{note}</p>}
       {cardNote && <p className="font-letter text-xs tracking-normal text-foreground/70">{cardNote}</p>}
       {result?.url && (
-        <a href={result.url} target="_blank" rel="noreferrer" className="pointer-events-auto rounded-full bg-accent/90 px-4 py-1.5 text-background hover:bg-accent">
+        <a href={result.url} onClick={youtube} target="_blank" rel="noreferrer" className="pointer-events-auto rounded-full bg-accent/90 px-4 py-1.5 text-background hover:bg-accent">
           {D.OPEN} ↗
         </a>
       )}
@@ -75,7 +78,7 @@ export default function ListenPanel({ shelf }: { shelf: Shelf }) {
         <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1 normal-case tracking-normal">
           {result.missing.map((m) => (
             <li key={m.search}>
-              <a href={m.search} target="_blank" rel="noreferrer" className={link}>
+              <a href={m.search} onClick={youtube} target="_blank" rel="noreferrer" className={link}>
                 {m.artist} · {m.title} ↗
               </a>
             </li>

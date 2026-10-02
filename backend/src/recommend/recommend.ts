@@ -28,7 +28,7 @@ class ThrowDto {
 
 export const CANDIDATES = 20; // 1단계가 재정렬에 넘기는 후보 수 — 여기서 버린 곡은 2단계가 못 살린다. 늘리면 Gemini 입력이 길어진다
 const RERANK_MS = 6000; // 재정렬이 이보다 늦으면 1단계 순서로 — 화면이 멈추면 안 된다
-const Q_MAX = 300; // 요청문 글자 — 길수록 Gemini 한도·비용을 먹는다
+export const Q_MAX = 300; // 요청문 글자 — 길수록 Gemini 한도·비용을 먹는다
 const ids = (s?: string) => (s ? s.split(',').filter(Boolean) : []);
 const POOL_CHECK_MS = 60_000; // 곡 목록을 메모리에 두고, 이만큼 지나면 DB 가 바뀌었나 가볍게 확인(곡 수·마지막 분석 시각)
 const LINE_MAX = 10; // 한마디에 넘기는 곡 수 상한

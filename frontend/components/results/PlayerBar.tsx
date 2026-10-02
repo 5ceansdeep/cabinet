@@ -21,7 +21,8 @@ const Pause = () => (
   </svg>
 );
 
-export default function PlayerBar({ track, onEject }: { track: Track | null; onEject: () => void }) {
+/* from = 어떤 편지로 꺼낸 곡인가(요청문, 공개 서랍이면 서랍 id) — 재생 기록에 같이 남긴다 */
+export default function PlayerBar({ track, onEject, from }: { track: Track | null; onEject: () => void; from?: { query?: string; shelfId?: string } }) {
   const audio = useRef<HTMLAudioElement>(null);
   const [paused, setPaused] = useState(true);
   const [at, setAt] = useState(0);
@@ -62,12 +63,12 @@ export default function PlayerBar({ track, onEject }: { track: Track | null; onE
         preload="none"
         onPlay={() => {
           setPaused(false);
-          if (track && played.current !== track.id) logEvent("play", { trackId: (played.current = track.id) });
+          if (track && played.current !== track.id) logEvent("play", { trackId: (played.current = track.id), ...from });
         }}
         onPause={() => setPaused(true)}
         onEnded={() => {
           setPaused(true);
-          if (track) logEvent("finish", { trackId: track.id });
+          if (track) logEvent("finish", { trackId: track.id, ...from });
         }}
         onTimeUpdate={(e) => setAt(e.currentTarget.currentTime)}
         onLoadedMetadata={(e) => setLength(e.currentTarget.duration || 30)}

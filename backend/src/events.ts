@@ -1,6 +1,7 @@
 import { Body, Controller, HttpCode, Ip, Module, Post } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { Q_MAX } from './recommend/recommend.js';
 import { PrismaService } from './prisma/prisma.service.js';
 import { Limiter } from './recommend/recommend.js';
 
@@ -12,7 +13,8 @@ const TYPES = ['play', 'finish', 'save', 'share', 'youtube'] as const;
 class EventDto {
   @ApiProperty({ enum: TYPES }) @IsIn(TYPES) type!: (typeof TYPES)[number];
   @ApiProperty({ required: false, description: '곡 id — play·finish' }) @IsOptional() @IsString() @MaxLength(40) trackId?: string;
-  @ApiProperty({ required: false, description: '서랍 id — save·share·youtube' }) @IsOptional() @IsString() @MaxLength(40) shelfId?: string;
+  @ApiProperty({ required: false, description: '서랍 id — save·share·youtube, 공개 서랍에서 튼 곡' }) @IsOptional() @IsString() @MaxLength(40) shelfId?: string;
+  @ApiProperty({ required: false, description: '그 곡을 꺼낸 요청문 — play·finish' }) @IsOptional() @IsString() @MaxLength(Q_MAX) query?: string;
 }
 
 @ApiTags('events')
@@ -23,10 +25,10 @@ export class EventsController {
 
   @Post()
   @HttpCode(204)
-  @ApiOperation({ summary: '행동 하나 기록 — 사용자·IP·요청문은 안 남긴다' })
+  @ApiOperation({ summary: '행동 하나 기록 — 재생엔 그 곡을 꺼낸 요청문을 같이. 사용자·IP 는 안 남긴다' })
   async log(@Body() dto: EventDto, @Ip() ip: string) {
     if (!this.limiter.hit(ip)) return;
-    await this.prisma.eventLog.create({ data: { type: dto.type, trackId: dto.trackId, shelfId: dto.shelfId } }).catch(() => undefined);
+    await this.prisma.eventLog.create({ data: { type: dto.type, trackId: dto.trackId, shelfId: dto.shelfId, query: dto.query?.trim() || null } }).catch(() => undefined);
   }
 }
 

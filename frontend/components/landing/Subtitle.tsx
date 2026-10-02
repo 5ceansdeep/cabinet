@@ -69,14 +69,17 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
       className="flex flex-col items-center font-subtitle text-[clamp(15px,calc(.9vw+6px),30px)] tracking-wide text-[#e2cd5a]"
       style={{ textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6)` }}
     >
-      {/* 자글자글 — 옛 필름 자막처럼 글자·테두리가 아주 살짝 끓는다(잘게 낀 노이즈로 2~3px 비틀고, 노이즈 씨앗을 1초에 12번 바꾼다 — 10/2 사용자: 더 작은 입자로).
-          움직임 줄이기를 켠 사람에겐 끈다 */}
+      {/* 자글자글 — 옛 필름 자막처럼 글자·테두리가 아주 살짝 끓는다(잘게 낀 노이즈로 2~3px 비튼다).
+          10/2 사용자: 더 작은 입자로, 불규칙하게 — 노이즈를 촘촘히(0.22), 씨앗은 들쭉날쭉한 간격으로(1.3초), 비트는 세기는 가끔 튀게(2.3초).
+          두 주기가 안 맞물려 반복이 잘 안 보인다. 움직임 줄이기를 켠 사람에겐 끈다 */}
       <svg aria-hidden className="absolute size-0">
         <filter id={boil}>
-          <feTurbulence type="fractalNoise" baseFrequency="0.1" numOctaves="2" seed="1">
-            <animate attributeName="seed" values="1;2;3;4;5;6;7;8;9;10;11;12" dur="1s" repeatCount="indefinite" calcMode="discrete" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.22" numOctaves="2" seed="1">
+            <animate attributeName="seed" values="1;7;3;12;5;9;2;11;4;8;6;10;13" keyTimes="0;.06;.1;.21;.27;.3;.42;.47;.58;.66;.71;.85;.93" dur="1.3s" repeatCount="indefinite" calcMode="discrete" />
           </feTurbulence>
-          <feDisplacementMap in="SourceGraphic" scale="2.6" />
+          <feDisplacementMap in="SourceGraphic" scale="2.4">
+            <animate attributeName="scale" values="2.2;2.2;3.4;2;2.6;2.2;3.1;2.2" keyTimes="0;.2;.24;.4;.55;.7;.74;1" dur="2.3s" repeatCount="indefinite" calcMode="discrete" />
+          </feDisplacementMap>
         </filter>
       </svg>
       <div className="flex flex-col items-center motion-reduce:![filter:none]" style={{ filter: `url(#${boil})` }}>

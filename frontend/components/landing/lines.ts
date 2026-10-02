@@ -4,7 +4,7 @@ import type { Field } from "./CabinetScene";
 // voiceKey — 음성 파일 이름. public/voice/{voiceKey}.mp3 (없으면 기계 음성)
 export type Line = { text: string; voice?: string; voiceKey?: string; link?: { href: string; label: string } };
 
-/* 자막·목소리 문구 — 서류함의 주인 (브루스 올마이티 신 페르소나, docs/voice-persona.md).
+/* 자막·목소리 문구 — 서류함의 주인. 속은 브루스 올마이티의 신이지만 정체는 드러내지 않는 관리인 (docs/voice-persona.md).
    문구는 여기 AUTH_DIALOGUE 한 곳만 고치면 된다. 아래 FIELDS·LINES 는 이걸 화면 구조에 맞게 엮을 뿐 */
 export const AUTH_DIALOGUE = {
   // 진입 및 대기
@@ -18,7 +18,7 @@ export const AUTH_DIALOGUE = {
     label: "EMAIL",
     prompt: "소식받을 이메일 하나 남겨보게. 스팸은 안 보내네, 약속하지.",
     missing: "주소가 없으면 자네를 어떻게 찾나?",
-    invalid: "내가 만든 세상엔 이런 주소가 없는데? @는 어디 두고 왔나.",
+    invalid: "이런 주소로는 편지가 갈 데가 없네. @는 어디 두고 왔나.",
     alreadyExists: "그 주소는 이미 내 서랍에 있네. 자네, 나보다 건망증이 심하군.",
     alreadyExistsAction: "그 서랍 열러 가기",
   },
@@ -70,20 +70,20 @@ export const AUTH_DIALOGUE = {
 
   // 입력 상태 및 시스템
   CAPS_LOCK: "Caps Lock이 켜져 있네!! 그렇게 소리 안 질러도 다 들린다네!!",
-  COOLDOWN: "천천히 하게. 난 영원히 기다릴 수 있거든. 말 그대로.",
-  SUBMITTING: "서류 정리 중이네. 기적도 서류 작업은 필요하거든.",
+  COOLDOWN: "천천히 하게. 기다리는 건 내 특기라네.",
+  SUBMITTING: "서류 정리 중이네. 여기선 뭐든 서류부터라서.",
   NO_ACCOUNT: "자네 이름은 내 서류함에 없군. 새 서랍 하나 짜줄까?",
   NO_ACCOUNT_ACTION: "새로 등록하기",
   ERROR: "이런, 내 손이 미끄러졌군. 다시 눌러보게. 비밀로 해주고.",
 
   // 성공 및 안내 — 자막은 닉네임을 넣는 함수, 목소리(_VOICE)는 닉네임 없이
   LOGIN_SUCCESS: (nickname: string) => `돌아왔군, ${nickname}. 자네 자리 그대로 비워뒀네.`,
-  SIGNUP_SUCCESS: (nickname: string) => `완성됐네, ${nickname}! 어때, 천지창조보단 쉽지?`,
+  SIGNUP_SUCCESS: (nickname: string) => `다 됐네, ${nickname}! 서랍 하나 짜는 데 이 정도면 빠른 편이지.`,
   WELCOME_BACK: (nickname: string) => `또 왔군, ${nickname}. 문은 열어뒀네.`,
   RESET_SUCCESS: (nickname: string) => `새 열쇠가 딱 맞네, ${nickname}. 들어오게.`,
   RESET_SUCCESS_VOICE: "새 열쇠가 딱 맞네. 들어오게.",
   LOGIN_SUCCESS_VOICE: "돌아왔군. 자네 자리 그대로 비워뒀네.",
-  SIGNUP_SUCCESS_VOICE: "완성됐네! 어때, 천지창조보단 쉽지?",
+  SIGNUP_SUCCESS_VOICE: "다 됐네! 서랍 하나 짜는 데 이 정도면 빠른 편이지.",
   WELCOME_BACK_VOICE: "또 왔군. 문은 열어뒀네.",
 } as const;
 
@@ -155,7 +155,7 @@ export const RESULT_DIALOGUE = {
   MORE: "같은 편지로 몇 곡 더", // 이어서 더 꺼낸다
   DRY: "이 편지로는 서랍이 텅 비었네. 새로 한 장 써 주면 또 뒤져 보지.",
   DRY_ACTION: "새 편지 쓰기",
-  FAILED: "서랍이 뻑뻑해서 안 열리네. 기적도 가끔은 삐걱거리지. 한 번 더 당겨 보게.", // 서버 오류
+  FAILED: "서랍이 뻑뻑해서 안 열리네. 이 서랍장도 나만큼 오래돼서 말이야. 한 번 더 당겨 보게.", // 서버 오류
   FAILED_ACTION: "다시 뒤지기",
 } as const;
 

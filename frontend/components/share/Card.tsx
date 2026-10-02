@@ -31,15 +31,23 @@ export function barsOf(seed: string) {
   return Array.from({ length: 64 }, () => (h = (h * 31 + seed.charCodeAt(h % Math.max(1, seed.length)) + 17) % 9973) % 4);
 }
 
+/* 카드에선 막대를 SVG 한 장으로 — 막대마다 div 64개로 그리면 그것만 0.85초 걸렸다(10/2 카드 인쇄 9초) */
+function barcodeSvg(seed: string) {
+  let x = 0;
+  const rects = barsOf(seed)
+    .map((b, i) => {
+      const r = `<rect x="${x}" width="${b + 2}" height="90" fill="${INK}"/>`;
+      x += b + 2 + ((i * 7) % 3 === 0 ? 4 : 2);
+      return r;
+    })
+    .join("");
+  return { width: x, src: `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="${x}" height="90">${rects}</svg>`)}` };
+}
+
 function Barcode({ seed }: { seed: string }) {
-  const bars = barsOf(seed);
-  return (
-    <div style={{ display: "flex", height: 90, justifyContent: "center" }}>
-      {bars.map((b, i) => (
-        <div key={i} style={{ width: b + 2, height: 90, marginRight: (i * 7) % 3 === 0 ? 4 : 2, background: INK }} />
-      ))}
-    </div>
-  );
+  const { width, src } = barcodeSvg(seed);
+  // eslint-disable-next-line @next/next/no-img-element -- Satori 는 img 만 그린다
+  return <img src={src} width={width} height={90} alt="" />;
 }
 
 /* 미국 마트 간판풍 로고 — 굵은 압축 고딕 CABINET 을 두꺼운 테두리 간판에, 아래 반전 띠 "SONG & FILE MARKET", 위에 별 셋.
@@ -74,7 +82,6 @@ function Covers({ tracks, side }: { tracks: ShareData["tracks"]; side: "left" | 
           flexShrink: 0,
           marginLeft: left ? (1080 - W) / 2 - COVER + 40 : 14, // 오른쪽 줄은 영수증보다 뒤에 그려져 덮으므로 겹치지 않게 띄운다
           transform: `rotate(${[-4, 3, -2, 5, -3][r] * (left ? 1 : -1)}deg)`,
-          boxShadow: "0 12px 30px rgba(0,0,0,.35)",
         } as const;
         return t?.artwork ? (
           // eslint-disable-next-line @next/next/no-img-element -- Satori 는 img 만 그린다
@@ -113,7 +120,7 @@ export default function Card({ q, keywords, tracks, qr, shelf, date, no, paper }
           padding: "44px 48px 40px",
           backgroundColor: PAPER,
           ...(paper && { backgroundImage: `url(${paper})`, backgroundSize: "100% 100%" }),
-          boxShadow: "0 30px 70px rgba(0,0,0,.55)",
+          boxShadow: "0 10px 18px rgba(0,0,0,.45)", // 넓게 퍼지는 흐림은 그리는 데 오래 걸린다(70px 흐림 + 표지 10장 그림자 = 1.5초)
           color: INK,
           fontFamily: FONT,
           fontSize: 24,
@@ -196,7 +203,7 @@ export function OgCard({ q, tag, tracks, paper }: { q: string; tag: string; trac
     <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", width: 330, height: 630 }}>
       {[0, 1].map((r) => {
         const t = tracks[(from + r) % Math.max(1, tracks.length)];
-        const style = { width: 290, height: 290, flexShrink: 0, margin: "8px 20px", transform: `rotate(${(r ? -3 : 4) * dir}deg)`, boxShadow: "0 12px 30px rgba(0,0,0,.4)" } as const;
+        const style = { width: 290, height: 290, flexShrink: 0, margin: "8px 20px", transform: `rotate(${(r ? -3 : 4) * dir}deg)`, } as const;
         return t?.artwork ? (
           // eslint-disable-next-line @next/next/no-img-element -- Satori 는 img 만 그린다
           <img key={r} src={t.artwork} width={290} height={290} style={{ ...style, objectFit: "cover" }} alt="" />
@@ -220,7 +227,7 @@ export function OgCard({ q, tag, tracks, paper }: { q: string; tag: string; trac
           padding: "26px 40px 0",
           backgroundColor: PAPER,
           ...(paper && { backgroundImage: `url(${paper})`, backgroundSize: "100% 100%" }),
-          boxShadow: "0 20px 50px rgba(0,0,0,.55)",
+          boxShadow: "0 8px 16px rgba(0,0,0,.45)",
           color: INK,
           fontFamily: FONT,
           fontSize: 21,

@@ -7,6 +7,10 @@ import { analyzeSpeech } from "./cues";
    onStart — 그 대사의 소리가 실제로 시작될 때 불린다. 자막 줄(lines 개)마다 "지금부터 몇 초 뒤"를 주거나, 모르면 null.
    브라우저는 사용자가 한 번이라도 클릭·키 입력을 해야 소리를 낸다 (그 전엔 소리 없이 자막만). */
 
+/* 목소리 켜기 — 10/2 사용자: 베타는 음성을 다 끄고 자막만. 꺼져 있으면 mp3 를 받지도 틀지도 않고, 자막은 읽는 시간만큼 기다린다.
+   다시 켜려면 true (녹음 파일·분석 코드는 그대로 있다) */
+const VOICE = false;
+
 type Job = { text: string; key?: string; lines: number; onStart?: (delays: number[] | null) => void };
 
 const TAIL = 0.25; // 말이 끝나고 다음 대사까지 숨 고르는 시간(초)
@@ -75,7 +79,7 @@ function silent(job: Job, id: number) {
 }
 
 function play(job: Job, id: number) {
-  if (!job.key) return silent(job, id);
+  if (!VOICE || !job.key) return silent(job, id);
   const src = /^https?:/.test(job.key) ? job.key : `/voice/${job.key}.mp3`;
   const a = new Audio(src);
   current?.pause(); // 앞 대사 파일의 남은 끝소리(잔향)까지 멈춘다 — 파일 두 개가 겹치면 엔터로도 앞 것이 안 끊긴다
@@ -150,4 +154,4 @@ export function whenQuiet(maxMs = MAX_LINE * 1000): Promise<void> {
 }
 
 // 미리 받아 분석해 둔다 — 처음 나올 때 자막이 분석을 기다리지 않게 (결과만 남기고 소리 데이터는 버린다)
-export const warm = (key: string, lines: number) => analyze(`/voice/${key}.mp3`, lines).catch(() => undefined);
+export const warm = (key: string, lines: number) => (VOICE ? analyze(`/voice/${key}.mp3`, lines).catch(() => undefined) : undefined);

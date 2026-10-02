@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Ip, Module, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, Ip, Logger, Module, Post } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { Q_MAX } from './recommend/recommend.js';
@@ -8,6 +8,7 @@ import { Limiter } from './recommend/recommend.js';
 /* 행동 기록 — 화면이 재생·끝까지 들음·서랍 저장·공유·유튜브 이동 때 부른다(로그인 없이, 기다리지 않음). 실패해도 화면은 그대로.
    한 곳(IP)에서 분당 30·하루 1000건까지만 — 넘치면 조용히 버린다(DB 를 못 채우게) */
 
+const logger = new Logger('Events');
 const TYPES = ['play', 'finish', 'save', 'share', 'youtube'] as const;
 
 class EventDto {
@@ -28,7 +29,7 @@ export class EventsController {
   @ApiOperation({ summary: '행동 하나 기록 — 재생엔 그 곡을 꺼낸 요청문을 같이. 사용자·IP 는 안 남긴다' })
   async log(@Body() dto: EventDto, @Ip() ip: string) {
     if (!this.limiter.hit(ip)) return;
-    await this.prisma.eventLog.create({ data: { type: dto.type, trackId: dto.trackId, shelfId: dto.shelfId, query: dto.query?.trim() || null } }).catch(() => undefined);
+    await this.prisma.eventLog.create({ data: { type: dto.type, trackId: dto.trackId, shelfId: dto.shelfId, query: dto.query?.trim() || null } }).catch((e) => logger.warn(`행동 기록 저장 실패: ${e}`));
   }
 }
 

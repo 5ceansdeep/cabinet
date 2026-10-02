@@ -11,7 +11,8 @@
 ## 2. 공개 전 꼭 할 것
 
 - [사용자] **곡 설명 붙이기** — 10/2 부터 새벽 곡 설명(Gemini) 자동 실행을 껐다(`DESCRIBE_NIGHTLY`). `refill` 로 모은 곡은 설명이 붙기 전엔 추천에 안 나온다.
-  다 모으면 AI Studio 한도를 보고 `POST /catalog/describe`(설명 없는 곡 전부) — 곡당 Gemini 2번
+  다 모으면 `POST /catalog/describe`(설명 없는 곡 전부, 곡당 Gemini 2번). 한도에 막혀도 끝난 곡은 저장되고 3곡 연달아 실패하면 멈춘다 — 한도를 풀고 다시 누르면 남은 곡부터.
+  **다만 막히는 동안 사용자 추천도 멈춘다**(같은 키·같은 한도) — 베타 중이면 한도를 먼저 올리거나 사람 적은 시간에
 
 - [사용자] Railway Variables 에 `GMAIL_USER`·`GMAIL_APP_PASSWORD` 확인 → 배포 사이트 `/forgot` 으로 본인 메일 시험 → 그 김에 **관리자 비밀번호 바꾸기**(대화에 노출됨)
 - [사용자] AI Studio **비용 제한**(월 한도), **Railway Hobby 전환**(체험 크레딧 30일·$5 끝나기 전)

@@ -67,15 +67,17 @@ export class ShelvesService {
           : await this.prisma.track.create({ data: { title: t.title, artist: t.artist, artwork: t.artwork, previewUrl: t.previewUrl } }),
       );
     }
-    const shelf = await this.prisma.shelf.create({
-      data: {
-        userId,
-        tag: dto.tag,
-        query: dto.query ?? '',
-        tracks: { create: [...new Map(tracks.map((t) => [t.id, t])).values()].map((t, order) => ({ trackId: t.id, order })) },
-      },
-      include: this.include,
-    });
+    const ids = [...new Set(tracks.map((t) => t.id))];
+    const query = dto.query ?? '';
+    // 같은 요청문·같은 곡 묶음을 또 넣으면 새 서랍 대신 그 서랍(이름만 새것으로) — 10/2 같은 "미쳤어" 서랍이 두 개 생겼다
+    const same = await this.prisma.shelf.findMany({ where: { userId, query }, select: { id: true, tracks: { select: { trackId: true } } } });
+    const dup = same.find((s) => s.tracks.length === ids.length && s.tracks.every((x) => ids.includes(x.trackId)));
+    const shelf = dup
+      ? await this.prisma.shelf.update({ where: { id: dup.id }, data: { tag: dto.tag }, include: this.include })
+      : await this.prisma.shelf.create({
+          data: { userId, tag: dto.tag, query, tracks: { create: ids.map((trackId, order) => ({ trackId, order })) } },
+          include: this.include,
+        });
     return this.toResponse(shelf);
   }
 

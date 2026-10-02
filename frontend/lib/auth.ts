@@ -7,7 +7,6 @@ export type AuthResult = { ok: true; nickname: string } | { ok: false; reason: "
 type Token = { accessToken: string; user: { id: string; email: string; nickname: string } };
 
 const SESSION = "cabinet.session"; // 닉네임 — "또 왔군" 인사용
-const KNOWN = "cabinet.known"; // 이 브라우저에서 들어온 적 있나 — 처음 온 사람은 회원가입으로
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function load(key: string) {
@@ -32,7 +31,6 @@ async function enter(path: string, body: object, fail: (status: number) => AuthR
   if (!r.ok) return r.status === 0 || r.status >= 500 ? { ok: false, reason: "server" } : fail(r.status);
   setToken(r.data.accessToken);
   save(SESSION, r.data.user.nickname);
-  save(KNOWN, "1");
   return { ok: true, nickname: r.data.user.nickname };
 }
 
@@ -79,14 +77,4 @@ export function subscribeSession(cb: () => void) {
   return () => removeEventListener("storage", cb);
 }
 
-// 이 브라우저에서 한 번이라도 가입한 적 있나 — 처음 온 사람은 회원가입으로 보낸다
-export const hasAccounts = () => load(KNOWN) === "1";
 
-/* 회원가입으로 보내는 건 이 브라우저에서 딱 한 번만 — 두 번째부터는 로그인 화면에 머문다.
-   안 그러면 다른 기기에서 가입했거나 저장소를 지운 사람은 "로그인" 을 눌러도 계속 가입 화면으로 튕긴다 */
-const SENT = "cabinet.sentToSignup";
-export function sendToSignupOnce() {
-  if (load(SENT)) return false;
-  save(SENT, "1");
-  return true;
-}

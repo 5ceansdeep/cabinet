@@ -73,7 +73,7 @@ export const AUTH_DIALOGUE = {
   COOLDOWN: "천천히 하게. 난 영원히 기다릴 수 있거든. 말 그대로.",
   SUBMITTING: "서류 정리 중이네. 기적도 서류 작업은 필요하거든.",
   NO_ACCOUNT: "자네 이름은 내 서류함에 없군. 새 서랍 하나 짜줄까?",
-  NO_ACCOUNT_ACTION: "새로 등록하기",
+  NO_ACCOUNT_ACTION: "처음부터 다시",
   ERROR: "이런, 내 손이 미끄러졌군. 다시 눌러보게. 비밀로 해주고.",
 
   // 성공 및 안내 — 자막은 닉네임을 넣는 함수, 목소리(_VOICE)는 닉네임 없이
@@ -123,7 +123,7 @@ export const LINES = {
   soundHint: "화면 아무 곳이나 클릭하면 음성이 나옵니다.", // 브라우저가 소리를 막고 있을 때 — 조작 안내라 페르소나 밖, 읽지 않음
   checking: { text: D.SUBMITTING, voiceKey: "SUBMITTING" },
   wrong: { text: D.PASSWORD_LOGIN.incorrect, voiceKey: "PASSWORD_LOGIN.incorrect" },
-  noAccount: { text: D.NO_ACCOUNT, voiceKey: "NO_ACCOUNT", link: { href: "/signup", label: D.NO_ACCOUNT_ACTION } },
+  noAccount: { text: D.NO_ACCOUNT, voiceKey: "NO_ACCOUNT", link: { href: "/", label: D.NO_ACCOUNT_ACTION } }, // 이메일 확인과 로그인 사이에 계정이 지워졌을 때뿐 — 처음부터 다시
   emailTaken: { text: D.EMAIL.alreadyExists, voiceKey: "EMAIL.alreadyExists", link: { href: "/", label: D.EMAIL.alreadyExistsAction } },
   server: { text: D.ERROR, voiceKey: "ERROR" },
   welcomeBack: (nickname: string): Line => ({ text: D.LOGIN_SUCCESS(nickname), voice: D.LOGIN_SUCCESS_VOICE, voiceKey: "LOGIN_SUCCESS_VOICE" }),
@@ -138,7 +138,6 @@ export const LINES = {
 
 /* ─ 화면 구석 링크 ─ */
 export const NAV = {
-  signup: "처음 왔나? — 등록하기",
   forgot: "열쇠를 잃어버렸나?",
   login: "이미 등록했나? — 들어가기",
   back: "돌아가기",

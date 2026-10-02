@@ -12,13 +12,6 @@ const EVENT = "cabinet-shelves"; // 같은 탭 안에서 바뀐 걸 알린다 (s
 // ids 는 예전 형식(가짜 곡 번호) — 읽을 때만 받아 준다
 type Saved = { id: string; tag: string; query?: string; tracks?: Track[]; ids?: (number | string)[]; at: number; remote?: boolean };
 
-// 예시 서랍 — 아직 저장한 게 없어도 방이 비어 보이지 않게
-const DEMO: Shelf[] = [
-  { id: "demo-late", tag: "#LATE-NIGHT", query: "", kept: TRACKS.slice(0, 3) },
-  { id: "demo-dreamy", tag: "#DREAMY", query: "", kept: TRACKS.slice(2, 5) },
-  { id: "demo-2026", tag: "#2026", query: "", kept: TRACKS.slice(1, 6) },
-];
-
 function read(): Saved[] {
   try {
     return JSON.parse(localStorage.getItem(KEY) ?? "[]");
@@ -126,7 +119,7 @@ export function parseShelves(raw: string): Shelf[] {
       remote: s.remote,
       kept: s.tracks ?? (s.ids ?? []).map((id) => TRACKS.find((t) => t.id === String(id))).filter((t): t is Track => !!t),
     }));
-  return [...mine, ...DEMO];
+  return mine; // 견본 서랍(가짜 곡)은 10/2 뺐다 — 빈 칸은 ArchiveRoom 이 빈 서랍으로 그린다
 }
 
 /* 유튜브에서 이어 듣기 — 서버 서랍이면 영상을 찾아 watch_videos 링크를, 아니면 곡별 검색 링크만(할당량 0) */

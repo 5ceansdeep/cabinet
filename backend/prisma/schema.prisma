@@ -82,6 +82,7 @@ model SearchLog {
   query     String   @default("") // 편지 글 — 10/2 사용자: 어떤 편지에 어떤 곡이 나왔나 보려고(베타 안내문에 고지). 사용자·IP 는 안 남긴다
   tracks    String   @default("[]") // 화면에 나온 순서대로 ["가수 - 제목", ...]
   line      String   @default("") // 그때 신의 한마디(자막) — 재정렬이 늦거나 실패하면 빈 칸
+  asked     String   @default("[]") // 편지에 직접 쓴 가수(해석 artists) — 곡 풀 넓히기가 그 가수 인기곡을 먼저 모은다(10/2 박효신)
   createdAt DateTime @default(now())
 
   @@index([createdAt])

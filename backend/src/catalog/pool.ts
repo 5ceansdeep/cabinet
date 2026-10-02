@@ -76,7 +76,9 @@ export class PoolService implements OnModuleInit, OnModuleDestroy {
     // 최근 검색에서 많이 나온 해석 태그·가수
     const tagScore = new Map<string, number>();
     const artistCount = new Map<string, number>();
+    const askedCount = new Map<string, number>(); // 편지에 직접 쓴 가수 — 그 가수 인기곡을 먼저(10/2)
     for (const l of logs) {
+      for (const a of JSON.parse(l.asked) as string[]) askedCount.set(a, (askedCount.get(a) ?? 0) + 1);
       for (const [t, w] of Object.entries(JSON.parse(l.tags) as Tags)) tagScore.set(t, (tagScore.get(t) ?? 0) + w);
       for (const a of JSON.parse(l.artists) as string[]) artistCount.set(a, (artistCount.get(a) ?? 0) + 1);
     }
@@ -90,14 +92,15 @@ export class PoolService implements OnModuleInit, OnModuleDestroy {
       const some = await this.prisma.track.findMany({ where: { tags: { not: '{}' } }, select: { artist: true }, take: 50 });
       artists = [...new Set(some.map((t) => t.artist))].sort(() => Math.random() - 0.5).slice(0, 4);
     }
-    return { tags: [...new Set([...top(tagScore, 3), ...SEED_TAGS])], artists };
+    return { tags: [...new Set([...top(tagScore, 3), ...SEED_TAGS])], artists, asked: top(askedCount, 6) };
   }
 
   /** only = 이 태그의 인기곡만(장르 채우기) */
   private async candidates(only?: string[]): Promise<Ref[]> {
-    const { tags, artists } = only?.length ? { tags: only, artists: [] } : await this.seeds();
+    const { tags, artists, asked } = only?.length ? { tags: only, artists: [], asked: [] } : await this.seeds();
     const similar = (await Promise.all(artists.map((a) => similarArtists(a, 4)))).flat();
     const lists = await Promise.all([
+      ...asked.map((a) => artistTopTracks(a, 8)), // 사람들이 찾은 가수 본인 곡 — 한글·원래 표기가 같이 들어오니 Last.fm 이 아는 쪽이 걸린다
       ...similar.map((a) => artistTopTracks(a, 3)),
       ...(only?.length ? [] : CHARTS.map(chart)),
       ...tags.map((t) => tagTopTracks(t, only?.length ? 40 : 20)),

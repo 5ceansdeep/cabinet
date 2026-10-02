@@ -48,9 +48,8 @@ type Scored = Omit<Track, "cover">;
    서버가 오류를 내면 가짜 곡으로 덮지 않고 failed — 예전엔 오류도 가짜 곡으로 보여 줘서 결과처럼 보였다(9/30, 백엔드 재시작 중 요청).
    못 닿거나 5xx 면 한 번 더 부른다(배포 중 Railway 502 는 CORS 헤더가 없어 브라우저엔 "못 닿음"으로 보인다).
    가짜 곡은 개발 중 백엔드를 안 켰을 때만 — 배포에서 못 닿으면 failed(다시 뒤지기). 10/2 사용자: 목데이터 띄우지 말 것 */
-export async function findTracks(query: string, opt: { seen?: string[]; thrown?: string[]; genres?: string[] } = {}): Promise<Found> {
+export async function findTracks(query: string, opt: { seen?: string[]; thrown?: string[] } = {}): Promise<Found> {
   const qs = new URLSearchParams({ q: query });
-  if (opt.genres?.length) qs.set("g", opt.genres.join(","));
   if (opt.seen?.length) qs.set("seen", opt.seen.join(","));
   if (opt.thrown?.length) qs.set("thrown", opt.thrown.join(","));
   const get = () => api<{ interpretation: string[]; tracks: Scored[]; line: GodLine | null }>(`/recommend?${qs}`);

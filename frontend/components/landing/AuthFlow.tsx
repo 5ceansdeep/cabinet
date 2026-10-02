@@ -3,15 +3,16 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { checkSession, clearSession, emailTaken, getSession, hasAccounts, login, requestReset, resetPassword, sendToSignupOnce, signup, subscribeSession } from "@/lib/auth";
+import { checkSession, clearSession, emailTaken, getSession, login, requestReset, resetPassword, signup, subscribeSession } from "@/lib/auth";
 import { startChoir } from "@/lib/choir";
 import { whenQuiet } from "@/lib/voice";
 import { thud } from "@/lib/thud";
-import CabinetScene, { type Phase } from "./CabinetScene";
+import CabinetScene, { type Field, type Phase } from "./CabinetScene";
 import { FIELDS, LINES, NAV, type Line } from "./lines";
 import { Halo } from "./LoadingOverlay";
 
-/* 1·2번 흐름 — 인증(로그인/회원가입/열쇠 찾기) → 서랍 닫힘 → 후광이 화면을 하얗게 → /search(신에게 쓰는 편지) */
+/* 1·2번 흐름 — 인증(들어가기/열쇠 찾기) → 서랍 닫힘 → 후광이 화면을 하얗게 → /search(신에게 쓰는 편지).
+   들어가기는 이메일부터 — 가입된 주소면 비밀번호(로그인), 처음이면 닉네임·비밀번호·확인(가입). 등록 화면을 따로 두지 않는다(10/2 사용자) */
 
 type Mode = keyof typeof FIELDS;
 const CLOSE_MS = 700; // 서랍이 닫히는 동안 후광은 기다린다
@@ -20,16 +21,12 @@ const GREET_MS = 2600; // 환영 인사를 들려주고 나서 로딩 문구로
 
 export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: string }) {
   const router = useRouter();
-  const fields = FIELDS[mode];
+  const [branch, setBranch] = useState<"login" | "signup" | null>(null); // 이메일로 정한 갈래 — 들어가기(login) 화면만
+  const fields = mode !== "login" ? FIELDS[mode] : branch ? FIELDS[branch] : FIELDS.login.slice(0, 1); // 갈래를 정하기 전엔 이메일 한 장
+  const as = mode === "login" ? (branch ?? "login") : mode; // 실제로 하는 일
   const [phase, setPhase] = useState<Phase>("auth");
   const [progress, setProgress] = useState(0);
   const [flow, setFlow] = useState<Line | null>(null); // 흐름 자막 — 대조 중·실패·환영·로딩
-
-  // 이 브라우저에 계정이 하나도 없으면 — 처음 온 사람이니 회원가입으로
-  useEffect(() => {
-    // 단 한 번만 — 가입 화면에서 "로그인" 을 눌러 돌아오면 여기 머문다
-    if (mode === "login" && !getSession() && !hasAccounts() && sendToSignupOnce()) router.replace("/signup");
-  }, [mode, router]);
 
   // 이미 들어온 적 있으면 인사만 하고 곧장 편지로. "다른 이름으로" 누르면 세션을 지우고 평소대로
   // 인사는 출입증이 아직 유효한지 서버에 확인한 뒤에만 — 무효면 checkSession 이 흔적을 지워 평소 로그인으로
@@ -76,10 +73,19 @@ export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: str
   // 로딩 동안 성스러운 브금 — 페이지를 떠나면 cleanup 으로 페이드아웃
   useEffect(() => (phase === "loading" ? startChoir() : undefined), [phase]);
 
-  /* 회원가입 이메일 칸 — 이미 가입된 주소면 비밀번호까지 받기 전에 바로 알린다 (서버에 못 닿으면 그냥 넘어가고 마지막에 다시 걸러진다) */
-  async function check(name: string, value: string): Promise<Line | null> {
+  /* 이메일 칸 — 가입된 주소인지 물어 갈래를 정한다. 처음이면 "처음 보는 얼굴이군" 을 들려주고(말이 끝나면 닉네임 안내로) 가입 서류를 낸다.
+     서버에 못 닿으면 갈래를 못 정하니 이 칸에 머문다. 가입 여부는 원래 가입 화면도 409 로 알려 주던 정보라 새로 흘리는 건 없다 */
+  async function check(name: string, value: string): Promise<Line | Field[] | null> {
     if (name !== "email") return null;
-    return (await emailTaken(value.trim().toLowerCase())) ? LINES.emailTaken : null;
+    const taken = await emailTaken(value.trim().toLowerCase());
+    if (taken === null) return LINES.server;
+    setBranch(taken ? "login" : "signup");
+    if (!taken) {
+      const hello = LINES.intro.signup;
+      setFlow(hello);
+      setTimeout(() => void whenQuiet().then(() => setFlow((f) => (f === hello ? null : f))), 200); // 말이 다 끝나면 닉네임 안내로
+    }
+    return FIELDS[taken ? "login" : "signup"];
   }
 
   /* 모든 파일을 받았다 — 대조하고, 실패면 다시 받을 파일 번호를 돌려준다 */
@@ -88,7 +94,7 @@ export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: str
     const email = values.email.trim().toLowerCase();
     const last = fields.length - 1;
 
-    if (mode === "forgot") {
+    if (as === "forgot") {
       const r = await requestReset(email);
       await whenQuiet(); // "서류 정리 중이네"를 끝까지 듣고 나서 결과로
       setFlow(r.ok ? LINES.resetSent : LINES.server);
@@ -96,14 +102,14 @@ export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: str
     }
 
     const r =
-      mode === "reset"
+      as === "reset"
         ? await resetPassword(token, values.password)
-        : mode === "login"
+        : as === "login"
           ? await login(email, values.password)
           : await signup(email, values.nickname, values.password);
     await whenQuiet(); // "서류 정리 중이네"를 끝까지 듣고 나서 결과(환영·꾸지람)로 — 화면이 목소리를 앞지르지 않게
     if (r.ok) {
-      setFlow((mode === "reset" ? LINES.resetDone : mode === "login" ? LINES.welcomeBack : LINES.welcomeNew)(r.nickname));
+      setFlow((as === "reset" ? LINES.resetDone : as === "login" ? LINES.welcomeBack : LINES.welcomeNew)(r.nickname));
       setPhase("loading");
       return null;
     }
@@ -136,7 +142,7 @@ export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: str
         phase={phase}
         flow={returning ? LINES.returning(returning) : flow}
         onClearFlow={() => setFlow(null)}
-        onCheck={mode === "signup" ? check : undefined}
+        onCheck={mode === "login" ? check : undefined}
         onDone={done}
       />
       {phase === "loading" && <Halo p={glow} />}
@@ -154,14 +160,9 @@ export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: str
               {NAV.notMe(returning)}
             </button>
           ) : mode === "login" ? (
-            <>
-              <Link href="/signup" className={link}>
-                {NAV.signup}
-              </Link>
-              <Link href="/forgot" className={link}>
-                {NAV.forgot}
-              </Link>
-            </>
+            <Link href="/forgot" className={link}>
+              {NAV.forgot}
+            </Link>
           ) : (
             <Link href="/" className={link}>
               {mode === "signup" ? NAV.login : NAV.back}

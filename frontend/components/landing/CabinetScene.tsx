@@ -140,7 +140,7 @@ export default function CabinetScene({
   phase: Phase;
   flow: Line | null;
   onClearFlow: () => void;
-  onCheck?: (name: string, value: string) => Promise<Line | null>; // 칸마다 서버에 물어볼 게 있으면 — 꾸지람 대사, 괜찮으면 null
+  onCheck?: (name: string, value: string) => Promise<Line | Field[] | null>; // 칸마다 서버에 물어볼 게 있으면 — 꾸지람 대사, 이제부터 받을 서류 목록(갈래가 정해짐), 괜찮으면 null
   onDone: (values: Record<string, string>) => Promise<number | null>;
 }) {
   const [open, setOpen] = useState(false); // 한 번 호버하면 열린 채로 유지
@@ -262,7 +262,9 @@ export default function CabinetScene({
       return;
     }
     // 형식은 맞다 — 서버에 물어봐야 아는 것(이미 가입된 이메일 등)은 이 칸에서 바로
-    const refused = await onCheck?.(field.name, v);
+    const checked = await onCheck?.(field.name, v);
+    const list = Array.isArray(checked) ? checked : fields; // 갈래가 막 정해졌으면 새 목록으로 — 이 렌더의 fields 는 아직 옛것
+    const refused = Array.isArray(checked) ? null : checked;
     if (refused) {
       setError((p) => ({ line: refused, n: p.n + 1 }));
       input.focus();
@@ -274,7 +276,7 @@ export default function CabinetScene({
     thud(140);
     const next = step + 1;
     setStep(next);
-    if (next < fields.length) return;
+    if (next < list.length) return;
     // 파일이 제자리로 들어가는 동안 대조 — 실패하면 해당 파일이 다시 날아온다
     const back = await onDone(all);
     if (back !== null) setStep(back);

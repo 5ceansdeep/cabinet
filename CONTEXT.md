@@ -28,6 +28,9 @@
 - 제목에 요청 낱말 든 곡은 맨 앞 고정(미쳤어 → Crazy 1위), `POST /catalog/refill`(넓히기→소리→설명 한 번에), 보관함 서랍 = 플레이리스트 수(0개면 한마디),
   신의 한마디를 곡 소개 대신 상황 반응으로 + **모든 대사에서 신인 걸 티 안 냄**(다 아는 관리인, voice-persona.md 0장 — 바꾼 대사 mp3 4개 뺌, 다시 녹음 필요)
 - **요청 풀어 쓰기에 쓰임 장면**(드라마·예능 브금·밈·챌린지) 추가 → 재현율 41 → 46%(36/45). **곡 설명 쪽 쓰임은 표본 99곡에서 39% 로 나빠져 안 씀**(DB 그대로)
+- **공유 카드·공개 서랍 = 서류함 마트 영수증**(미국 마트풍 CABINET 로고·감열지 플로피·뒤에 앨범 표지·구김, `Card.tsx`·`thermal.ts`·`SharedShelf.tsx`), 자막 자글거림은 가장자리만·불규칙,
+  **등록 화면 없앰**(이메일 하나 → 가입 여부로 로그인/가입), 녹음 없는 대사는 자막만, 녹음 있던 대사 4개 원복
+- **곡 모으기 Gemini 없이**: `refill` = 넓히기·소리만(500곡·태그 20개까지), 새벽 곡 설명은 `DESCRIBE_NIGHTLY=true` 일 때만 — 모은 곡은 `POST /catalog/describe` 전엔 추천에 안 나옴
 - 다음: 곡 풀을 지금과 반대 결로 — `refill` 에 tags [metal, punk, soundtrack, classical, video game music, anime, dark, comedy, ost, edm](Last.fm 확인함, trot·suspense·k-drama 태그는 거의 없음)
 - **추천 API 호출 제한**: `/recommend`·`/line`·`/:id` 합쳐 IP 당 분당 10·하루 200(`Limiter`, 메모리), 넘으면 429 → 화면은 "서랍이 뻑뻑하네"
 - **행동 기록** `EventLog`(play·finish·save·share·youtube, trackId/shelfId, 재생·끝까지엔 요청문 `query` — 어떤 편지 → 어떤 곡. 사용자·IP 없음) + `POST /events`(IP 당 분당 30·하루 1000). Neon 에 마이그레이션 적용함

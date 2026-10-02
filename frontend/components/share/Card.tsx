@@ -15,8 +15,8 @@ export type ShareData = {
 
 const BG = "#07090d";
 const ACCENT = "#00e5ff";
-const INK = "#26262a"; // 감열지 잉크 — 새까맣지 않게
-const PAPER = "#f7f6f2";
+export const INK = "#26262a"; // 감열지 잉크 — 새까맣지 않게 (공유 페이지도 같이 쓴다)
+export const PAPER = "#f7f6f2";
 const FONT = "Mono, Chosun";
 const W = 760; // 영수증 폭
 const RULE = { borderTop: `2px dashed ${INK}`, opacity: 0.55, margin: "18px 0" } as const;
@@ -34,10 +34,10 @@ const CREASES = [
   [61, 12],
   [140, 39],
 ].map(([deg, at]) => `linear-gradient(${deg}deg, rgba(0,0,0,0) ${at - 2}%, rgba(0,0,0,.04) ${at}%, rgba(255,255,255,.28) ${at + 0.8}%, rgba(0,0,0,0) ${at + 4}%)`);
-const PAPER_BG = [...CREASES, "linear-gradient(160deg, rgba(255,255,255,.5) 10%, rgba(0,0,0,.035) 50%, rgba(255,255,255,.35) 90%)"].join(", ");
+export const PAPER_BG = [...CREASES, "linear-gradient(160deg, rgba(255,255,255,.5) 10%, rgba(0,0,0,.035) 50%, rgba(255,255,255,.35) 90%)"].join(", ");
 
 /* 막대 굵기를 글자에서 뽑은 장식 바코드 — 같은 편지면 같은 무늬 */
-function barsOf(seed: string) {
+export function barsOf(seed: string) {
   let h = 7;
   return Array.from({ length: 64 }, () => (h = (h * 31 + seed.charCodeAt(h % Math.max(1, seed.length)) + 17) % 9973) % 4);
 }
@@ -53,18 +53,20 @@ function Barcode({ seed }: { seed: string }) {
   );
 }
 
-/* 미국 마트 간판풍 로고 — 굵은 압축 고딕 CABINET 을 두꺼운 테두리 간판에, 아래 반전 띠 "SONG & FILE MARKET", 위에 별 셋 */
-function Logo() {
+/* 미국 마트 간판풍 로고 — 굵은 압축 고딕 CABINET 을 두꺼운 테두리 간판에, 아래 반전 띠 "SONG & FILE MARKET", 위에 별 셋.
+   display = 로고 글꼴 이름 — 카드(Satori)는 "Anton", 공유 페이지는 next/font 변수. scale = 크기 배율 */
+export function Logo({ display = "Anton", scale = 1 }: { display?: string; scale?: number }) {
+  const k = (n: number) => n * scale;
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-      <div style={{ display: "flex", fontSize: 26, letterSpacing: 18, marginBottom: 6 }}>★★★</div>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", border: `6px solid ${INK}`, borderRadius: 20, overflow: "hidden" }}>
-        <div style={{ display: "flex", fontFamily: "Anton", fontSize: 100, lineHeight: 1, letterSpacing: 6, padding: "12px 30px 4px" }}>CABINET</div>
-        <div style={{ display: "flex", justifyContent: "center", width: "100%", background: INK, color: PAPER, fontSize: 24, fontWeight: 600, letterSpacing: 7, padding: "8px 0 10px" }}>
+      <div style={{ display: "flex", fontSize: k(26), letterSpacing: k(18), marginBottom: k(6) }}>★★★</div>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", border: `${k(6)}px solid ${INK}`, borderRadius: k(20), overflow: "hidden" }}>
+        <div style={{ display: "flex", fontFamily: display, fontSize: k(100), lineHeight: 1, letterSpacing: k(6), padding: `${k(12)}px ${k(30)}px ${k(4)}px` }}>CABINET</div>
+        <div style={{ display: "flex", justifyContent: "center", width: "100%", background: INK, color: PAPER, fontSize: k(24), fontWeight: 600, letterSpacing: k(7), padding: `${k(8)}px 0 ${k(10)}px` }}>
           SONG &amp; FILE MARKET
         </div>
       </div>
-      <div style={{ display: "flex", marginTop: 12, fontSize: 22, letterSpacing: 3 }}>STORE #001 · SEOUL · OPEN 24 HRS</div>
+      <div style={{ display: "flex", marginTop: k(12), fontSize: k(22), letterSpacing: k(3) }}>STORE #001 · SEOUL · OPEN 24 HRS</div>
     </div>
   );
 }

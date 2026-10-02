@@ -3,26 +3,26 @@
 
 const INK = "#26262a";
 
-/** 줄 무늬 — gap 이 클수록 밝다. 다섯 줄을 한 묶음으로, 줄마다 끊기는 자리를 다르게 — 같으면 끊긴 자리가 세로 줄무늬로 보였다 */
+/** 줄 무늬 — gap 이 클수록 밝다. 다섯 줄을 한 묶음으로, 줄마다 끊기는 자리를 들쭉날쭉하게 — 같으면 세로 줄무늬, 일정하게 밀면 사선 계단이 보였다 */
 const lines = (id: string, gap: number, w: number, dash: string) =>
   `<pattern id="${id}" width="613" height="${gap * 5}" patternUnits="userSpaceOnUse">${[0, 1, 2, 3, 4]
-    .map((r) => `<path d="M0 ${gap * r + gap / 2}H613" stroke="${INK}" stroke-width="${w}" stroke-dasharray="${dash}" stroke-dashoffset="${r * 37 + 11}"/>`)
+    .map((r) => `<path d="M0 ${gap * r + gap / 2}H613" stroke="${INK}" stroke-width="${w}" stroke-dasharray="${dash}" stroke-dashoffset="${[11, 53, 29, 71, 4][r]}"/>`)
     .join("")}</pattern>`;
 
-/** 플로피 한 장(300×300 기준) — 몸체·셔터·셔터 구멍·라벨·쓰기 방지 구멍·모서리 깎임 */
+/** 플로피 한 장(300×300 기준) — 몸체·셔터·셔터 구멍·라벨·쓰기 방지 구멍·모서리 깎임. 셔터·라벨은 종이색을 먼저 깔아야 밑의 몸체 줄이 안 비친다 */
 const floppy = (x: number, y: number, rot: number) => `
 <g transform="translate(${x} ${y}) rotate(${rot} 150 150)">
   <path d="M0 14Q0 0 14 0H262L300 38V286Q300 300 286 300H14Q0 300 0 286Z" fill="url(#dark)"/>
-  <rect x="78" y="0" width="150" height="112" fill="url(#mid)"/>
+  <rect x="78" y="0" width="150" height="112" fill="#f7f6f2"/><rect x="78" y="0" width="150" height="112" fill="url(#mid)"/>
   <rect x="168" y="16" width="34" height="78" fill="url(#dark)"/>
-  <rect x="34" y="150" width="232" height="138" fill="url(#light)"/>
+  <rect x="34" y="150" width="232" height="138" fill="#f7f6f2"/><rect x="34" y="150" width="232" height="138" fill="url(#light)"/>
   <rect x="34" y="150" width="232" height="22" fill="url(#mid)"/>
   <rect x="270" y="262" width="18" height="22" fill="#f7f6f2"/>
 </g>`;
 
 const SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="620" height="360" viewBox="0 0 620 360">
-<defs>${lines("dark", 3, 2.1, "37 3")}${lines("mid", 4, 1.4, "23 4 9 3")}${lines("light", 7, 1, "17 6 5 4")}</defs>
+<defs>${lines("dark", 2.6, 2.1, "41 3")}${lines("mid", 5, 1.3, "23 4 9 3")}${lines("light", 10, 0.8, "17 7 5 5")}</defs>
 ${floppy(40, 40, -8)}${floppy(270, 30, 7)}
 </svg>`;
 
-export const THERMAL_FLOPPY = `data:image/svg+xml;base64,${Buffer.from(SVG).toString("base64")}`;
+export const THERMAL_FLOPPY = `data:image/svg+xml;base64,${btoa(SVG)}`; // btoa — 서버(카드)와 브라우저(공유 페이지) 둘 다

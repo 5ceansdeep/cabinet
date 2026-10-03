@@ -143,6 +143,12 @@ body {
   outline: 2px solid var(--ui);
   outline-offset: 2px;
 }
+/* 글 입력칸은 마우스로 눌러도 :focus-visible 이 켜져 검은 네모가 생겼다(10/3 사용자) — 입력칸은 제 표시를 쓴다
+   (편지지는 그림자가 진해지고, 한 줄 입력은 밑줄이 굵어진다) */
+textarea:focus-visible,
+input:focus-visible {
+  outline: none;
+}
 
 /* 후광 빛살이 아주 천천히 돈다 — transform(scale)과 겹치지 않게 rotate 속성만 */
 @keyframes turn {

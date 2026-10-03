@@ -1,11 +1,13 @@
 "use client";
 
+import type { CanvasTexture } from "three";
 import type { Track } from "./tracks";
 
 /* 손을 떠난 디스크를 물리 담당(Flights)에게 넘기는 통로. 좌표는 전부 월드 단위 */
 
 export type Toss = {
   track: Track;
+  tex: CanvasTexture; // 손을 떠난 디스크의 라벨 — 새로 그리지 않고(표지를 다시 받지 않고) 그대로 넘겨받는다
   p: [number, number, number]; // 손을 떠난 자리
   v: [number, number, number]; // 그때의 속도
   onLanded: () => void; // 바닥에 멎으면

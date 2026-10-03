@@ -44,11 +44,17 @@ const SCHEMA = {
   type: 'OBJECT',
   properties: {
     keywords: { type: 'ARRAY', items: { type: 'STRING' }, description: '요청을 어떻게 읽었는지 짧은 한국어 말 3~5개 (예: 퇴근길, 지친 하루, 위로)' },
-    tags: { type: 'ARRAY', items: { type: 'STRING' }, description: '어울리는 곡에 붙을 법한 Last.fm 영어 태그 2~3개, 소문자 (예: melancholy, rainy day, driving)' },
+    tags: {
+      type: 'ARRAY',
+      items: { type: 'STRING' },
+      description:
+        '어울리는 곡에 붙을 법한 Last.fm 영어 태그 2~3개, 소문자 (예: melancholy, rainy day, driving). ' +
+        '보컬 성별을 직접 말했거나("여자 보컬", "남자 목소리") "○○ 같은" 으로 꼽은 가수의 성별이 분명하면(그 가수 자신의 곡을 원한 게 아니어도) "female vocalists"/"male vocalists" 를 포함한다.',
+    },
     artists: {
       type: 'ARRAY',
       items: { type: 'STRING' },
-      description: '사용자가 직접 말한 가수만, 한글·원래 표기 둘 다 (예: "오아시스" → ["오아시스", "Oasis"]). 말하지 않았으면 빈 배열',
+      description: '사용자가 그 가수 본인 곡을 듣고 싶다고 말했을 때만, 한글·원래 표기 둘 다 (예: "오아시스" → ["오아시스", "Oasis"]). "○○ 같은/느낌/풍"처럼 결만 빌린 거면 비워 둔다. 말하지 않았으면 빈 배열',
     },
     genres: { type: 'ARRAY', items: { type: 'STRING', enum: Object.keys(GENRES) }, description: '사용자가 직접 말한 장르만. 말하지 않았으면 빈 배열' },
     songs: {
@@ -84,8 +90,9 @@ export const promptFor = (query: string) =>
     '- 지치거나 힘들다고 하면(지쳤어, 번아웃, 버티는 중) 조용하고 다정한 위로. 소리는 잔잔하게, 가사는 괜찮다고 다독인다.',
     '- 하는 일·장소를 말하면(드라이브, 공부, 청소) 그 일에 어울리는 소리와 분위기.',
     '- 인사처럼 음악과 상관없는 말("안녕하세요")이면 그 말을 하는 사람의 기분을 짐작한다.',
-    '- 가수·장르를 직접 말하면("오아시스의 신나는 노래", "재즈 듣고 싶어") artists·genres 에 담는다. 그 가수·장르의 결을 소리 항목에도.',
+    '- 가수·장르를 직접 말하면(그 가수 곡을 듣고 싶다는 뜻 — "오아시스의 신나는 노래", "재즈 듣고 싶어") artists·genres 에 담는다. 그 가수·장르의 결을 소리 항목에도.',
     '- 곡을 꼽으면("○○ 같은 노래", "○○ 듣고 비슷한 거") songs 에 담고, 그 곡의 결(감정·소리)을 틀에 풀어 쓴다. 그 가수 곡만 원한 게 아니면 artists 에는 넣지 않는다.',
+    '- 가수 이름 뒤에 "같은/느낌/스타일/풍"이 붙으면("빈지노 같은 힙합", "아이유 느낌 보컬") 그 가수 본인 곡을 듣고 싶다는 뜻이 아니다 — artists 에 넣지 말고, 그 가수의 결(감정·소리)만 틀에 풀어 쓴다.',
     '사용자가 말하지 않은 가수·장르·곡 이름은 지어내지 않는다.',
     '한두 낱말처럼 짧고 여러 뜻으로 읽히는 요청("미쳤어", "백색", "헐")은 가장 그럴듯한 읽기를 위 틀에, 결이 다른 두 번째 읽기를 alt 에. 처방(위로)으로만 몰지 말고 그 말의 기분 자체도 읽는다.',
     '',
@@ -105,6 +112,11 @@ export class Interpreter {
   private readonly cache = new Map<string, Asked>();
 
   constructor(private readonly gemini: Gemini) {}
+
+  /** 이미 해석해 둔 편지만 — 없으면 undefined(새로 묻지 않는다, 돈 안 듦) */
+  cached(query: string) {
+    return this.cache.get(normalize(query));
+  }
 
   async interpret(query: string): Promise<Asked> {
     const key = normalize(query);

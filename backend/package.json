@@ -17,6 +17,7 @@
     "lint": "oxlint src/ test/",
     "test": "vitest run",
     "eval": "nest build && node dist/recommend/eval.js",
+    "voice": "node --env-file=.env scripts/voice.mjs",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",

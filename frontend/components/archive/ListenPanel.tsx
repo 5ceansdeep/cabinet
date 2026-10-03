@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowUpRight, Play, ShareFat } from "@phosphor-icons/react";
 import { useState } from "react";
 import { PLAYLIST_DIALOGUE as D } from "@/components/landing/lines";
 import { logEvent } from "@/lib/api";
@@ -39,29 +40,33 @@ export default function ListenPanel({ shelf, onShare }: { shelf: Shelf; onShare:
           : D.ALL;
 
   const youtube = () => logEvent("youtube", { shelfId: shelf.id });
-  const link = "pointer-events-auto text-accent/80 underline-offset-4 hover:text-accent hover:underline";
+  const link = "pointer-events-auto text-accent/85 underline underline-offset-4 hover:text-accent";
 
   return (
-    <div className="relative mx-auto mb-3 flex max-w-xl flex-col items-center gap-2 px-6 text-center font-mono text-[10px] tracking-[.15em] text-foreground/60">
+    <div className="relative mx-auto mb-4 flex max-w-xl flex-col items-center gap-2 px-6 text-center font-mono text-xs tracking-[.15em] text-foreground/70">
       <div className="flex flex-wrap justify-center gap-2">
         {!result && (
-          <button onClick={listen} disabled={state === "working"} className="pointer-events-auto rounded-full border border-accent/40 px-4 py-1.5 text-accent/90 hover:bg-accent/10 disabled:opacity-50">
-            ▶ {D.ACTION}
+          <button type="button" onClick={listen} disabled={state === "working"} className="btn pointer-events-auto">
+            <Play aria-hidden weight="fill" size={12} />
+            {D.ACTION}
           </button>
         )}
         <button
+          type="button"
           onClick={() => {
             thud(160);
             onShare();
           }}
-          className="pointer-events-auto rounded-full border border-accent/40 px-4 py-1.5 text-accent/90 hover:bg-accent/10 disabled:opacity-50">
-          ⇪ {D.SHARE}
+          className="btn pointer-events-auto">
+          <ShareFat aria-hidden size={14} />
+          {D.SHARE}
         </button>
       </div>
       {note && <p className="font-letter text-xs tracking-normal text-foreground/70">{note}</p>}
       {result?.url && (
-        <a href={result.url} onClick={youtube} target="_blank" rel="noreferrer" className="pointer-events-auto rounded-full bg-accent/90 px-4 py-1.5 text-background hover:bg-accent">
-          {D.OPEN} ↗
+        <a href={result.url} onClick={youtube} target="_blank" rel="noreferrer" className="btn-solid pointer-events-auto">
+          {D.OPEN}
+          <ArrowUpRight aria-hidden size={14} weight="bold" />
         </a>
       )}
       {!!result?.missing.length && (
@@ -69,7 +74,8 @@ export default function ListenPanel({ shelf, onShare }: { shelf: Shelf; onShare:
           {result.missing.map((m) => (
             <li key={m.search}>
               <a href={m.search} onClick={youtube} target="_blank" rel="noreferrer" className={link}>
-                {m.artist} · {m.title} ↗
+                {m.artist} · {m.title}
+                <ArrowUpRight aria-hidden size={12} className="ml-1 inline" />
               </a>
             </li>
           ))}

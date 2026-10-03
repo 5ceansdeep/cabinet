@@ -89,7 +89,6 @@ export default function CardReveal({
             {failed ? D.FAIL : D.PRINTING}
           </p>
         )}
-        {card && <p className="font-mono text-xs tracking-[.15em] text-foreground/65">{D.HOLD}</p>}
         <div className="flex flex-wrap justify-center gap-2 sm:flex-col sm:items-stretch">
           <button type="button" onClick={download} disabled={!card} className="btn-solid">
             <DownloadSimple aria-hidden size={14} weight="bold" />

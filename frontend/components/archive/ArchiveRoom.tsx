@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CaretDown, CaretUp } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, CaretDown, CaretUp } from "@phosphor-icons/react";
 // import { useRouter } from "next/navigation"; // 보고서 꺼 둠 — 디스크를 눌러 보고서로 갈 때 쓴다
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
@@ -26,33 +26,12 @@ import { parseShelves, shelvesRaw, subscribeShelves, syncShelves } from "./shelf
    모은 플로피가 종이 파일 사이에 가지런히 꽂혀 있다. 방(둘러선 벽)은 4번과 같은 것을 쓴다 */
 
 const { W, H, D, T, GAP } = CABINET;
-const OPEN = 1.5; // 서랍이 빠지는 거리
+const OPEN = 0.3; // 서랍이 빠지는 거리 — 10/3 부터 안을 들여다보지 않고 디스크를 앞에 펼치니 살짝만(펼친 디스크와 안 겹치게)
 const PER_PAGE = 3; // 서류함 한 짝에 서랍 3개
 const ROW = 5; // 서랍 안 한 줄에 꽂는 플로피 수 — 서랍 폭(W)에 맞춘다
 const FRONT = new Vector3(0, 0, 3.2); // 서류함을 정면에서
-const LOOK_FRONT = new Vector3(0, 0, 0);
-const TOP = new Vector3(0, 2.3, 2.1); // 열린 서랍을 내려다보는 자리
-const v = new Vector3();
-const lookAt = new Vector3(); // 카메라가 볼 곳 — 매 프레임 새로 만들지 않게
 const ENTER = 0.5; // 칸을 넘기면 새 서랍이 이만큼(월드) 넘긴 쪽에서 밀려 들어온다 — 아래 서랍일수록 조금 더 멀리서(엇갈림)
 
-/* 카메라 — 서랍을 열면 위로 올라가 안을 내려다본다 */
-function Rig({ open, drawerY }: { open: boolean; drawerY: number }) {
-  const look = useRef(LOOK_FRONT.clone());
-  const reduce = useReducedMotion(); // 감속 모드 — 카메라가 날아가지 않고 바로 그 자리에
-  useFrame(({ camera, invalidate }, dt) => {
-    const k = damp(3, dt, reduce);
-    const to = open ? v.set(0, TOP.y, TOP.z) : v.copy(FRONT);
-    const at = open ? lookAt.set(0, drawerY, D / 2 + OPEN - 0.4) : LOOK_FRONT;
-    if (camera.position.distanceTo(to) > 0.002 || look.current.distanceTo(at) > 0.002) {
-      camera.position.lerp(to, k);
-      look.current.lerp(at, k);
-      camera.lookAt(look.current);
-      invalidate();
-    }
-  });
-  return null;
-}
 
 /* 정면 조명 — 열린 서랍(z≈2.1) 바로 위에 놓여 안을 하얗게 날린다, 열면 줄인다(10/2). 툭 바뀌지 않고 서랍과 같은 빠르기로 */
 function FrontLight({ dim }: { dim: boolean }) {
@@ -69,27 +48,40 @@ function FrontLight({ dim }: { dim: boolean }) {
   return <pointLight ref={l} position={[0, 0.6, 2.4]} intensity={6} distance={9} decay={2} color="#ffffff" />;
 }
 
-/* 서랍 속에 꽂힌 플로피 한 장 — 종이 파일에 기대어 비스듬히 선다 */
-function Filed({ track, x, size, onOpen }: { track: Track; x: number; size: number; onOpen: () => void }) {
+/* 펼쳐 놓은 플로피 한 장 — 연 서랍에서 날아와 정면을 보고 선다(10/3 사용자: 서랍 안을 내려다보는 대신 5장씩 두 줄로).
+   from = 날아오는 자리(연 서랍 입구), at = 설 자리, delay = 차례(초) */
+function Filed({ track, from, at, size, delay, onOpen }: { track: Track; from: [number, number, number]; at: [number, number, number]; size: number; delay: number; onOpen: () => void }) {
   const { invalidate } = useThree();
   const label = useLabel(track, invalidate); // 커버가 도착하면 다시 그린다
   const [hover, setHover] = useState(false);
   const g = useRef<Group>(null!);
+  const born = useRef(-1);
   const reduce = useReducedMotion();
   useEffect(() => invalidate(), [hover, invalidate]);
-  // 호버하면 쏙 들린다 — 순간 이동 대신 부드럽게(디자인 규칙: 상태 변화는 보이게)
-  useFrame((_, dt) => {
-    const to = hover ? 0.12 : 0;
-    const y = g.current.position.y;
-    if (Math.abs(to - y) < 0.0005) return void (g.current.position.y = to);
-    g.current.position.y = y + (to - y) * damp(14, dt, reduce);
-    invalidate();
+  // 차례가 되면 서랍에서 날아와 자리에 서고, 호버하면 앞으로 쏙 나온다 — 순간 이동 없이(디자인 규칙: 상태 변화는 보이게)
+  useFrame(({ clock }, dt) => {
+    const p = g.current.position;
+    if (born.current < 0) born.current = clock.elapsedTime;
+    if (!reduce && clock.elapsedTime - born.current < delay) return void invalidate();
+    g.current.visible = true;
+    const k = damp(9, dt, reduce);
+    const tx = at[0];
+    const ty = at[1] + (hover ? 0.04 : 0);
+    const tz = at[2] + (hover ? 0.18 : 0);
+    const sc = g.current.scale.x + (1 - g.current.scale.x) * k;
+    g.current.scale.setScalar(sc);
+    p.set(p.x + (tx - p.x) * k, p.y + (ty - p.y) * k, p.z + (tz - p.z) * k);
+    if (Math.hypot(tx - p.x, ty - p.y, tz - p.z) < 5e-4 && sc > 0.999) {
+      p.set(tx, ty, tz);
+      g.current.scale.setScalar(1);
+    } else invalidate();
   });
   return (
     <group
       ref={g}
-      position={[x, 0, 0]}
-      rotation={[-0.35, 0, 0]}
+      position={reduce ? at : from}
+      scale={reduce ? 1 : 0.3}
+      visible={reduce}
       onPointerOver={(e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
         setHover(true);
@@ -111,6 +103,43 @@ function Filed({ track, x, size, onOpen }: { track: Track; x: number; size: numb
   );
 }
 
+/* 연 서랍의 플로피를 서류함 앞에 5장씩 줄지어 펼친다 — 화면 크기에 맞춰 디스크 크기를 정한다 */
+const SPREAD_Z = 1.75; // 펼치는 깊이(카메라 3.2 앞)
+function Spread({ kept, fromY, onOpenTrack }: { kept: Track[]; fromY: number; onOpenTrack: (t: Track) => void }) {
+  const { camera, size: px } = useThree();
+  const dist = FRONT.z - SPREAD_Z;
+  const fov = ((camera as unknown as { fov: number }).fov * Math.PI) / 180;
+  const vh = 2 * dist * Math.tan(fov / 2); // 이 깊이에서 보이는 높이
+  const vw = vh * (px.width / px.height);
+  const rows = Math.ceil(kept.length / ROW);
+  const cols = Math.min(ROW, kept.length);
+  // 가로는 화면의 78%, 세로는 위아래 글(머리말·듣기 버튼) 자리를 빼고 62% 안에
+  const cell = Math.min((vw * 0.78) / ROW, (vh * 0.62) / Math.max(rows, 2));
+  const disk = cell * 0.84;
+  return (
+    <group>
+      {kept.map((t, i) => {
+        const r = Math.floor(i / ROW);
+        const c = i % ROW;
+        const inRow = r === rows - 1 ? kept.length - r * ROW : cols; // 마지막 줄이 덜 차면 가운데로
+        const x = (c - (inRow - 1) / 2) * cell;
+        const y = ((rows - 1) / 2 - r) * cell + vh * 0.04; // 아래 듣기 버튼 자리만큼 살짝 위로
+        return (
+          <Filed
+            key={t.id}
+            track={t}
+            from={[0, fromY, D / 2 + OPEN]}
+            at={[x, y, SPREAD_Z]}
+            size={disk / DISK}
+            delay={i * 0.04}
+            onOpen={() => onOpenTrack(t)}
+          />
+        );
+      })}
+    </group>
+  );
+}
+
 /* 서류함 몸통 — 재료(절차적 텍스처)는 캔버스 안에서만 만든다. 바깥에서 부르면 서버 렌더에서 터진다 */
 /* 서랍 수(n)만큼의 높이 — 플레이리스트가 없는 빈 서랍은 두지 않는다(10/2 사용자) */
 function Carcass({ n }: { n: number }) {
@@ -125,21 +154,17 @@ function Carcass({ n }: { n: number }) {
 function Drawer({
   y,
   tag,
-  kept,
   open,
   fresh,
   enter = 0,
   onToggle,
-  onOpenTrack,
 }: {
   y: number;
   tag: string;
-  kept: Track[];
   open: boolean;
   fresh?: boolean; // 방금 저장한 서랍 — 살짝 앞으로 나와 눈에 띈다
   enter?: number; // 칸을 넘겨 새로 들어온 서랍 — 이만큼 위(+)·아래(-)에서 밀려 들어온다
   onToggle: () => void;
-  onOpenTrack: (t: Track) => void;
 }) {
   const g = useRef<Group>(null!);
   const m = materials();
@@ -176,26 +201,6 @@ function Drawer({
         </mesh>
       ))}
 
-      {/* 종이 파일 사이에 꽂힌 플로피들 — 한 줄에 ROW 장, 넘치면 뒤 줄로(10/2: 10곡이 한 줄이면 서랍 밖으로 삐져나왔다) */}
-      {open && (
-        <group position={[0, -H * 0.12, -D * 0.2]}>
-          {kept.map((t, i) => {
-            const cols = Math.min(ROW, kept.length);
-            const row = Math.floor(i / ROW);
-            const step = Math.min(0.34, (W - 0.3) / cols);
-            const x = ((i % ROW) - (cols - 1) / 2) * step;
-            return (
-              <group key={t.id} position={[0, row * 0.06, -row * 0.5]}>
-                {/* 앞뒤로 받쳐 주는 종이 파일 */}
-                <mesh position={[x - step / 2, -0.02, -0.02]} rotation={[-0.35, 0, 0]} material={m.manila}>
-                  <planeGeometry args={[step - 0.04, 0.42]} />
-                </mesh>
-                <Filed track={t} x={x} size={Math.min(0.42, (step * 0.9) / DISK)} onOpen={() => onOpenTrack(t)} />
-              </group>
-            );
-          })}
-        </group>
-      )}
     </group>
   );
 }
@@ -222,13 +227,44 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
     setPage(next);
   };
   useEffect(() => void syncShelves(), []); // 로그인했으면 서버 원본으로 사본을 새로 고친다
+  // 열린 서랍은 ESC 로 닫는다(곡 카드·공유 카드가 떠 있으면 그쪽이 먼저 닫힌다) — 10/3 사용자: 서랍을 열면 돌아갈 방법이 없었다
+  useEffect(() => {
+    if (open === null || sheet || sharing) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(null);
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, [open, sheet, sharing]);
+  // 마우스 휠로 칸 넘기기 — 10/3 사용자: 화살표만 있어 불편했다. 한 번 굴릴 때 한 칸(0.4초에 한 번까지).
+  // 곡 카드·공유 카드가 떠 있으면 넘기지 않는다(그 안의 글을 굴린다)
+  const turnRef = useRef(turn);
+  useEffect(() => {
+    turnRef.current = turn;
+  });
+  useEffect(() => {
+    if (sheet || sharing || open !== null || pages < 2) return; // 서랍을 연 동안엔 넘기지 않는다
+    let last = 0;
+    const onWheel = (e: WheelEvent) => {
+      const now = performance.now();
+      if (Math.abs(e.deltaY) < 4 || now - last < 400) return;
+      last = now;
+      turnRef.current(e.deltaY > 0 ? 1 : -1); // 아래로 굴리면 지난 서랍, 위로 굴리면 최근 서랍(▲▼ 와 같은 방향)
+    };
+    addEventListener("wheel", onWheel, { passive: true });
+    return () => removeEventListener("wheel", onWheel);
+  }, [sheet, sharing, open, pages]);
   const pitch = H + GAP;
   const drawerY = (i: number) => ((shown.length - 1) / 2 - i) * pitch; // 보이는 서랍들의 가운데가 화면 가운데
 
   return (
     <main data-theme="void" className="relative flex min-h-full flex-1 flex-col overflow-hidden bg-background text-foreground">
       <div className="fixed inset-0">
-        <Canvas frameloop="demand" camera={{ position: FRONT.toArray(), fov: 55 }} dpr={[1, 1.5]} onCreated={keepContext}>
+        <Canvas
+          frameloop="demand"
+          camera={{ position: FRONT.toArray(), fov: 55 }}
+          dpr={[1, 1.5]}
+          onCreated={keepContext}
+          onPointerMissed={() => !sheet && !sharing && open !== null && setOpen(null)} // 빈 곳을 누르면 서랍을 닫는다
+        >
           <color attach="background" args={["#000000"]} />
           <fog attach="fog" args={["#000000", 7, 14]} />
           <ambientLight intensity={0.12} />
@@ -236,7 +272,6 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
           <FrontLight dim={open !== null} />
           <pointLight position={[0, 2.2, 1.6]} intensity={1.2} distance={7} decay={2} color="#cfe6f5" />
           <Wall />
-          <Rig open={open !== null} drawerY={open === null ? 0 : drawerY(open)} />
 
           {shown.length > 0 && <Carcass n={shown.length} />}
           {shown.map((s, i) => (
@@ -244,7 +279,6 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
               key={s.id}
               y={drawerY(i)}
               tag={s.tag}
-              kept={s.kept}
               open={open === i}
               fresh={s.id === fresh}
               enter={dir ? -dir * ENTER * (1 + i * 0.35) : 0} // 최근 쪽(위 화살표)으로 넘기면 위에서, 지난 쪽이면 아래에서
@@ -252,13 +286,20 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
                 thud(open === i ? 60 : 120);
                 setOpen(open === i ? null : i);
               }}
+            />
+          ))}
+          {openShelf && openShelf.kept.length > 0 && (
+            <Spread
+              key={openShelf.id}
+              kept={openShelf.kept}
+              fromY={drawerY(open!)}
               // 디스크를 누르면 곡 카드(10/2). 예전엔 보고서(app/report/[id], 꺼 둠)로 갔다
               onOpenTrack={(t) => {
                 thud(140);
                 setSheet(t);
               }}
             />
-          ))}
+          )}
         </Canvas>
         {/* 위아래는 어둠에 잠긴다 */}
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(#000_3%,rgba(0,0,0,.7)_16%,transparent_36%,transparent_64%,rgba(0,0,0,.75)_84%,#000_97%)]" />
@@ -269,9 +310,17 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
           MY CABINET
           <span className="block normal-case tracking-normal text-foreground/65">건져 올린 것들</span>
         </h1>
-        <Link href="/search" className="pointer-events-auto text-accent/85 hover:text-accent">
-          NEW REQUEST
-        </Link>
+        <span className="flex items-center gap-4">
+          {open !== null && (
+            <button type="button" onClick={() => setOpen(null)} className="btn pointer-events-auto">
+              <ArrowLeft aria-hidden size={14} weight="bold" />
+              {ARCHIVE_DIALOGUE.CLOSE}
+            </button>
+          )}
+          <Link href="/search" className="pointer-events-auto text-accent/85 hover:text-accent">
+            NEW REQUEST
+          </Link>
+        </span>
       </header>
 
       <div className="flex-1" />

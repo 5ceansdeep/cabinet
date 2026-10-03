@@ -46,6 +46,7 @@ export function promptFor(query: string, want: string, cands: Cand[]) {
     '  "오늘도 야근" → "그 건물 불 꺼진 걸 본 지가 언제더라. 오늘은 들어가게."',
     '  "의심돼" → "자네 촉이 맞을 때가 꽤 많지. 증거부터 모으게."',
     '영어 대사(line_en)는 같은 뜻을 여유롭고 위트 있는 구어체로 (casual, confident, warm, dry wit).',
+    '영어 대사에는 목소리 연기 지문을 0~2개 넣어도 된다 — 대괄호 영어, 그 말 바로 앞에: [chuckles] [sighs] [laughs softly] [whispers] [clears throat] [dryly] 같은 것. 꼭 필요할 때만, 한국어 대사(line_ko)에는 넣지 않는다.',
     '',
     `사용자: ${query}`,
     `요청을 풀어 쓴 것:\n${want}`,

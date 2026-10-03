@@ -23,7 +23,7 @@ export class VoiceService {
   private readonly enabled: boolean;
   private readonly key?: string;
   private readonly voiceId?: string;
-  // eleven_multilingual_v2(기본 — 표현이 풍부) / eleven_flash_v2_5(크레딧 절반·빠름). 들어 보고 고른다
+  // eleven_v3(기본, 10/4 — [chuckles] 같은 지문을 알아듣는다. voice-settings.json 의 speed 는 무시한다) / eleven_multilingual_v2(예전, 고정 대사 31개가 이걸로)
   private readonly model: string;
   private readonly lines = new Map<string, string>(); // id → 영어 대사
   private readonly making = new Map<string, Promise<Buffer | null>>(); // 같은 대사를 동시에 두 번 만들지 않게
@@ -33,7 +33,7 @@ export class VoiceService {
     private readonly prisma: PrismaService,
   ) {
     this.enabled = config.get('ELEVENLABS_ENABLED') === 'true';
-    this.model = config.get<string>('ELEVENLABS_MODEL')?.trim() || 'eleven_multilingual_v2';
+    this.model = config.get<string>('ELEVENLABS_MODEL')?.trim() || 'eleven_v3';
     if (!this.enabled) return;
     // 켰으면 키·목소리가 꼭 있어야 한다 — 없으면 서버가 안 켜진다
     const must = (k: string) => {

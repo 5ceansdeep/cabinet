@@ -5,7 +5,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 const root = new URL('../../', import.meta.url);
 const out = new URL('frontend/public/voice/', root);
-const { ELEVENLABS_API_KEY: key, ELEVENLABS_VOICE_ID: voice, ELEVENLABS_MODEL: model = 'eleven_multilingual_v2' } = process.env;
+const { ELEVENLABS_API_KEY: key, ELEVENLABS_VOICE_ID: voice, ELEVENLABS_MODEL: model = 'eleven_v3' } = process.env;
 if (!key || !voice) throw new Error('backend/.env 에 ELEVENLABS_API_KEY·ELEVENLABS_VOICE_ID 가 없다');
 const settings = JSON.parse(readFileSync(new URL('../voice-settings.json', import.meta.url), 'utf8'));
 
@@ -15,7 +15,9 @@ const rows = readFileSync(new URL('docs/voice-script.csv', root), 'utf8')
   .filter(Boolean)
   .map((l) => {
     const i = l.indexOf(',');
-    return { file: l.slice(0, i), text: l.slice(i + 1).replace(/^"|"$/g, '').replaceAll('""', '"') };
+    const text = l.slice(i + 1).replace(/^"|"$/g, '').replaceAll('""', '"');
+    // v3 는 <break> 를 모른다(소리 내 읽거나 무시) — 쉼은 말줄임표로
+    return { file: l.slice(0, i), text: model.startsWith('eleven_v3') ? text.replace(/<break[^>]*\/>/g, '… ') : text };
   });
 
 const todo = rows.filter((r) => !existsSync(new URL(r.file, out)));

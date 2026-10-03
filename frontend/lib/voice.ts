@@ -7,15 +7,33 @@ import { analyzeSpeech } from "./cues";
    onStart — 그 대사의 소리가 실제로 시작될 때 불린다. 자막 줄(lines 개)마다 "지금부터 몇 초 뒤"를 주거나, 모르면 null.
    브라우저는 사용자가 한 번이라도 클릭·키 입력을 해야 소리를 낸다 (그 전엔 소리 없이 자막만). */
 
-/* 목소리 켜기 — 10/2 사용자: 베타는 음성을 다 끄고 자막만. 꺼져 있으면 mp3 를 받지도 틀지도 않고, 자막은 읽는 시간만큼 기다린다.
-   다시 켜려면 true (녹음 파일·분석 코드는 그대로 있다) */
-const VOICE = false;
+/* 목소리 켜기 — 10/2 베타는 자막만으로 껐다가, 10/4 ElevenLabs Starter 결제 후 다시 켬(사용자).
+   false 면 mp3 를 받지도 틀지도 않고, 자막은 읽는 시간만큼 기다린다. 신의 한마디 음성은 백엔드 ELEVENLABS_ENABLED 도 켜져 있어야 한다 */
+const VOICE = true;
 
 type Job = { text: string; key?: string; lines: number; onStart?: (delays: number[] | null) => void };
 
 const TAIL = 0.25; // 말이 끝나고 다음 대사까지 숨 고르는 시간(초)
 const READ_CPS = 7; // 녹음 없는 대사는 자막을 읽는 시간만큼(초당 글자) 다음 대사를 기다린다
 const MAX_LINE = 20; // 끝을 모르는 대사도 이 초가 지나면 끝난 것으로 — 대기열이 영영 멈추지 않게
+const GAIN = 1.3; // 신의 목소리를 살짝 크게(10/4 사용자) — <audio> 는 1 이 최대라 Web Audio 로 키운다
+let ctx: AudioContext | null = null;
+
+/* 소리를 GAIN 배로 + 리미터(키운 만큼 큰 소리가 찢어지지 않게). 클릭·키 입력이 한 번도 없으면 AudioContext 가 멈춰 있어
+   거기 물린 소리는 안 난다 — 그땐 그냥 튼다(어차피 브라우저가 막는다). 백엔드 음성은 다른 출처라 crossOrigin + CORS 가 필요 */
+function louder(a: HTMLAudioElement) {
+  if (!navigator.userActivation?.hasBeenActive) return;
+  ctx ??= new AudioContext();
+  void ctx.resume();
+  const gain = new GainNode(ctx, { gain: GAIN });
+  const limit = new DynamicsCompressorNode(ctx, { threshold: -3, knee: 0, ratio: 20, attack: 0.003, release: 0.1 });
+  const src = ctx.createMediaElementSource(a);
+  src.connect(gain).connect(limit).connect(ctx.destination);
+  const off = () => src.disconnect();
+  a.addEventListener("ended", off, { once: true });
+  a.addEventListener("pause", off, { once: true });
+}
+
 const analyses = new Map<string, Promise<{ starts: number[]; end: number }>>(); // 파일·줄 수별 — 한 번만 분석
 let busyUntil = 0; // 지금 대사가 말을 마치는 시각 (performance.now 기준 ms)
 let pending: Job | null = null; // 기다리는 대사 — 새로 오면 덮어쓴다 (같은 대사가 여러 번 와도 한 번만)
@@ -81,7 +99,10 @@ function silent(job: Job, id: number) {
 function play(job: Job, id: number) {
   if (!VOICE || !job.key) return silent(job, id);
   const src = /^https?:/.test(job.key) ? job.key : `/voice/${job.key}.mp3`;
-  const a = new Audio(src);
+  const a = new Audio();
+  a.crossOrigin = "anonymous";
+  a.src = src;
+  louder(a);
   current?.pause(); // 앞 대사 파일의 남은 끝소리(잔향)까지 멈춘다 — 파일 두 개가 겹치면 엔터로도 앞 것이 안 끊긴다
   current = a;
   busyUntil = untilKnown(); // 말을 언제 마치는지 알 때까지

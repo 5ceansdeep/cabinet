@@ -119,7 +119,7 @@ export const LINES = {
   },
   stale: { text: D.COOLDOWN, voiceKey: "COOLDOWN" },
   capsLock: { text: D.CAPS_LOCK, voiceKey: "CAPS_LOCK" },
-  escHint: "ESC — 앞 서류로", // 조작 안내라 페르소나 밖, 읽지 않음
+  escHint: "ESC: 앞 서류로", // 조작 안내라 페르소나 밖, 읽지 않음
   soundHint: "화면 아무 곳이나 클릭하면 음성이 나옵니다.", // 브라우저가 소리를 막고 있을 때 — 조작 안내라 페르소나 밖, 읽지 않음
   checking: { text: D.SUBMITTING, voiceKey: "SUBMITTING" },
   wrong: { text: D.PASSWORD_LOGIN.incorrect, voiceKey: "PASSWORD_LOGIN.incorrect" },
@@ -141,7 +141,7 @@ export const NAV = {
   forgot: "비밀번호 찾기",
   login: "로그인",
   back: "돌아가기",
-  notMe: (nickname: string) => `${nickname} 님이 아니라면 — 다른 계정으로`,
+  notMe: (nickname: string) => `${nickname} 님이 아니라면 다른 계정으로`,
 };
 
 // 자동 재촉까지 기다리는 시간
@@ -156,13 +156,15 @@ export const RESULT_DIALOGUE = {
   DRY_ACTION: "새 편지 쓰기",
   FAILED: "서랍이 뻑뻑해서 안 열리네. 이 서랍장도 나만큼 오래돼서 말이야. 한 번 더 당겨 보게.", // 서버 오류
   FAILED_ACTION: "다시 찾기",
+  // 듣기 시작하고 3초 뒤 "서랍에 넣기" 버튼 옆 말풍선(10/4 사용자)
+  KEEP_HINT: "영수증을 뽑을 수 있어요",
   // 서랍에 넣을 때 네임택(읽지 않는 안내, 평범한 말투)
-  NAME_HINT: "서랍 이름표 — 고쳐 써도 돼요",
+  NAME_HINT: "서랍 이름표. 고쳐 써도 돼요",
   NAME_ACTION: "이름 붙이기",
   // 편지에 쓴 가수 곡이 서류함에 없을 때 — 화면 머리에 한 줄(읽지 않는 안내, 평범한 말투)
   MISSING_ARTIST: (name: string, kin: string[]) =>
-    kin.length ? `아직 ${name} 님 곡은 서류함에 없어요 — 결이 비슷한 ${kin.join("·")} 곡으로 골랐어요. 곧 채워 둘게요.` : `아직 ${name} 님 곡은 서류함에 없어요 — 비슷한 결로 골랐어요. 곧 채워 둘게요.`,
-  MISSING_SONG: (song: string) => `「${song}」은 아직 서류함에 없어요 — 결이 비슷한 곡으로 골랐어요. 곧 채워 둘게요.`,
+    kin.length ? `아직 ${name} 님 곡은 서류함에 없어요. 결이 비슷한 ${kin.join("·")} 곡으로 골랐어요. 곧 채워 둘게요.` : `아직 ${name} 님 곡은 서류함에 없어요. 비슷한 결로 골랐어요. 곧 채워 둘게요.`,
+  MISSING_SONG: (song: string) => `「${song}」은 아직 서류함에 없어요. 결이 비슷한 곡으로 골랐어요. 곧 채워 둘게요.`,
   FEW_ARTIST: (name: string, kin: string[]) => `${name} 님 곡이 아직 적어서 결이 비슷한 ${kin.join("·")} 곡도 함께 골랐어요.`,
 } as const;
 
@@ -177,6 +179,7 @@ export const ARCHIVE_DIALOGUE = {
   NO_NOTE: "이 곡은 아직 설명이 없어요.", // 디스크를 눌렀을 때 곡 카드 — 설명 없는 곡(브라우저에만 있는 옛 서랍 등)
   EMPTY: "아직 저장한 서랍이 없어요. 편지를 써서 곡을 받아 보세요.",
   WRITE: "편지 쓰기",
+  CLOSE: "서랍 닫기", // 연 서랍에서 서류함으로 돌아가기(ESC·빈 곳 클릭도 같다)
 };
 
 /* ─ 5번 보관함: 서랍을 유튜브에서 이어 듣기 (읽지 않는 짧은 안내) ─ */
@@ -197,18 +200,36 @@ export const PLAYLIST_DIALOGUE = {
 /* 공유 링크로 들어온 서랍(/s/:id) — 처음 온 사람이 본다 */
 export const SHARED_DIALOGUE = {
   YOUTUBE: "유튜브에서 이어 듣기",
-  SOME_MISSING: (n: number) => `${n}곡은 영상을 못 찾았어요 — 직접 찾아 듣기`,
+  SOME_MISSING: (n: number) => `${n}곡은 영상을 못 찾았어요. 아래에서 직접 찾아 들어요.`,
   SEARCH: "곡마다 유튜브에서 찾아 듣기",
   CTA: "나도 편지 써 보기",
 } as const;
 
 /* 서랍에 넣고 나면 인쇄돼 나오는 공유 카드 */
 export const CARD_DIALOGUE = {
+  TITLE: "공유 카드", // 대화상자 이름(스크린리더)
   PRINTING: "카드를 인쇄하는 중이에요.",
-  HOLD: "길게 눌러 저장", // 조작 안내
   DOWNLOAD: "사진 다운로드", // 10/3 사용자 — 스토리 공유 창 대신 그림 파일로
   COPY: "링크 복사",
   COPIED: "링크를 복사했어요.",
   ARCHIVE: "보관함으로",
   FAIL: "카드를 만들지 못했어요. 보관함에서 다시 만들 수 있어요.",
+} as const;
+
+/* ─ 없는 주소·오류 화면 (app/not-found.tsx·app/error.tsx) — 안내 글이라 평범한 말투 ─ */
+export const PAGE_DIALOGUE = {
+  NOT_FOUND: "이 서랍은 비어 있어요.",
+  NOT_FOUND_SUB: "주소가 바뀌었거나 없는 서랍이에요.",
+  ERROR: "서랍이 잠깐 걸렸어요.",
+  ERROR_SUB: "다시 열어 보거나 새 편지를 써 주세요.",
+  RETRY: "다시 시도",
+  WRITE: "새 편지 쓰기",
+} as const;
+
+/* ─ 3번 편지지 — 안내 글이라 평범한 말투, "신" 같은 직접적인 단어 금지(.claude/rules/ui.md) ─ */
+export const LETTER = {
+  // 10/3 사용자: 장르를 적으라는 말과 어떻게 쓰면 잘 찾는지 안내 — 10/4: 아래 작은 글씨 대신 입력칸 placeholder 로
+  GUIDE: "지금 상황과 기분을 편하게 적어 주세요. 듣고 싶은 장르(재즈·인디·힙합…)나 좋아하는 가수, 비슷했으면 하는 곡을 함께 쓰면 더 잘 찾아요.",
+  SIGN: "— 서류함 앞에서", // 편지 끝 서명 — 줄표까지 서명의 일부(10/3 사용자: 빼지 말 것)
+  SEND: "편지 부치기",
 } as const;

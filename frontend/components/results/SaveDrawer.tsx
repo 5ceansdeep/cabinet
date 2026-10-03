@@ -6,6 +6,7 @@ import { RoundedBox } from "@react-three/drei";
 import type { Group } from "three";
 import { CABINET } from "@/components/landing/dimensions";
 import { liveLabel, materials } from "@/components/landing/materials";
+import { damp, useReducedMotion } from "@/lib/motion";
 
 /* 남긴 디스크를 받아 가는 서랍 — 화면 아래에서 스르륵 올라와 열려 있다가, 다 삼키면 "탁" 닫히고 내려간다.
    디스크가 빨려 드는 자리(MOUTH)는 Deck 이 목표 지점으로 쓴다 */
@@ -17,6 +18,8 @@ export default function SaveDrawer({ open, tag }: { open: boolean; tag: string }
   const g = useRef<Group>(null!);
   const m = materials();
   const { invalidate } = useThree();
+  const reduce = useReducedMotion(); // 감속 모드 — 올라오지 않고 바로 그 자리에
+  useEffect(() => invalidate(), [open, invalidate]); // 열고 닫힐 때 깨운다 — 멎은 장면은 그리지 않는다
   // 네임택 — 타자기로 한 글자씩 찍히니 캔버스 하나를 다시 칠한다 (글자마다 새 재료를 만들면 쌓인다)
   const label = useMemo(() => liveLabel(), []);
   useEffect(() => {
@@ -27,7 +30,7 @@ export default function SaveDrawer({ open, tag }: { open: boolean; tag: string }
   useFrame((_, dt) => {
     const to = open ? MOUTH[1] : MOUTH[1] - 1.4; // 닫히면 화면 밖으로 내려간다
     if (Math.abs(g.current.position.y - to) > 0.002) {
-      g.current.position.y += (to - g.current.position.y) * (1 - Math.exp(-5 * dt));
+      g.current.position.y += (to - g.current.position.y) * damp(5, dt, reduce);
       invalidate();
     }
   });

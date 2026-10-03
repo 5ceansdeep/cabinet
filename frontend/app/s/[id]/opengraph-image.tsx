@@ -4,7 +4,7 @@ import { publicShelf } from "@/components/share/public";
 import { art, fonts, paper } from "@/components/share/render";
 
 /* 공유 링크 미리보기 — 카톡·DM 에 /s/:id 를 붙이면 뜨는 그림. 영수증 윗부분 + 좌우 앨범 표지(Card.tsx OgCard) */
-export const alt = "cabinet — 서류함에서 건져 올린 곡들";
+export const alt = "cabinet: 서류함에서 건져 올린 곡들";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

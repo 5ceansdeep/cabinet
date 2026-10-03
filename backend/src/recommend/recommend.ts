@@ -7,9 +7,9 @@ import { same } from '../catalog/itunes.js';
 import { similarArtists, similarTracks } from '../catalog/lastfm.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VoiceModule, VoiceService } from '../voice/voice.js';
-import { type Asked, Interpreter } from './interpret.js';
+import { type Asked, Interpreter, normalize } from './interpret.js';
 import { Reranker } from './rerank.js';
-import { BONUS, type Candidate, display, lexical, rank, throwPenalty } from './score.js';
+import { BONUS, type Candidate, display, lexical, rank, throwPenalties } from './score.js';
 
 class ThrowDto {
   @ApiProperty({ description: '던진 곡 id' })
@@ -17,7 +17,7 @@ class ThrowDto {
   @MaxLength(40)
   id!: string;
 
-  @ApiProperty({ required: false, description: '그 곡을 꺼낸 편지 — Railway 로그 한 줄에만 쓰고 DB(ThrowLog)엔 안 남긴다' })
+  @ApiProperty({ required: false, description: '그 곡을 꺼낸 편지 — 글은 Railway 로그 한 줄에만, DB(ThrowLog)엔 뜻 벡터만(비슷한 편지에서만 깎으려고)' })
   @IsOptional()
   @IsString()
   @MaxLength(300) // Q_MAX — 이 클래스가 Q_MAX 선언보다 위에 있어 숫자로
@@ -46,6 +46,9 @@ const KIN_BONUS = 0.08; // 비슷한 가수 곡에 더하는 점수(1단계 0~1)
 const KIN_MS = 2500; // Last.fm 비슷한 가수·곡이 이보다 늦으면 없이 간다
 const LOST_LEAD = 2; // 꼽은 곡이 서류함에 없을 때 그 가수 곡을 맨 앞에 몇 곡 — 가산만으론 재정렬이 걸러 냈다
 const LIKE_BONUS = 0.1; // 꼽은 곡과 Last.fm 이 비슷하다고 한 곡에 더하는 점수 — 실제 청취 기록 기반이라 가수보다 조금 더
+const VOCAL_TAGS = ['female vocalists', 'male vocalists']; // 해석이 보컬 성별을 명시했을 때만(interpret.ts tags) — "아이유 같은" 처럼 가수 본인 곡은 아니어도 성별은 맞춘다
+const VOCAL_BONUS = 0.08; // Last.fm 태그 가중치 10 이상인 곡에 — 태그가 없는 곡은 그대로(걸러내지 않는다, 태그 누락이 많다)
+const VOCAL_MIN_WEIGHT = 10;
 const MIN_GENRE = SHOW; // 고른 장르 곡이 이보다 적으면 나머지 곡으로 채운다 — 빈 서랍보다 낫다(장르 곡이 앞)
 const THROW_DAYS = 30; // 이만큼 지난 던진 기록은 순위에 안 쓴다 — 곡 설명을 고치면 다시 기회를
 const THROW_PER_IP = 100; // 한 곳에서 하루에 세는 던진 곡 수
@@ -126,7 +129,8 @@ export class RecommendService {
 
   async recommend(query: string, opts: { seen?: string[]; thrown?: string[]; genres?: string[]; limit?: number } = {}) {
     const { seen = [], thrown = [], genres = [], limit = SHOW } = opts;
-    const [said, pool, throws] = await Promise.all([this.interpreter.interpret(query), this.loadPool(), this.penalties()]); // 서로 필요 없다 — 같이
+    const [said, pool, thrownBy] = await Promise.all([this.interpreter.interpret(query), this.loadPool(), this.throwRows()]); // 서로 필요 없다 — 같이
+    const throws = throwPenalties(thrownBy, said.vector); // 이 편지와 비슷한 편지에서 던져진 곡일수록 깎는다
     // 편지에 꼽은 곡(10/2) — 곡 풀에 있으면 그 곡 벡터를 요청 벡터에 반반 섞어 결이 비슷한 곡을 찾고, 그 곡은 맨 앞에
     const songs = said.songs ?? [];
     const seeds = songs.map((g) => pool.find((t) => same(t.artist, g.artist) && sameTitle(t.title, g.title))).filter((t): t is Pooled => !!t);
@@ -148,6 +152,8 @@ export class RecommendService {
     for (const t of pool) if (kin.some((k) => same(t.artist, k))) add(t.id, KIN_BONUS);
     for (const t of pool) if (lostBy.some((a) => same(t.artist, a))) add(t.id, LIKE_BONUS); // 그 곡을 부른 가수 본인 곡이 제일 가깝다
     for (const id of like) add(id, LIKE_BONUS);
+    const vocalWant = (asked.tags ?? []).find((t) => VOCAL_TAGS.includes(t));
+    if (vocalWant) for (const t of pool) if (((JSON.parse(t.tags) as Record<string, number>)[vocalWant] ?? 0) >= VOCAL_MIN_WEIGHT) add(t.id, VOCAL_BONUS);
     const { ranked, cands, pick } = stage1(pool, asked, { seen, thrown, penalty, genres });
     // 2단계 — 후보의 곡 설명을 LLM 이 읽고 순서를 다시 매긴다(+ 신의 한마디). 늦거나 실패하면 1단계 순서 그대로
     const notes = [
@@ -156,7 +162,13 @@ export class RecommendService {
       songs.length ? `편지에 꼽은 곡: ${songs.map((g) => `${g.artist} - ${g.title}`).join(", ")} — 그 곡과 감정·소리 결이 비슷한 곡을 앞에` : "",
     ].filter(Boolean);
     const want = [readings(asked), ...notes].join("\n\n");
-    const rr = cands.length ? await within(this.reranker.rerank(query, want, cands), RERANK_MS) : null;
+    // 처음 부친 편지면 예전에 한 대사를 그대로(LetterLine) — 재정렬과 같이 묻는다
+    const first = !seen.length && !thrown.length && !!query.trim();
+    const letter = normalize(query);
+    const [rr, kept] = await Promise.all([
+      cands.length ? within(this.reranker.rerank(query, want, cands), RERANK_MS) : null,
+      first ? this.prisma.letterLine.findUnique({ where: { query: letter }, select: { ko: true, en: true } }).catch(() => null) : null,
+    ]);
     const ordered = pinTitled(pick(rr ? finalOrder(cands, rr.order, asked.artists) : ranked), asked);
     // 맨 앞 — 꼽은 곡 그 자체, 꼽은 곡이 없으면 그 곡을 부른 가수 곡 중 가장 맞는 LOST_LEAD 곡(본·던진 곡은 ranked 에 없다)
     const lead = [
@@ -166,7 +178,12 @@ export class RecommendService {
     const picked = [...lead, ...ordered.filter((t) => !lead.includes(t))].slice(0, limit);
     const pct = picked.map((t) => shown(t, ranked).semantic).sort((a, b) => b - a);
     const tracks = picked.map((t, i) => ({ ...shown(t, ranked), semantic: pct[i], reason: rr?.reasons[t.id] ?? null }));
-    const line = rr?.line ? { ...rr.line, voice: this.voice.register(rr.line.en) } : null; // 영어 음성 id — ElevenLabs 를 꺼 두면 null
+    const spoken = kept ?? rr?.line ?? null;
+    if (first && !kept && rr?.line)
+      void this.prisma.letterLine
+        .upsert({ where: { query: letter }, create: { query: letter, ...rr.line }, update: {} })
+        .catch((e) => this.log.warn(`편지 대사 저장 실패: ${e}`));
+    const line = spoken ? { ...spoken, voice: this.voice.register(spoken.en) } : null; // 영어 음성 id — ElevenLabs 를 꺼 두면 null
 
     // 처음 뒤질 때만 남긴다("다시 찾기"·"몇 곡 더"는 같은 요청) — 실패해도 결과는 준다. 편지 글·나온 곡·신의 한마디도(10/2) — Railway 로그에도 한 줄
     if (!seen.length && !thrown.length && query.trim()) {
@@ -230,11 +247,12 @@ export class RecommendService {
     return pool.filter((t) => lists.flat().some((r) => same(t.artist, r.artist) && sameTitle(t.title, r.title))).map((t) => t.id);
   }
 
-  /** 최근 THROW_DAYS 일 동안 던져진 곡 → 깎을 점수 */
-  private async penalties() {
+  /** 최근 THROW_DAYS 일 동안 던진 기록(곡 + 던진 편지 벡터).
+      ponytail: 요청마다 전부 읽는다 — 30일에 수천 건을 넘으면 곡별로 묶어 두거나 pgvector 로 */
+  private async throwRows() {
     const since = new Date(Date.now() - THROW_DAYS * 86_400_000);
-    const rows = await this.prisma.throwLog.groupBy({ by: ['trackId'], where: { createdAt: { gte: since } }, _count: true });
-    return new Map(rows.map((r) => [r.trackId, throwPenalty(r._count)]));
+    const rows = await this.prisma.throwLog.findMany({ where: { createdAt: { gte: since } }, select: { trackId: true, vector: true } });
+    return rows.map((r) => ({ trackId: r.trackId, vector: r.vector ? (JSON.parse(r.vector) as number[]) : null }));
   }
 
   /* 던진 곡 기록 — 화면에서 디스크를 던질 때마다. 로그인 없이 부르니, 한 곳(IP)에서 같은 곡은 한 번만, 하루 THROW_PER_IP 곡까지 센다
@@ -252,7 +270,11 @@ export class RecommendService {
     // 검색 기록 한 줄과 나란히 보이게 — 어떤 편지에서 어떤 곡을 던졌나(10/3 사용자). 모르는 곡(가짜 곡)은 안 찍는다
     const t = (await this.loadPool()).find((x) => x.id === id);
     if (t) this.log.log(`던짐 "${query.trim()}" → ${t.artist} - ${t.title}`);
-    await this.prisma.throwLog.create({ data: { trackId: id } }).catch((e) => this.log.warn(`던진 곡 기록 저장 실패: ${e}`));
+    // 던진 편지는 글 대신 뜻 벡터만 — 방금 그 편지로 꺼냈으니 해석 캐시에 있다(없으면 null, 예전처럼 한 번으로 센다)
+    const vector = query.trim() ? this.interpreter.cached(query)?.vector : undefined;
+    await this.prisma.throwLog
+      .create({ data: { trackId: id, vector: vector ? JSON.stringify(vector) : null } })
+      .catch((e) => this.log.warn(`던진 곡 기록 저장 실패: ${e}`));
   }
 
   /** 보여 준 곡들을 건네며 하는 신의 한마디 + 곡마다 이유 — 디스크가 뜬 뒤 따로 부른다. 요청 풀어쓰기는 캐시에 있다 */

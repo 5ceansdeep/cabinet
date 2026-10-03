@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { saveShelf, suggestTag } from "@/components/archive/shelf";
+import { saveShelf, suggestTag, TAG_MAX } from "@/components/archive/shelf";
 import { RESULT_DIALOGUE, RESULT_LINES, type Line } from "@/components/landing/lines";
 import Subtitle, { LINE_PACE, subtitleDelays, subtitleLines } from "@/components/landing/Subtitle";
 import { thud } from "@/lib/thud";
@@ -14,6 +14,7 @@ import Playlist from "./Playlist";
 import CardReveal from "@/components/share/CardReveal";
 import { findTracks, logThrow, type Track } from "./tracks";
 import { apiUrl } from "@/lib/api";
+import { KeyReturn } from "@phosphor-icons/react";
 
 const SEARCH_MS = 1200; // 서랍을 뒤지는 최소 시간 — 곡 찾기는 그동안 같이 한다(보통 이보다 오래 걸린다)
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -31,9 +32,8 @@ function useSaying(line: Line | null) {
   return line && said?.line === line ? said : null;
 }
 
-// 자막 아래 버튼 — Subtitle 의 링크 버튼과 같은 모양
-const choice =
-  "pointer-events-auto inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/90 px-5 py-2 font-letter text-sm text-neutral-800 shadow-[0_4px_16px_rgba(0,0,0,.12)] backdrop-blur-sm transition animate-[appear_.5s_both] hover:-translate-y-0.5 hover:bg-white";
+// 자막 아래 버튼 — 일반 UI 버튼(.btn), 3D 위에 뜨니 바탕을 깐다
+const choice = "btn pointer-events-auto bg-background/85";
 
 /* 4·4-1번 페이지 — 서랍 속에서 건져 올린 플로피 디스크들. 디스크도 서류함도 전부 3D 이고,
    그 위에 얹힌 DOM 은 제목·재생바 같은 글자뿐이다 */
@@ -58,6 +58,8 @@ export default function Results({ query }: { query: string }) {
   const [index, setIndex] = useState(0); // 가운데 앞에 나온 곡 (늘어선 줄 기준)
   const [reveal, setReveal] = useState(0); // 곡이 올 때마다 하나씩 — 정면 서랍이 쭉 빠진다
   const [saved, setSaved] = useState<{ id: string; remote: boolean } | null>(null); // 서랍에 넣었다 — 공유 카드
+  const [keepHint, setKeepHint] = useState(false); // 듣기 시작하고 3초 뒤 "서랍에 넣기" 말풍선
+  const keepHintShown = useRef(false); // 한 번만
 
   /* 서랍에 넣는 동안 걸어 둔 타이머들 — 도중에 다른 화면으로 가면 전부 끈다.
      안 끄면 떠난 뒤에도 이름이 마저 찍히고, 서랍이 저장되고, 보관함으로 끌려간다 */
@@ -98,6 +100,16 @@ export default function Results({ query }: { query: string }) {
   useEffect(() => {
     dig(); // eslint-disable-line react-hooks/set-state-in-effect -- 처음 한 번 서랍을 뒤진다
   }, [dig]);
+
+  // 노래를 듣기 시작하면 3초 뒤 "서랍에 넣기" 말풍선(한 번만, 10/4 사용자)
+  useEffect(() => {
+    if (!playing || keepHintShown.current) return;
+    const t = setTimeout(() => {
+      keepHintShown.current = true;
+      setKeepHint(true);
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [playing]);
 
   const row = kept.filter((t) => t !== playing); // 꽂힌 디스크는 줄에서 빠진다
   const move = useCallback((d: number) => setIndex((i) => Math.max(0, Math.min(row.length - 1, i + d))), [row.length]);
@@ -142,6 +154,7 @@ export default function Results({ query }: { query: string }) {
 
   /* 서랍에 넣기 — 디스크가 아래 서랍으로 빨려 들고, 다 삼키면 "탁" 닫히며 네임택을 내민다 */
   function store() {
+    setKeepHint(false);
     setPhase("saving");
     setPlaying(null);
     setTag(suggestTag(query));
@@ -200,31 +213,41 @@ export default function Results({ query }: { query: string }) {
             onDiscard={discard}
           />
 
-          <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-[10px] tracking-[.2em] text-foreground/50">
+          <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65">
             <div className="max-w-xl space-y-1">
               <p>
-                QUERY — <span className="normal-case tracking-normal text-foreground/80">{query || "(empty)"}</span>
+                QUERY <span className="ml-2 normal-case tracking-normal text-foreground/85">{query || "(empty)"}</span>
               </p>
               {interpretation.length > 0 && (
                 <p>
-                  요청 해석 — <span className="normal-case tracking-normal text-accent/80">{interpretation.slice(0, 5).join(" · ")}</span>
+                  요청 해석 <span className="ml-2 normal-case tracking-normal text-accent/85">{interpretation.slice(0, 5).join(" · ")}</span>
                 </p>
               )}
               {(missingArtist || (kinFor && kinArtists.length > 0)) && (
-                <p className="normal-case tracking-normal text-[#e2cd5a]/90">
+                <p className="normal-case tracking-normal text-subtitle">
                   {missingArtist ? RESULT_DIALOGUE.MISSING_ARTIST(missingArtist, kinArtists) : RESULT_DIALOGUE.FEW_ARTIST(kinFor!, kinArtists)}
                 </p>
               )}
-              {missingSong && <p className="normal-case tracking-normal text-[#e2cd5a]/90">{RESULT_DIALOGUE.MISSING_SONG(missingSong)}</p>}
+              {missingSong && <p className="normal-case tracking-normal text-subtitle">{RESULT_DIALOGUE.MISSING_SONG(missingSong)}</p>}
             </div>
             <span className="flex shrink-0 gap-4">
               {phase === "discs" && kept.length > 0 && (
-                <button onClick={store} className="pointer-events-auto text-accent/80 hover:text-accent">
-                  서랍에 넣기
-                </button>
+                <span className="relative">
+                  <button type="button" onClick={store} className="pointer-events-auto text-accent/85 hover:text-accent">
+                    서랍에 넣기
+                  </button>
+                  {keepHint && (
+                    <span
+                      role="status"
+                      className="pointer-events-none absolute top-full right-0 mt-3 w-max max-w-[14em] origin-top-right rounded-ui bg-foreground px-3.5 py-2 text-sm leading-snug font-sans tracking-normal text-background normal-case shadow-[0_8px_24px_rgba(0,0,0,.45)] animate-[bubble_.4s_cubic-bezier(.2,.8,.2,1)_both] before:absolute before:-top-[5px] before:right-5 before:border-x-[6px] before:border-b-[6px] before:border-x-transparent before:border-b-foreground"
+                    >
+                      {RESULT_DIALOGUE.KEEP_HINT}
+                    </span>
+                  )}
+                </span>
               )}
-              <Link href="/archive" className="pointer-events-auto text-accent/80 hover:text-accent">MY CABINET</Link>
-              <Link href="/search" className="pointer-events-auto text-accent/80 hover:text-accent">NEW REQUEST</Link>
+              <Link href="/archive" className="pointer-events-auto text-accent/85 hover:text-accent">MY CABINET</Link>
+              <Link href="/search" className="pointer-events-auto text-accent/85 hover:text-accent">NEW REQUEST</Link>
             </span>
           </header>
 
@@ -250,18 +273,18 @@ export default function Results({ query }: { query: string }) {
                 linkDelay={said.timeline.at(-1)![1] + said.timeline.at(-1)![0].length * LINE_PACE}
               />
               {failed && (
-                <div className="mt-4 flex justify-center" style={{ animationDelay: "1.5s" }}>
-                  <button className={choice} onClick={() => dig({ thrown })}>
+                <div className="mt-4 flex justify-center animate-[appear_.3s_1.5s_both]">
+                  <button type="button" className={choice} onClick={() => dig({ thrown })}>
                     {RESULT_DIALOGUE.FAILED_ACTION}
                   </button>
                 </div>
               )}
               {!dry && !failed && (
-                <div className="mt-4 flex flex-wrap justify-center gap-3" style={{ animationDelay: "1.5s" }}>
-                  <button className={choice} onClick={() => dig({ thrown })}>
+                <div className="mt-4 flex flex-wrap justify-center gap-3 animate-[appear_.3s_1.5s_both]">
+                  <button type="button" className={choice} onClick={() => dig({ thrown })}>
                     {RESULT_DIALOGUE.RETRY}
                   </button>
-                  <button className={choice} onClick={() => dig({ seen })}>
+                  <button type="button" className={choice} onClick={() => dig({ seen })}>
                     {RESULT_DIALOGUE.MORE}
                   </button>
                 </div>
@@ -281,24 +304,25 @@ export default function Results({ query }: { query: string }) {
                 e.preventDefault();
                 print();
               }}
-              className="pointer-events-auto absolute top-[44%] left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 rounded-md border border-white/20 bg-neutral-200/95 px-8 py-6 shadow-[0_12px_40px_rgba(0,0,0,.6)] animate-[appear_.35s_both]"
+              className="pointer-events-auto absolute top-[44%] left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-4 rounded-ui border border-white/20 bg-neutral-200/95 px-8 py-6 shadow-[0_12px_40px_rgba(0,0,0,.6)] animate-[appear_.3s_both] [--background:#e5e5e5] [--ui:var(--ink-light)]"
             >
-              <p className="font-mono text-[10px] tracking-[.25em] text-neutral-500">{RESULT_DIALOGUE.NAME_HINT}</p>
+              <p className="font-mono text-xs tracking-[.15em] text-neutral-600">{RESULT_DIALOGUE.NAME_HINT}</p>
               <input
                 autoFocus
                 value={tag}
-                onChange={(e) => setTag(e.target.value.slice(0, 16))}
+                onChange={(e) => setTag(e.target.value.slice(0, TAG_MAX))}
                 aria-label="서랍 이름"
-                className="w-64 border-b border-neutral-400 bg-transparent pb-1 text-center font-mono text-xl tracking-[.2em] text-neutral-800 outline-none focus:border-neutral-700"
+                className="w-64 border-b-2 border-neutral-400 bg-transparent pb-1 text-center font-mono text-xl tracking-[.15em] text-neutral-800 outline-none focus:border-neutral-800"
               />
-              <button type="submit" className="mt-1 rounded-full bg-neutral-800 px-6 py-2 font-mono text-xs tracking-[.2em] text-neutral-100 transition hover:bg-neutral-950">
-                {RESULT_DIALOGUE.NAME_ACTION} ⏎
+              <button type="submit" className="btn-solid">
+                {RESULT_DIALOGUE.NAME_ACTION}
+                <KeyReturn aria-hidden size={14} weight="bold" />
               </button>
             </form>
           )}
 
           {/* 아래 가운데는 드라이브 자리 — 안내는 왼쪽 아래로 */}
-          <footer className="pointer-events-none absolute bottom-[3cqh] left-6 font-mono text-[10px] tracking-[.2em] text-foreground/40">
+          <footer className="pointer-events-none absolute bottom-[3cqh] left-6 font-mono text-xs tracking-[.15em] text-foreground/60">
             CLICK TO PLAY · WHEEL TO BROWSE · DRAG TO ROTATE · FLICK UP TO DISCARD
           </footer>
         </>

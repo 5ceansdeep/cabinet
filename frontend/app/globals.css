@@ -22,13 +22,18 @@
   /* Concept Serif — 보고서, 점수 인쇄, 라벨지. 아날로그 타자기 무드 */
   --font-mono-concept: var(--font-fragment), "Courier New", ui-monospace, monospace;
 
+  /* 자막(신의 대사) 노랑 — 영화 자막 색 */
+  --subtitle: #e2cd5a;
+
   --background: var(--void-bg);
   --foreground: var(--ink-light);
+  --ui: var(--ink-light); /* 버튼·링크·포커스 색 — 흰 화면은 잉크, 검은 방은 시안 */
 }
 
 [data-theme="void"] {
   --background: var(--data-bg);
   --foreground: var(--ink-dark);
+  --ui: var(--accent);
 }
 
 @theme inline {
@@ -37,10 +42,14 @@
   --color-surface: var(--cabinet-surface);
   --color-data-surface: var(--data-surface);
   --color-accent: var(--accent);
+  --color-subtitle: var(--subtitle);
+  --color-ui: var(--ui);
+  --radius-ui: 8px; /* 버튼·패널·시트·카드 — 모서리는 전부 8px (.claude/skills/design-rules) */
   --font-sans: var(--font-inter);
   --font-mono: var(--font-mono-concept);
   --font-letter: var(--font-nanum), "Nanum Myeongjo", serif;
-  --font-subtitle: var(--font-chosun), "Gulim", sans-serif;}
+  --font-subtitle: var(--font-chosun), "Gulim", sans-serif;
+}
 
 body {
   background: #000; /* 영화 프레임 바깥 — 레터박스 */
@@ -91,6 +100,56 @@ body {
   z-index: 60;
 }
 
+/* 버튼 두 가지 — 일반 UI 는 이것만 쓴다(10/3 디자인 정리: 흰 유리·시안 테두리 두 크기·꽉 찬 두 색이 섞여 있었다).
+   .btn = 테두리 버튼, .btn-solid = 화면의 주 행동 하나. 모서리는 패널과 같은 8px(10/3 사용자: 알약 모양이 별로). 색은 --ui(흰 화면 잉크 / 검은 방 시안) */
+@layer components {
+  .btn,
+  .btn-solid {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 8px 16px;
+    border-radius: var(--radius-ui);
+    border: 1px solid color-mix(in srgb, var(--ui) 45%, transparent);
+    color: var(--ui);
+    font-family: var(--font-mono-concept);
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    line-height: 1;
+    white-space: nowrap;
+    transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1), transform 100ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .btn:hover { background: color-mix(in srgb, var(--ui) 10%, transparent); }
+  .btn-solid { background: var(--ui); color: var(--background); border-color: var(--ui); }
+  .btn-solid:hover { background: color-mix(in srgb, var(--ui) 85%, var(--background)); }
+  .btn:active,
+  .btn-solid:active { transform: scale(0.98); }
+  .btn:disabled,
+  .btn-solid:disabled { opacity: 0.4; pointer-events: none; }
+}
+
+/* 스크롤바 숨김 — 영화 프레임 안이라 막대가 화면을 깬다(10/3 사용자). 스크롤 자체(휠·터치·키보드)는 그대로 된다 */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* 키보드 포커스 — 마우스 클릭엔 안 보이고 Tab 으로 왔을 때만 */
+:focus-visible {
+  outline: 2px solid var(--ui);
+  outline-offset: 2px;
+}
+/* 글 입력칸은 마우스로 눌러도 :focus-visible 이 켜져 검은 네모가 생겼다(10/3 사용자) — 입력칸은 제 표시를 쓴다
+   (편지지는 그림자가 진해지고, 한 줄 입력은 밑줄이 굵어진다) */
+textarea:focus-visible,
+input:focus-visible {
+  outline: none;
+}
+
 /* 후광 빛살이 아주 천천히 돈다 — transform(scale)과 겹치지 않게 rotate 속성만 */
 @keyframes turn {
   to { rotate: 360deg; }
@@ -103,23 +162,21 @@ body {
   from { transform: translateY(100%); }
   to { transform: none; }
 }
-/* 슬롯에서 쇽! 튀어나오는 디스크 */
-@keyframes pop {
-  from { opacity: 0; transform: translateY(140px) scale(0.6); }
-  to { opacity: 1; transform: none; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important; /* 무한 반복(후광 회전)도 멈춘다 */
     transition-duration: 0.01ms !important;
   }
 }
 @keyframes appear {
   from { opacity: 0; }
 }
-/* 자막 줄 — 높이 0 에서 펼쳐지며 들어와 아래 줄을 밀어낸다 */
+/* 자막 줄 — 위에서 살짝 내려오며 나타난다. 높이(max-height)는 애니메이션하지 않는다 — 레이아웃을 매 프레임 다시 잰다 */
 @keyframes subline {
-  from { opacity: 0; max-height: 0; transform: translateY(-6px); }
-  to { opacity: 1; max-height: 4em; transform: none; }
+  from { opacity: 0; transform: translateY(-6px); }
+}
+/* 말풍선 — 버튼에서 살짝 솟아오르며 커진다(10/4 사용자: 안내가 너무 뚝 나타난다) */
+@keyframes bubble {
+  from { opacity: 0; transform: translateY(-4px) scale(.92); }
 }

@@ -81,22 +81,18 @@ export async function syncShelves() {
   write(r.data.map((s) => fromRemote(s, local.find((l) => l.id === s.id)?.tracks)));
 }
 
-/* 요청문에서 서랍 이름을 지어 준다 — 사용자가 네임택 위에서 고쳐 쓸 수 있게 제안만 한다.
-   한 글자 낱말(비·눈·밤)은 다른 낱말 속에도 들어 있어(비밀·비행기, 눈물·눈치, 밤새) 뒤에 붙는 말까지 같이 본다 */
-const HINTS: [RegExp, string][] = [
-  [/새벽|심야|자정|밤(에|이|늦|길|하늘|공기|$|\s)/, "#LATE-NIGHT"],
-  [/비(가|는|오|내리|올|온|맞|젖|소리|$|\s)|빗소리|빗길|장마|소나기|우산/, "#RAINY"],
-  [/몽환|꿈|아련/, "#DREAMY"],
-  [/신나|달리|드라이브|들뜬/, "#DRIVE"],
-  [/우울|슬프|눈물|외로/, "#BLUE"],
-  [/공부|집중|일할/, "#FOCUS"],
-  [/겨울|추운|첫눈|눈(이|오|내리|사람|길|송이|$|\s)/, "#WINTER"],
-  [/여름|바다|더운/, "#SUMMER"],
-];
+export const TAG_MAX = 16; // 네임택 글자 수
 
+/* 서랍 이름 제안 — 편지 글 그대로(10/3 사용자: #RAINY 같은 분류 대신 편지 내용으로). 네임택에 들어갈 만큼만 자르고,
+   사용자가 네임택 위에서 고쳐 쓸 수 있다. 편지가 비었으면 날짜 */
 export function suggestTag(query: string) {
-  const hit = HINTS.find(([re]) => re.test(query));
-  if (hit) return hit[1];
+  const letter = query.replace(/\s+/g, " ").trim();
+  if (letter) {
+    // 글자 단위로 자르되 서버(@MaxLength 16)는 UTF-16 으로 세니 이모지가 섞이면 한 글자씩 더 뺀다
+    let tag = [...letter].slice(0, TAG_MAX);
+    while (tag.join("").length > TAG_MAX) tag = tag.slice(0, -1);
+    return tag.join("").trim();
+  }
   const d = new Date();
   return `#${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }

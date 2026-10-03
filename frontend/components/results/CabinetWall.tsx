@@ -1,12 +1,14 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { type RefObject, useLayoutEffect, useMemo, useRef } from "react";
+import { type RefObject, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { BoxGeometry, Matrix4, type BufferGeometry, type Group, type InstancedMesh, type Material } from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { CABINET } from "@/components/landing/dimensions";
 import { materials } from "@/components/landing/materials";
 import { thud } from "@/lib/thud";
+import { keepContext } from "@/lib/gl";
+import { useReducedMotion } from "@/lib/motion";
 import { COLUMNS, RADIUS, REVEAL, ROWS } from "./room";
 import Deck from "./Deck";
 import Flights from "./Flights";
@@ -44,9 +46,12 @@ const pulled = (t: number, p: { out: number; hold: number; back: number }) =>
 
 const pitch = H + GAP;
 const tall = ROWS * pitch + 2 * T;
-// 기둥 각도 × 기둥 안의 자리 → 월드 행렬
-const place = (angle: number, x: number, y: number, z: number) =>
-  new Matrix4().makeRotationY(angle).multiply(new Matrix4().makeTranslation(x, y, z - RADIUS));
+// 기둥 각도 × 기둥 안의 자리 → 월드 행렬. out 을 주면 거기에 쓴다 — 뒤지는 동안 매 프레임 새 행렬을 만들지 않게
+const _turn = new Matrix4();
+const _move = new Matrix4();
+const _at = new Matrix4();
+const place = (angle: number, x: number, y: number, z: number, out = new Matrix4()) =>
+  out.copy(_turn.makeRotationY(angle)).multiply(_move.makeTranslation(x, y, z - RADIUS));
 
 export function Wall({ rummage = false, reveal = 0 }: { rummage?: boolean; reveal?: number }) {
   const m = materials();
@@ -57,6 +62,9 @@ export function Wall({ rummage = false, reveal = 0 }: { rummage?: boolean; revea
   const pulls = useRef(new Map<number, { t0: number; p: typeof PULL }>()); // 서랍 번호 → 빠지기 시작한 때
   const next = useRef(0); // 다음 서랍을 뒤질 때
   const { invalidate } = useThree();
+  const reduce = useReducedMotion(); // 감속 모드 — 뒤지기·결과 서랍이 빠졌다 닫히는 움직임 없이(디스크는 바로 줄에)
+  // 뒤지기·결과가 시작되면 깨운다 — 멎은 장면은 그리지 않는다(frameloop="demand")
+  useEffect(() => invalidate(), [rummage, reveal, invalidate]);
   const parts = useMemo(() => {
     const geo = {
       body: new BoxGeometry(W + 2 * T, tall, 0.7),
@@ -90,16 +98,16 @@ export function Wall({ rummage = false, reveal = 0 }: { rummage?: boolean; revea
     const revIdx = REVEAL.col * ROWS + REVEAL.row;
     if (reveal !== revealed.current) {
       revealed.current = reveal;
-      if (reveal) map.set(revIdx, { t0: now, p: { ...PULL, ...REVEAL } });
+      if (reveal && !reduce) map.set(revIdx, { t0: now, p: { ...PULL, ...REVEAL } });
     }
     // 뒤지는 중 — 보이는 서랍 하나를 골라 탁
-    if (rummage && now >= next.current) {
+    if (rummage && !reduce && now >= next.current) {
       const c = (Math.round((Math.random() * 2 - 1) * SEEN_COLS) + COLUMNS) % COLUMNS;
       const r = SEEN_ROWS[0] + Math.floor(Math.random() * (SEEN_ROWS[1] - SEEN_ROWS[0] + 1));
       if (!map.has(c * ROWS + r)) map.set(c * ROWS + r, { t0: now, p: PULL });
       next.current = now + 0.12 + Math.random() * 0.22;
     }
-    if (!map.size && !rummage) return;
+    if (!map.size && (!rummage || reduce)) return;
     for (const [idx, { t0, p }] of map) {
       const t = now - t0;
       const done = t > p.out + p.hold + p.back;
@@ -108,9 +116,9 @@ export function Wall({ rummage = false, reveal = 0 }: { rummage?: boolean; revea
       const r = idx % ROWS;
       const a = (c / COLUMNS) * Math.PI * 2;
       const y = (r - (ROWS - 1) / 2) * pitch;
-      front.current!.setMatrixAt(idx, place(a, 0, y, d));
-      holder.current!.setMatrixAt(idx, place(a, 0, y + H * 0.27, 0.04 + d));
-      handle.current!.setMatrixAt(idx, place(a, 0, y - H * 0.24, 0.06 + d));
+      front.current!.setMatrixAt(idx, place(a, 0, y, d, _at));
+      holder.current!.setMatrixAt(idx, place(a, 0, y + H * 0.27, 0.04 + d, _at));
+      handle.current!.setMatrixAt(idx, place(a, 0, y - H * 0.24, 0.06 + d, _at));
       if (idx === revIdx) {
         // 결과 서랍은 몸통(옆판·바닥)이 따라 나온다 — 앞판만 뜨면 어색하다
         tray.current.visible = d > 0.01;
@@ -177,7 +185,7 @@ export default function CabinetWall({
 }) {
   return (
     <div className="fixed inset-0">
-      <Canvas frameloop="demand" camera={{ position: [0, 0, 0], fov: 62 }} dpr={[1, 1.5]}>
+      <Canvas frameloop="demand" camera={{ position: [0, 0, 0], fov: 62 }} dpr={[1, 1.5]} onCreated={keepContext}>
         {/* 검은 공간에 흰 서류함만 떠오른다 — 멀어질수록 어둠에 잠긴다 */}
         <color attach="background" args={["#000000"]} />
         <fog attach="fog" args={["#000000", 7, 14]} />

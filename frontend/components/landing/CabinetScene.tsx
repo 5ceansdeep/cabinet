@@ -7,6 +7,7 @@ import { damp, useReducedMotion } from "@/lib/motion";
 import { ContactShadows, Environment, Lightformer, RoundedBox } from "@react-three/drei";
 import { Color, type AmbientLight, type DirectionalLight, type Fog, type SpotLight } from "three";
 import { bark } from "@/lib/bark";
+import { keepContext } from "@/lib/gl";
 import { thud } from "@/lib/thud";
 import { cut, isMuted, speak, subscribeMuted, warm } from "@/lib/voice";
 import { CABINET, CAMERA, FULL_OPEN, INNER_HALF, LOOK, CARD_VH, PRESENT_TOP, drawerY } from "./dimensions";
@@ -78,13 +79,6 @@ function Lights({ dim }: { dim: boolean }) {
   );
 }
 
-/* GPU 가 3D 컨텍스트를 끊어도(탭을 오래 열어두거나 개발 중 새로고침이 쌓이면 일어난다) 되살린다.
-   preventDefault 를 하지 않으면 브라우저가 아예 복구를 포기해 화면이 그 자리에서 멎는다 */
-function keepContext({ gl, invalidate }: { gl: { domElement: HTMLCanvasElement }; invalidate: () => void }) {
-  const c = gl.domElement;
-  c.addEventListener("webglcontextlost", (e) => e.preventDefault());
-  c.addEventListener("webglcontextrestored", () => invalidate());
-}
 
 const noop = () => () => {}; // 바뀌지 않는 값 구독용
 

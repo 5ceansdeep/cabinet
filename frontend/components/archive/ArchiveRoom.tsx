@@ -6,13 +6,15 @@ import { ArrowRight, CaretDown, CaretUp } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
-import { Vector3, type Group } from "three";
+import { Vector3, type Group, type PointLight } from "three";
 import { CABINET } from "@/components/landing/dimensions";
 import { labelMaterial, materials } from "@/components/landing/materials";
 import { Wall } from "@/components/results/CabinetWall";
 import { DISK, FloppyBody, useLabel } from "@/components/results/floppy";
 import type { Track } from "@/components/results/tracks";
 import { thud } from "@/lib/thud";
+import { keepContext } from "@/lib/gl";
+import { damp, useReducedMotion } from "@/lib/motion";
 import { ARCHIVE_DIALOGUE, PLAYLIST_DIALOGUE } from "@/components/landing/lines";
 import CardReveal from "@/components/share/CardReveal";
 import ListenPanel from "./ListenPanel";
@@ -31,14 +33,17 @@ const FRONT = new Vector3(0, 0, 3.2); // 서류함을 정면에서
 const LOOK_FRONT = new Vector3(0, 0, 0);
 const TOP = new Vector3(0, 2.3, 2.1); // 열린 서랍을 내려다보는 자리
 const v = new Vector3();
+const lookAt = new Vector3(); // 카메라가 볼 곳 — 매 프레임 새로 만들지 않게
+const ENTER = 0.5; // 칸을 넘기면 새 서랍이 이만큼(월드) 넘긴 쪽에서 밀려 들어온다 — 아래 서랍일수록 조금 더 멀리서(엇갈림)
 
 /* 카메라 — 서랍을 열면 위로 올라가 안을 내려다본다 */
 function Rig({ open, drawerY }: { open: boolean; drawerY: number }) {
   const look = useRef(LOOK_FRONT.clone());
+  const reduce = useReducedMotion(); // 감속 모드 — 카메라가 날아가지 않고 바로 그 자리에
   useFrame(({ camera, invalidate }, dt) => {
-    const k = 1 - Math.exp(-3 * dt);
+    const k = damp(3, dt, reduce);
     const to = open ? v.set(0, TOP.y, TOP.z) : v.copy(FRONT);
-    const at = open ? new Vector3(0, drawerY, D / 2 + OPEN - 0.4) : LOOK_FRONT;
+    const at = open ? lookAt.set(0, drawerY, D / 2 + OPEN - 0.4) : LOOK_FRONT;
     if (camera.position.distanceTo(to) > 0.002 || look.current.distanceTo(at) > 0.002) {
       camera.position.lerp(to, k);
       look.current.lerp(at, k);
@@ -49,14 +54,41 @@ function Rig({ open, drawerY }: { open: boolean; drawerY: number }) {
   return null;
 }
 
+/* 정면 조명 — 열린 서랍(z≈2.1) 바로 위에 놓여 안을 하얗게 날린다, 열면 줄인다(10/2). 툭 바뀌지 않고 서랍과 같은 빠르기로 */
+function FrontLight({ dim }: { dim: boolean }) {
+  const l = useRef<PointLight>(null!);
+  const reduce = useReducedMotion();
+  const { invalidate } = useThree();
+  useEffect(() => invalidate(), [dim, invalidate]);
+  useFrame((_, dt) => {
+    const to = dim ? 1.5 : 6;
+    if (Math.abs(l.current.intensity - to) < 0.01) return void (l.current.intensity = to);
+    l.current.intensity += (to - l.current.intensity) * damp(6, dt, reduce);
+    invalidate();
+  });
+  return <pointLight ref={l} position={[0, 0.6, 2.4]} intensity={6} distance={9} decay={2} color="#ffffff" />;
+}
+
 /* 서랍 속에 꽂힌 플로피 한 장 — 종이 파일에 기대어 비스듬히 선다 */
 function Filed({ track, x, size, onOpen }: { track: Track; x: number; size: number; onOpen: () => void }) {
   const { invalidate } = useThree();
   const label = useLabel(track, invalidate); // 커버가 도착하면 다시 그린다
   const [hover, setHover] = useState(false);
+  const g = useRef<Group>(null!);
+  const reduce = useReducedMotion();
+  useEffect(() => invalidate(), [hover, invalidate]);
+  // 호버하면 쏙 들린다 — 순간 이동 대신 부드럽게(디자인 규칙: 상태 변화는 보이게)
+  useFrame((_, dt) => {
+    const to = hover ? 0.12 : 0;
+    const y = g.current.position.y;
+    if (Math.abs(to - y) < 0.0005) return void (g.current.position.y = to);
+    g.current.position.y = y + (to - y) * damp(14, dt, reduce);
+    invalidate();
+  });
   return (
     <group
-      position={[x, hover ? 0.12 : 0, 0]}
+      ref={g}
+      position={[x, 0, 0]}
       rotation={[-0.35, 0, 0]}
       onPointerOver={(e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
@@ -96,6 +128,7 @@ function Drawer({
   kept,
   open,
   fresh,
+  enter = 0,
   onToggle,
   onOpenTrack,
 }: {
@@ -104,22 +137,27 @@ function Drawer({
   kept: Track[];
   open: boolean;
   fresh?: boolean; // 방금 저장한 서랍 — 살짝 앞으로 나와 눈에 띈다
+  enter?: number; // 칸을 넘겨 새로 들어온 서랍 — 이만큼 위(+)·아래(-)에서 밀려 들어온다
   onToggle: () => void;
   onOpenTrack: (t: Track) => void;
 }) {
   const g = useRef<Group>(null!);
   const m = materials();
+  const reduce = useReducedMotion();
   useFrame(({ invalidate }, dt) => {
     const to = open ? OPEN : fresh ? 0.18 : 0;
     const z = D / 2 - 0.02 + to;
-    if (Math.abs(g.current.position.z - z) > 0.001) {
-      g.current.position.z += (z - g.current.position.z) * (1 - Math.exp(-6 * dt));
+    const p = g.current.position;
+    const k = damp(6, dt, reduce);
+    if (Math.abs(p.z - z) > 0.001 || Math.abs(p.y - y) > 0.001) {
+      p.z += (z - p.z) * k;
+      p.y += (y - p.y) * damp(9, dt, reduce);
       invalidate();
-    }
+    } else p.set(p.x, y, z);
   });
 
   return (
-    <group ref={g} position={[0, y, D / 2 - 0.02]} onClick={onToggle}>
+    <group ref={g} position={[0, y + (reduce ? 0 : enter), D / 2 - 0.02]} onClick={onToggle}>
       {/* 전면 + 네임택(감정 테마 태그) + 손잡이 */}
       <RoundedBox args={[W - 0.04, H, 0.05]} radius={0.012} smoothness={3} material={m.steel} />
       <RoundedBox args={[0.5, 0.14, 0.012]} radius={0.004} position={[0, H * 0.27, 0.03]} material={m.metal} />
@@ -169,6 +207,7 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
   const shelves = useMemo(() => parseShelves(raw), [raw]);
   // 서류함은 3단이라 서랍 3개씩 넘겨 본다 — 4번째로 저장한 서랍부터는 다음 칸에
   const [page, setPage] = useState(0);
+  const [dir, setDir] = useState(0); // 마지막으로 넘긴 쪽 — 새 서랍이 그쪽에서 밀려 들어온다
   const [sheet, setSheet] = useState<Track | null>(null); // 디스크를 눌렀다 — 곡 카드(표지·설명·미리듣기)
   const [sharing, setSharing] = useState(false); // 공유 카드 화면
   const pages = Math.max(1, Math.ceil(shelves.length / PER_PAGE));
@@ -179,6 +218,7 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
     if (next === page) return;
     thud(90);
     setOpen(null);
+    setDir(d);
     setPage(next);
   };
   useEffect(() => void syncShelves(), []); // 로그인했으면 서버 원본으로 사본을 새로 고친다
@@ -188,12 +228,12 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
   return (
     <main data-theme="void" className="relative flex min-h-full flex-1 flex-col overflow-hidden bg-background text-foreground">
       <div className="fixed inset-0">
-        <Canvas frameloop="demand" camera={{ position: FRONT.toArray(), fov: 55 }} dpr={[1, 1.5]}>
+        <Canvas frameloop="demand" camera={{ position: FRONT.toArray(), fov: 55 }} dpr={[1, 1.5]} onCreated={keepContext}>
           <color attach="background" args={["#000000"]} />
           <fog attach="fog" args={["#000000", 7, 14]} />
           <ambientLight intensity={0.12} />
           {/* 정면 조명은 열린 서랍(z≈2.1) 바로 위에 놓여 안을 하얗게 날린다 — 열면 줄인다(10/2) */}
-          <pointLight position={[0, 0.6, 2.4]} intensity={open === null ? 6 : 1.5} distance={9} decay={2} color="#ffffff" />
+          <FrontLight dim={open !== null} />
           <pointLight position={[0, 2.2, 1.6]} intensity={1.2} distance={7} decay={2} color="#cfe6f5" />
           <Wall />
           <Rig open={open !== null} drawerY={open === null ? 0 : drawerY(open)} />
@@ -207,6 +247,7 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
               kept={s.kept}
               open={open === i}
               fresh={s.id === fresh}
+              enter={dir ? -dir * ENTER * (1 + i * 0.35) : 0} // 최근 쪽(위 화살표)으로 넘기면 위에서, 지난 쪽이면 아래에서
               onToggle={() => {
                 thud(open === i ? 60 : 120);
                 setOpen(open === i ? null : i);

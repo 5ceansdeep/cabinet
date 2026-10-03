@@ -82,10 +82,8 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
           <feMorphology in="SourceAlpha" operator="erode" radius="1" result="core" />
           <feComposite in="SourceGraphic" in2="core" operator="in" result="inner" />
           <feComposite in="boiled" in2="core" operator="out" result="rim" />
-          {/* 필름 입자 — 글자 안에 잘게 깜빡이는 검은 점(10/4 사용자: 노이즈). 밝은 노이즈만 남겨 듬성듬성, 글자 모양 안에만 */}
-          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="1" seed="2" result="grain">
-            <animate attributeName="seed" values="2;9;4;14;6;11;3" dur="0.42s" repeatCount="indefinite" calcMode="discrete" />
-          </feTurbulence>
+          {/* 필름 입자 — 글자 안에 잘게 박힌 검은 점(10/4 사용자: 노이즈, 깜빡이지 않게 고정). 밝은 노이즈만 남겨 듬성듬성, 글자 모양 안에만 */}
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="1" seed="2" result="grain" />
           <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.6 0 0 0 -1.35" result="specks" />
           <feComposite in="specks" in2="core" operator="in" result="grained" />
           <feMerge>
@@ -95,11 +93,10 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
           </feMerge>
         </filter>
       </svg>
-      {/* 글리치 — 몇 초에 한 번 0.2초 남짓 빨강·시안으로 갈라지고 옆으로 튀며 한 줄이 찢어진다(10/4 사용자). 평소엔 그대로 읽힌다.
-          갈라진 색은 --rgb(globals.css sub-glitch)로, 테두리 그림자 맨 아래에 깐다 */}
+      {/* 글리치 — 빨강·시안이 테두리 밖으로 살짝 어긋나 삐져나온다(10/4 사용자). 깜빡이지 않게 고정 — 튀고 찢어지던 애니메이션은 뺐다 */}
       <div
-        className="flex flex-col items-center animate-[sub-glitch_3.7s_steps(1,end)_infinite] motion-reduce:![filter:none]"
-        style={{ filter: `url(#${boil})`, textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6),var(--rgb,0 0 transparent)` }}
+        className="flex flex-col items-center motion-reduce:![filter:none]"
+        style={{ filter: `url(#${boil})`, textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6),-2px 0 rgba(255,40,90,.7),2px 0 rgba(0,229,255,.7)` }}
       >
         {lines.map((l) => (
           // 위에서 살짝 내려오며 나타난다(높이는 애니메이션하지 않는다 — 디자인 규칙)

@@ -96,4 +96,4 @@ export async function findTrack(id: string, query: string): Promise<Track | null
 }
 
 /** 던진 곡을 서버에 알린다 — 자주 던져지는 곡은 순위가 조금 내려간다. 결과는 기다리지 않는다(실패해도 화면은 그대로) */
-export const logThrow = (id: string) => void api("/recommend/throw", { method: "POST", body: { id } });
+export const logThrow = (id: string, q: string) => void api("/recommend/throw", { method: "POST", body: { id, q } }); // q 는 서버 로그 한 줄에만

@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, Injectable, Ip, Logger, Module, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { IsString, MaxLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { CatalogModule } from '../catalog/catalog.module.js';
 import { GENRES, inGenres } from '../catalog/genres.js';
 import { same } from '../catalog/itunes.js';
@@ -16,6 +16,12 @@ class ThrowDto {
   @IsString()
   @MaxLength(40)
   id!: string;
+
+  @ApiProperty({ required: false, description: '그 곡을 꺼낸 편지 — Railway 로그 한 줄에만 쓰고 DB(ThrowLog)엔 안 남긴다' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300) // Q_MAX — 이 클래스가 Q_MAX 선언보다 위에 있어 숫자로
+  q?: string;
 }
 
 /* 요청문 → 풀어 쓴 설명의 벡터 + 목표 에너지·밝기(Interpreter) → 곡마다 뜻(코사인)·소리(거리) 점수로 후보 20곡(1단계)
@@ -236,14 +242,17 @@ export class RecommendService {
      ponytail: 세는 건 메모리 — 서버를 끄면 비고, 여러 대면 따로 센다 */
   private readonly throwsBy = new Map<string, { ids: Set<string>; until: number }>();
 
-  async logThrow(id: string, ip: string) {
+  async logThrow(id: string, ip: string, query = '') {
     const now = Date.now();
     if (this.throwsBy.size > 10_000) for (const [k, b] of this.throwsBy) if (b.until < now) this.throwsBy.delete(k);
     let b = this.throwsBy.get(ip);
     if (!b || b.until < now) this.throwsBy.set(ip, (b = { ids: new Set(), until: now + 86_400_000 }));
     if (b.ids.has(id) || b.ids.size >= THROW_PER_IP) return;
     b.ids.add(id);
-    await this.prisma.throwLog.create({ data: { trackId: id } }).catch(() => undefined);
+    // 검색 기록 한 줄과 나란히 보이게 — 어떤 편지에서 어떤 곡을 던졌나(10/3 사용자). 모르는 곡(가짜 곡)은 안 찍는다
+    const t = (await this.loadPool()).find((x) => x.id === id);
+    if (t) this.log.log(`던짐 "${query.trim()}" → ${t.artist} - ${t.title}`);
+    await this.prisma.throwLog.create({ data: { trackId: id } }).catch((e) => this.log.warn(`던진 곡 기록 저장 실패: ${e}`));
   }
 
   /** 보여 준 곡들을 건네며 하는 신의 한마디 + 곡마다 이유 — 디스크가 뜬 뒤 따로 부른다. 요청 풀어쓰기는 캐시에 있다 */
@@ -398,7 +407,7 @@ export class RecommendController {
   @HttpCode(204)
   @ApiOperation({ summary: '디스크를 던졌다 — 자주 던져지는 곡은 순위가 조금 내려간다. 같은 곳에서 같은 곡은 하루 한 번만 센다' })
   throw(@Body() dto: ThrowDto, @Ip() ip: string) {
-    return this.svc.logThrow(dto.id, ip);
+    return this.svc.logThrow(dto.id, ip, dto.q?.slice(0, Q_MAX));
   }
 
   @Get(':id')

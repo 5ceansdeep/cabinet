@@ -170,7 +170,7 @@ export default function Results({ query }: { query: string }) {
 
   function discard(track: Track) {
     setThrown((ts) => [...ts, track.id]);
-    logThrow(track.id);
+    logThrow(track.id, query);
     setKept((ts) => ts.filter((t) => t.id !== track.id));
     setIndex((i) => Math.max(0, Math.min(row.length - 2, i)));
   }

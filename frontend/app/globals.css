@@ -130,6 +130,14 @@ body {
   .btn-solid:disabled { opacity: 0.4; pointer-events: none; }
 }
 
+/* 스크롤바 숨김 — 영화 프레임 안이라 막대가 화면을 깬다(10/3 사용자). 스크롤 자체(휠·터치·키보드)는 그대로 된다 */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
 /* 키보드 포커스 — 마우스 클릭엔 안 보이고 Tab 으로 왔을 때만 */
 :focus-visible {
   outline: 2px solid var(--ui);

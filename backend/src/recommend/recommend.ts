@@ -7,7 +7,7 @@ import { same } from '../catalog/itunes.js';
 import { similarArtists, similarTracks } from '../catalog/lastfm.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VoiceModule, VoiceService } from '../voice/voice.js';
-import { type Asked, Interpreter } from './interpret.js';
+import { type Asked, Interpreter, normalize } from './interpret.js';
 import { Reranker } from './rerank.js';
 import { BONUS, type Candidate, display, lexical, rank, throwPenalty } from './score.js';
 
@@ -161,7 +161,13 @@ export class RecommendService {
       songs.length ? `편지에 꼽은 곡: ${songs.map((g) => `${g.artist} - ${g.title}`).join(", ")} — 그 곡과 감정·소리 결이 비슷한 곡을 앞에` : "",
     ].filter(Boolean);
     const want = [readings(asked), ...notes].join("\n\n");
-    const rr = cands.length ? await within(this.reranker.rerank(query, want, cands), RERANK_MS) : null;
+    // 처음 부친 편지면 예전에 한 대사를 그대로(LetterLine) — 재정렬과 같이 묻는다
+    const first = !seen.length && !thrown.length && !!query.trim();
+    const letter = normalize(query);
+    const [rr, kept] = await Promise.all([
+      cands.length ? within(this.reranker.rerank(query, want, cands), RERANK_MS) : null,
+      first ? this.prisma.letterLine.findUnique({ where: { query: letter }, select: { ko: true, en: true } }).catch(() => null) : null,
+    ]);
     const ordered = pinTitled(pick(rr ? finalOrder(cands, rr.order, asked.artists) : ranked), asked);
     // 맨 앞 — 꼽은 곡 그 자체, 꼽은 곡이 없으면 그 곡을 부른 가수 곡 중 가장 맞는 LOST_LEAD 곡(본·던진 곡은 ranked 에 없다)
     const lead = [
@@ -171,7 +177,12 @@ export class RecommendService {
     const picked = [...lead, ...ordered.filter((t) => !lead.includes(t))].slice(0, limit);
     const pct = picked.map((t) => shown(t, ranked).semantic).sort((a, b) => b - a);
     const tracks = picked.map((t, i) => ({ ...shown(t, ranked), semantic: pct[i], reason: rr?.reasons[t.id] ?? null }));
-    const line = rr?.line ? { ...rr.line, voice: this.voice.register(rr.line.en) } : null; // 영어 음성 id — ElevenLabs 를 꺼 두면 null
+    const spoken = kept ?? rr?.line ?? null;
+    if (first && !kept && rr?.line)
+      void this.prisma.letterLine
+        .upsert({ where: { query: letter }, create: { query: letter, ...rr.line }, update: {} })
+        .catch((e) => this.log.warn(`편지 대사 저장 실패: ${e}`));
+    const line = spoken ? { ...spoken, voice: this.voice.register(spoken.en) } : null; // 영어 음성 id — ElevenLabs 를 꺼 두면 null
 
     // 처음 뒤질 때만 남긴다("다시 찾기"·"몇 곡 더"는 같은 요청) — 실패해도 결과는 준다. 편지 글·나온 곡·신의 한마디도(10/2) — Railway 로그에도 한 줄
     if (!seen.length && !thrown.length && query.trim()) {

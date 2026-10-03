@@ -123,3 +123,12 @@ model VoiceClip {
   audio     Bytes
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 }
+
+/// 편지별 신의 한마디 — 같은 편지(정규화한 글)를 처음 부치면 늘 같은 대사(10/4 사용자). 재정렬은 후보·모델에 따라 대사가 바뀌어
+/// 목소리도 새로 샀다. "다시 찾기"·"몇 곡 더"는 다른 곡을 건네니 여기 안 쓴다
+model LetterLine {
+  query     String   @id // interpret.ts normalize(요청문)
+  ko        String
+  en        String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+}

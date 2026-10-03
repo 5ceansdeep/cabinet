@@ -41,14 +41,9 @@ export default function RequestForm({
           setQuery(e.target.value);
           onType(e.currentTarget.form!.getBoundingClientRect());
         }}
-        placeholder={LETTER.PLACEHOLDER}
-        aria-describedby="letter-guide"
+        placeholder={LETTER.GUIDE}
         className="w-full resize-none bg-[repeating-linear-gradient(transparent,transparent_calc(2.25em-1.5px),rgba(0,0,0,.07)_2.25em)] bg-transparent text-[1em] leading-[2.25em] outline-none placeholder:text-black/60"
       />
-      {/* 쓰는 요령 — 편지지 아래 작게(입력하는 동안에도 보이게 placeholder 와 따로) */}
-      <p id="letter-guide" className="mt-[1.2em] text-[.8em] leading-[1.7] text-black/60">
-        {LETTER.GUIDE}
-      </p>
       <footer className="mt-[1.6em] flex items-end justify-between">
         <span className="text-[.85em] text-black/60">{LETTER.SIGN}</span>
         <button

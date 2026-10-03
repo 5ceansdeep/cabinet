@@ -5,6 +5,16 @@ description: 화면을 새로 만들거나 고칠 때 따르는 디자인 규칙
 
 # 디자인 규칙
 
+## 이 프로젝트에서의 범위 (10/3 사용자: 컨셉 유지 + 정리)
+- 아래 규칙은 **일반 UI**(버튼·링크·안내·오버레이·폼·404/오류 화면)에 그대로 적용한다.
+- **컨셉 예외** — `docs/ui-ux-spec.md` 가 우선: 3D 연출의 길이와 결(서랍 빠짐·카드 비행·쾅 닫힘·후광·벽 뒤지기·던지기 물리),
+  편지지 등장 1.6초·카드 인쇄 1.1초, 컨셉 글꼴(나눔명조·조선굴림·고정폭), 시안 강조색 `#00e5ff`·자막 노랑, 대문자 고정폭 서류 라벨,
+  공개 서랍(/s)·공유 카드의 영수증 디자인. 500ms 상한은 일반 UI 전환에만.
+- **예외 없이 지키는 것**: 감속 모드(prefers-reduced-motion — 3D 포함, `lib/motion.ts` 의 `useReducedMotion`),
+  쉬는 동안 렌더하지 않기(R3F `frameloop="demand"` + 움직일 때만 `invalidate`), 프레임 속도와 무관한 감쇠(`1 - exp(-r·dt)`),
+  `useFrame` 안 할당 금지, 포커스 표시, WCAG AA 대비, 화면 글 em-dash 금지.
+- 버튼은 `globals.css` 의 `.btn`(테두리 알약)·`.btn-solid`(주 행동 하나) 두 가지. 패널·시트·입력은 반경 8px. 아이콘은 `@phosphor-icons/react` 만.
+
 # 1. Taste Skill (Anti-AI Slop Rules)
 - Avoid generic AI design tropes: bright purple/neon blue gradients on dark backgrounds, excessive glassmorphism, or floating glow effects.
 - Use restrained color palettes: 1 primary accent color maximum, with warm/cool neutral grays.

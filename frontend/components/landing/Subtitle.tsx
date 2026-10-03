@@ -99,7 +99,7 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
           <feComposite in="SourceGraphic" in2="core" operator="in" result="inner" />
           <feComposite in="boiled" in2="core" operator="out" result="rim" />
           {/* 필름 입자 — 글자 안에 잘게 박힌 검은 점(10/4 사용자: 노이즈, 거의 안 보여 촘촘히). 가장자리와 같은 불규칙한 박자로 바뀐다. 노이즈 밝은 쪽 절반쯤을 점으로, 글자 모양 안에만 */}
-          <feTurbulence ref={grain} type="fractalNoise" baseFrequency="0.85" numOctaves="1" seed="2" result="grain" />
+          <feTurbulence ref={grain} type="fractalNoise" baseFrequency="0.65" numOctaves="1" seed="2" result="grain" />
           <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  4 0 0 0 -1.8" result="specks" />
           <feComposite in="specks" in2="core" operator="in" result="grained" />
           <feMerge>

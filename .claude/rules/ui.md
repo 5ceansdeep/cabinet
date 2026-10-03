@@ -13,4 +13,6 @@ paths:
   문구는 `components/landing/lines.ts` 에 모으고, 음성이 필요하면 `docs/voice-script.csv` 에도 추가.
 - 3번(편지) 화면: "신" 같은 직접적인 단어 금지. 순백과 그림자색만, 따뜻한 색 금지.
 - 4·5번 방: 검은 배경 + 흰 서류함(랜딩과 같은 치수·재료). 위아래는 어둠에 잠기고 좌우는 틈 없이 촘촘히.
+- 일반 UI 는 `.claude/skills/design-rules` — 버튼 `.btn`/`.btn-solid` 두 가지, 아이콘 Phosphor, 포커스 표시, 화면 글 em-dash 금지.
+  3D·CSS 모션은 감속 모드(`useReducedMotion`)를 지키고, 쉬는 동안 렌더하지 않는다.
 - 조명은 눈부시지 않게 — 디스크 라벨이 반사에 묻히면 조명을 낮추고 재질을 무광으로.

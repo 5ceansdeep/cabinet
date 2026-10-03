@@ -206,7 +206,7 @@ export const SHARED_DIALOGUE = {
 export const CARD_DIALOGUE = {
   PRINTING: "카드를 인쇄하는 중이에요.",
   HOLD: "길게 눌러 저장", // 조작 안내
-  STORY: "스토리에 올리기",
+  DOWNLOAD: "사진 다운로드", // 10/3 사용자 — 스토리 공유 창 대신 그림 파일로
   COPY: "링크 복사",
   COPIED: "링크를 복사했어요.",
   ARCHIVE: "보관함으로",

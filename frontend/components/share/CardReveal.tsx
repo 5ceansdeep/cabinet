@@ -7,7 +7,8 @@ import { thud } from "@/lib/thud";
 import type { ShareData } from "./Card";
 
 /* 서랍에 넣고 나면(결과 화면)·보관함에서 공유 카드를 누르면 — 공유 카드가 영수증처럼 인쇄돼 올라온다. 진짜 이미지(img)라 휴대폰은 길게 눌러, PC 는 우클릭으로 저장된다.
-   옆에 스토리에 올리기(공유 창)·링크 복사(서버 서랍만 — 공개 링크 /s/:id)·보관함으로(보관함에선 닫기).
+   옆에 사진 다운로드·링크 복사(서버 서랍만 — 공개 링크 /s/:id)·보관함으로(보관함에선 닫기).
+   다운로드는 공유 창(navigator.share)을 거치지 않는다 — 10/3 사용자: 스토리 올리기 대신 사진 저장으로(PC 웨일·엣지는 공유 창이 거부되기도 했다).
    서버 서랍은 GET /api/share/:id — 서랍에 남긴 그대로 같은 카드, 한 번 그린 건 Vercel 이 기억해 다시 볼 땐 바로 뜬다 */
 export default function CardReveal({
   data,
@@ -42,17 +43,12 @@ export default function CardReveal({
     return () => URL.revokeObjectURL(url);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- 띄울 때 한 번
 
-  async function story() {
+  function download() {
     if (!card) return;
     logEvent("share", { shelfId });
-    if (navigator.canShare?.({ files: [card.file] })) {
-      // 사용자가 닫으면(AbortError) 그만, 브라우저가 공유 창을 거부하면(NotAllowedError 등) 내려받기로 — 10/2 PC 웨일·엣지에서 아무 일도 안 일어났다
-      const err = await navigator.share({ files: [card.file], title: "cabinet", url: link ?? undefined }).then(() => null, (e: Error) => e);
-      if (!err || err.name === "AbortError") return;
-    }
-    const a = document.createElement("a"); // 공유 창이 없거나 거부되면(PC) 내려받기
+    const a = document.createElement("a");
     a.href = card.url;
-    a.download = "cabinet.png";
+    a.download = card.file.name;
     a.click();
   }
 
@@ -86,8 +82,8 @@ export default function CardReveal({
         )}
         {card && <p className="font-mono text-[10px] tracking-[.2em] text-foreground/40">{D.HOLD}</p>}
         <div className="flex flex-wrap justify-center gap-2 sm:flex-col sm:items-stretch">
-          <button onClick={story} disabled={!card} className={btn}>
-            ⇪ {D.STORY}
+          <button onClick={download} disabled={!card} className={btn}>
+            ↓ {D.DOWNLOAD}
           </button>
           {link && (
             <button onClick={copy} className={btn}>

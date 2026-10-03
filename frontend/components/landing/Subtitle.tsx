@@ -55,6 +55,7 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
   const sig = timeline.map(([l, d]) => `${l}@${d}`).join("|"); // 내용이 같으면 타이머를 다시 걸지 않는다
   const noise = useRef<SVGFETurbulenceElement>(null);
   const warp = useRef<SVGFEDisplacementMapElement>(null);
+  const grain = useRef<SVGFETurbulenceElement>(null);
 
   /* 자글자글을 불규칙하게 — 10/4 사용자: 정해진 주기(1.3·2.3초)로 되풀이돼 규칙적으로 꿀렁였다.
      다음에 바뀔 때까지의 간격·씨앗·세기를 매번 새로 뽑는다. 대개 짧게 자글대다가 가끔 멈칫하고, 가끔 세게 튄다 */
@@ -63,6 +64,7 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
     let id: ReturnType<typeof setTimeout>;
     const tick = () => {
       noise.current?.setAttribute("seed", String(1 + Math.floor(Math.random() * 999)));
+      grain.current?.setAttribute("seed", String(1 + Math.floor(Math.random() * 999))); // 입자도 같은 박자로 자글자글(10/4 사용자)
       const spike = Math.random() < 0.12;
       warp.current?.setAttribute("scale", (spike ? 3 + Math.random() * 0.6 : 1.8 + Math.random() * 0.8).toFixed(2));
       const pause = Math.random() < 0.15;
@@ -96,8 +98,8 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
           <feMorphology in="SourceAlpha" operator="erode" radius="1" result="core" />
           <feComposite in="SourceGraphic" in2="core" operator="in" result="inner" />
           <feComposite in="boiled" in2="core" operator="out" result="rim" />
-          {/* 필름 입자 — 글자 안에 잘게 박힌 검은 점(10/4 사용자: 노이즈, 깜빡이지 않게 고정, 거의 안 보여 촘촘히). 노이즈 밝은 쪽 절반쯤을 점으로, 글자 모양 안에만 */}
-          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="1" seed="2" result="grain" />
+          {/* 필름 입자 — 글자 안에 잘게 박힌 검은 점(10/4 사용자: 노이즈, 거의 안 보여 촘촘히). 가장자리와 같은 불규칙한 박자로 바뀐다. 노이즈 밝은 쪽 절반쯤을 점으로, 글자 모양 안에만 */}
+          <feTurbulence ref={grain} type="fractalNoise" baseFrequency="0.85" numOctaves="1" seed="2" result="grain" />
           <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  4 0 0 0 -1.8" result="specks" />
           <feComposite in="specks" in2="core" operator="in" result="grained" />
           <feMerge>

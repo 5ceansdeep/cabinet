@@ -239,7 +239,7 @@ export default function Results({ query }: { query: string }) {
                   {keepHint && (
                     <span
                       role="status"
-                      className="pointer-events-none absolute top-full right-0 mt-2 w-max max-w-[14em] rounded-ui bg-foreground px-3 py-1.5 text-xs leading-snug font-sans tracking-normal text-background normal-case shadow-[0_8px_20px_rgba(0,0,0,.4)] animate-[appear_.25s_both] before:absolute before:-top-1 before:right-4 before:size-2 before:rotate-45 before:bg-foreground"
+                      className="pointer-events-none absolute top-full right-0 mt-3 w-max max-w-[14em] origin-top-right rounded-ui bg-foreground px-3.5 py-2 text-sm leading-snug font-sans tracking-normal text-background normal-case shadow-[0_8px_24px_rgba(0,0,0,.45)] animate-[bubble_.4s_cubic-bezier(.2,.8,.2,1)_both] before:absolute before:-top-[5px] before:right-5 before:border-x-[6px] before:border-b-[6px] before:border-x-transparent before:border-b-foreground"
                     >
                       {RESULT_DIALOGUE.KEEP_HINT}
                     </span>

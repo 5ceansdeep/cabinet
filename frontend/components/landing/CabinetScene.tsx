@@ -291,7 +291,7 @@ export default function CabinetScene({
   // 후광이 비치는 동안(로딩)엔 서랍이 닫혀 있고 아무 반응도 하지 않는다 — 들썩임·파일·호버·커서 전부 잠금
   const slide = phase === "auth" && open ? FULL_OPEN : 0;
   const inputCls =
-    "border-b-2 border-black/20 bg-transparent py-1 text-center font-mono text-black/85 outline-none placeholder:text-black/50 focus:border-black/70";
+    "border-b-2 border-black/20 bg-transparent py-1 text-center font-mono text-black/85 outline-none placeholder:text-black/60 focus:border-black/70";
 
   return (
     <>

@@ -41,7 +41,7 @@ export default function RequestForm({
           onType(e.currentTarget.form!.getBoundingClientRect());
         }}
         placeholder="새벽 2시에 혼자 버스 타고 집에 갈 때 듣고 싶은, 너무 우울하지는 않은 몽환적인 한국 노래를 들려주세요."
-        className="w-full resize-none bg-[repeating-linear-gradient(transparent,transparent_calc(2.25em-1.5px),rgba(0,0,0,.07)_2.25em)] bg-transparent text-[1em] leading-[2.25em] outline-none placeholder:text-black/50"
+        className="w-full resize-none bg-[repeating-linear-gradient(transparent,transparent_calc(2.25em-1.5px),rgba(0,0,0,.07)_2.25em)] bg-transparent text-[1em] leading-[2.25em] outline-none placeholder:text-black/60"
       />
       <footer className="mt-[2em] flex items-end justify-between">
         <span className="text-[.85em] text-black/60">서류함 앞에서</span>

@@ -12,6 +12,18 @@ import type { ShareData } from "./Card";
    옆에 사진 다운로드·링크 복사(서버 서랍만 — 공개 링크 /s/:id)·보관함으로(보관함에선 닫기).
    다운로드는 공유 창(navigator.share)을 거치지 않는다 — 10/3 사용자: 스토리 올리기 대신 사진 저장으로(PC 웨일·엣지는 공유 창이 거부되기도 했다).
    서버 서랍은 GET /api/share/:id — 서랍에 남긴 그대로 같은 카드, 한 번 그린 건 Vercel 이 기억해 다시 볼 땐 바로 뜬다 */
+const CARDS = "cabinet-cards"; // 서랍 id → 공유 카드 PNG
+/** 남긴 카드가 있으면 그걸, 없으면 그려 받아 남긴다. Cache Storage 를 못 쓰면(사생활 보호 창 등) 그냥 그린다 */
+async function loadCard(shelfId: string, draw: () => Promise<Response>) {
+  const key = `/card/${encodeURIComponent(shelfId)}`;
+  const box = typeof caches === "undefined" ? null : await caches.open(CARDS).catch(() => null);
+  const kept = await box?.match(key);
+  if (kept) return kept;
+  const r = await draw();
+  if (r.ok && box) await box.put(key, r.clone()).catch(() => undefined);
+  return r;
+}
+
 export default function CardReveal({
   data,
   shelfId,
@@ -30,10 +42,13 @@ export default function CardReveal({
   const [copied, setCopied] = useState(false);
   const [link] = useState(() => (remote ? `${location.origin}/s/${shelfId}` : null));
 
-  // 카드 인쇄 — 한 번만
+  // 카드 인쇄 — 서랍마다 한 번만 그리고 브라우저(Cache Storage)에 남긴다. 다시 열면 남긴 그림을 바로(10/3 사용자: 매번 다시 만드는 것 같다).
+  // 서버 쪽 기억(Vercel CDN)은 배포할 때마다 비워지고, 로그인 안 한 서랍은 아예 기억하지 않았다
   useEffect(() => {
     let url = "";
-    void (remote ? fetch(`/api/share/${encodeURIComponent(shelfId)}`) : fetch("/api/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...data, link }) }))
+    void loadCard(shelfId, () =>
+      remote ? fetch(`/api/share/${encodeURIComponent(shelfId)}`) : fetch("/api/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...data, link }) }),
+    )
       .then(async (r) => {
         if (!r.ok) throw new Error(String(r.status));
         const file = new File([await r.blob()], "cabinet.png", { type: "image/png" });

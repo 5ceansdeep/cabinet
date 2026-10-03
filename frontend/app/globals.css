@@ -176,6 +176,17 @@ input:focus-visible {
 @keyframes subline {
   from { opacity: 0; transform: translateY(-6px); }
 }
+/* 자막 글리치 — steps(1) 로 칸마다 뚝뚝 바뀐다. 한 주기(3.7초)에 두 번, 각각 0.2초 남짓만 터지고 나머지는 그대로.
+   --rgb 는 Subtitle 의 text-shadow 맨 아래(테두리 밖으로 삐져나온 빨강·시안), clip-path 는 한 줄이 찢어진 것처럼 띠를 가린다 */
+@keyframes sub-glitch {
+  0%, 45%, 89%, 100% { transform: none; clip-path: none; --rgb: 0 0 transparent; }
+  40% { transform: translateX(-3px) skewX(-6deg); clip-path: inset(0 0 52% 0); --rgb: -3px 0 rgba(255,40,90,.85), 3px 0 rgba(0,229,255,.85); }
+  41.4% { transform: translateX(4px); clip-path: inset(34% 0 18% 0); --rgb: 3px 0 rgba(255,40,90,.85), -3px 0 rgba(0,229,255,.85); }
+  42.6% { transform: translateX(-1px); clip-path: none; --rgb: -2px 0 rgba(255,40,90,.7), 2px 0 rgba(0,229,255,.7); }
+  43.8% { transform: translateX(2px) skewX(4deg); clip-path: inset(60% 0 0 0); --rgb: 2px 0 rgba(255,40,90,.85), -2px 0 rgba(0,229,255,.85); }
+  86% { transform: translateX(2px); clip-path: none; --rgb: 2px 0 rgba(255,40,90,.8), -2px 0 rgba(0,229,255,.8); }
+  87.4% { transform: translateX(-3px) skewX(5deg); clip-path: inset(20% 0 45% 0); --rgb: -3px 0 rgba(255,40,90,.85), 3px 0 rgba(0,229,255,.85); }
+}
 /* 말풍선 — 버튼에서 살짝 솟아오르며 커진다(10/4 사용자: 안내가 너무 뚝 나타난다) */
 @keyframes bubble {
   from { opacity: 0; transform: translateY(-4px) scale(.92); }

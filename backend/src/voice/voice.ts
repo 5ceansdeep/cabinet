@@ -12,6 +12,8 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
    ponytail: id → 영어 대사는 메모리(최근 LINES_MAX) — 서버를 끄면 아직 안 만든 대사는 못 찾는다(프론트는 기계 음성으로) */
 
 const DIR = '.voice-cache';
+// 빠르기·안정성 등 — 고정 대사 녹음(scripts/voice.mjs)과 같은 파일. 서버는 backend 폴더에서 켜진다
+const SETTINGS = readFileSync('voice-settings.json', 'utf8');
 const LINES_MAX = 500;
 
 @Injectable()
@@ -43,8 +45,8 @@ export class VoiceService {
   /** 대사를 올려 두고 id 를 준다. 꺼져 있으면 null */
   register(en: string): string | null {
     if (!this.enabled || !en.trim()) return null;
-    // 모델도 id 에 — 모델을 바꾸면 예전 모델로 만든 파일을 다시 쓰지 않게
-    const id = createHash('sha256').update(`${this.model}|${en}`).digest('hex').slice(0, 16);
+    // 모델·설정도 id 에 — 바꾸면 예전 것으로 만든 파일을 다시 쓰지 않게
+    const id = createHash('sha256').update(`${this.model}|${SETTINGS}|${en}`).digest('hex').slice(0, 16);
     this.lines.set(id, en);
     if (this.lines.size > LINES_MAX) this.lines.delete(this.lines.keys().next().value!);
     return id;
@@ -70,7 +72,7 @@ export class VoiceService {
       const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${this.voiceId}?output_format=mp3_44100_128`, {
         method: 'POST',
         headers: { 'xi-api-key': this.key!, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, model_id: this.model }),
+        body: JSON.stringify({ text, model_id: this.model, voice_settings: JSON.parse(SETTINGS) }),
         signal: AbortSignal.timeout(20000),
       });
       if (!res.ok) {

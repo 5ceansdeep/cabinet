@@ -48,5 +48,6 @@ Networking → Generate Domain 의 포트는 8080 그대로(Railway 가 넣는 `
 - 유튜브 하루 검색 수는 `.yt-budget.json` 파일에 센다 — 배포 서버에선 다시 배포할 때마다 0 으로 돌아간다(유튜브가 하루 상한은 따로 막아 준다).
 - 비밀번호 찾기 메일은 안 나간다 — 테스터가 잊으면 관리자가 DB 에서 처리.
 - 신의 음성은 기계 음성(ElevenLabs 는 꺼 둠), 세로(모바일) 화면은 맞춰 두지 않았다 — PC 로 안내.
-- Railway 디스크는 배포마다 새로 — `.voice-cache/`(만든 음성)도 비워진다. 음성을 켜면 같은 대사를 다시 만들 수 있다.
+- Railway 디스크는 배포마다 새로 — 그래서 신의 한마디 음성은 디스크가 아니라 DB(`VoiceClip`)에 둔다(10/4). 배포해도 같은 대사는 다시 안 만든다.
+- 음성을 켜려면 Railway 에 `ELEVENLABS_ENABLED=true`·`ELEVENLABS_API_KEY`·`ELEVENLABS_VOICE_ID`. 목소리 설정은 `backend/voice-settings.json`.
 - Apple 표지·미리듣기 출처 표시 조건은 공개 전에 확인.

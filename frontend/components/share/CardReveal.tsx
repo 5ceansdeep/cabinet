@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ArrowRight, DownloadSimple } from "@phosphor-icons/react";
+import { useDialog } from "@/lib/dialog";
 import { CARD_DIALOGUE as D } from "@/components/landing/lines";
 import { logEvent } from "@/lib/api";
 import { thud } from "@/lib/thud";
@@ -59,16 +61,23 @@ export default function CardReveal({
     setCopied(true);
   }
 
-  const btn = "rounded-full border border-accent/40 px-5 py-2 font-mono text-xs tracking-[.15em] text-accent/90 transition hover:bg-accent/10 disabled:opacity-40";
+  const box = useDialog<HTMLDivElement>(onDone); // ESC = 보관함으로(보관함에선 닫기), Tab 은 카드 안에서만
 
   return (
-    <div className="pointer-events-auto absolute inset-0 z-30 flex flex-col items-center justify-center gap-[2.5cqh] bg-black/75 px-4 backdrop-blur-sm animate-[appear_.4s_both] sm:flex-row sm:gap-[4cqw]">
+    <div
+      ref={box}
+      role="dialog"
+      aria-modal="true"
+      aria-label={D.TITLE}
+      tabIndex={-1}
+      className="pointer-events-auto absolute inset-0 z-30 flex flex-col items-center justify-center gap-6 bg-black/75 px-4 backdrop-blur-sm animate-[appear_.3s_both] sm:flex-row sm:gap-12"
+    >
       <div className="flex h-[78cqh] max-h-[78cqh] items-end overflow-hidden">
         {card ? (
           // eslint-disable-next-line @next/next/no-img-element -- 길게 눌러 저장하려면 진짜 img 여야 한다
-          <img src={card.url} alt="공유 카드" className="h-full w-auto rounded-md shadow-[0_20px_60px_rgba(0,0,0,.7)] animate-[print_1.1s_cubic-bezier(.2,.8,.2,1)_both]" />
+          <img src={card.url} alt="공유 카드" className="h-full w-auto rounded-ui shadow-[0_20px_60px_rgba(0,0,0,.7)] animate-[print_1.1s_cubic-bezier(.2,.8,.2,1)_both]" />
         ) : (
-          <div className="flex aspect-[9/16] h-full items-center justify-center rounded-md border border-white/10 font-letter text-sm text-foreground/50">
+          <div className="flex aspect-[9/16] h-full items-center justify-center rounded-ui border border-white/10 font-letter text-sm text-foreground/70">
             {failed ? D.FAIL : D.PRINTING}
           </div>
         )}
@@ -76,22 +85,24 @@ export default function CardReveal({
       <div className="flex flex-col items-center gap-3 sm:items-start">
         {/* 다 찍히면 말없이 카드만(10/2 사용자 — "증명서네" 대사 뺌). 찍는 중·실패만 알린다 */}
         {!card && (
-          <p className="font-subtitle text-[clamp(15px,calc(.9vw+6px),26px)] text-[#e2cd5a] [text-shadow:-1.5px_-1.5px_0_#000,1.5px_-1.5px_0_#000,-1.5px_1.5px_0_#000,1.5px_1.5px_0_#000]">
+          <p className="font-subtitle text-[clamp(15px,calc(.9vw+6px),26px)] text-subtitle [text-shadow:-1.5px_-1.5px_0_#0a0d14,1.5px_-1.5px_0_#0a0d14,-1.5px_1.5px_0_#0a0d14,1.5px_1.5px_0_#0a0d14]">
             {failed ? D.FAIL : D.PRINTING}
           </p>
         )}
-        {card && <p className="font-mono text-[10px] tracking-[.2em] text-foreground/40">{D.HOLD}</p>}
+        {card && <p className="font-mono text-xs tracking-[.15em] text-foreground/65">{D.HOLD}</p>}
         <div className="flex flex-wrap justify-center gap-2 sm:flex-col sm:items-stretch">
-          <button onClick={download} disabled={!card} className={btn}>
-            ↓ {D.DOWNLOAD}
+          <button type="button" onClick={download} disabled={!card} className="btn-solid">
+            <DownloadSimple aria-hidden size={14} weight="bold" />
+            {D.DOWNLOAD}
           </button>
           {link && (
-            <button onClick={copy} className={btn}>
+            <button type="button" onClick={copy} className="btn" aria-live="polite">
               {copied ? D.COPIED : D.COPY}
             </button>
           )}
-          <button onClick={onDone} className={btn}>
-            {doneLabel ?? `${D.ARCHIVE} →`}
+          <button type="button" onClick={onDone} className="btn">
+            {doneLabel ?? D.ARCHIVE}
+            {!doneLabel && <ArrowRight aria-hidden size={14} weight="bold" />}
           </button>
         </div>
       </div>

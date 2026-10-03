@@ -78,12 +78,12 @@ export default function SharedShelf({ shelf }: { shelf: PublicShelf }) {
               const on = t.id === playing?.id; // 목록은 렌더마다 새로 만들어져 같은 곡이어도 객체가 다르다
               return (
                 <li key={t.id}>
-                  <button onClick={() => setPlaying(on ? null : t)} className={`flex w-full py-1 text-left transition ${on ? "font-semibold" : "hover:bg-black/5"}`}>
+                  <button type="button" aria-pressed={on} onClick={() => setPlaying(on ? null : t)} className={`flex w-full py-1 text-left transition ${on ? "font-semibold" : "hover:bg-black/5"}`}>
                     <span className="w-9 shrink-0 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
                     <span className="min-w-0 flex-1 pr-3 uppercase">
                       {t.title} - {t.artist}
                     </span>
-                    <span className="shrink-0" aria-label={on ? "멈춤" : "미리듣기"}>
+                    <span className="shrink-0" aria-hidden>
                       {on ? "❚❚" : "▶"}
                     </span>
                   </button>
@@ -108,7 +108,7 @@ export default function SharedShelf({ shelf }: { shelf: PublicShelf }) {
           <div className="mt-1 flex flex-col items-stretch gap-2">
             {shelf.youtube && (
               <a href={shelf.youtube} onClick={youtube} target="_blank" rel="noreferrer" className={stamp} style={{ borderColor: INK }}>
-                ▶ {D.YOUTUBE} ↗
+                <span aria-hidden>▶</span> {D.YOUTUBE} <span aria-hidden>↗</span>
               </a>
             )}
             {shelf.missing.length > 0 && (
@@ -118,7 +118,7 @@ export default function SharedShelf({ shelf }: { shelf: PublicShelf }) {
                   {shelf.missing.map((m) => (
                     <li key={m.search}>
                       <a href={m.search} onClick={youtube} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
-                        {m.artist} · {m.title} ↗
+                        {m.artist} · {m.title} <span aria-hidden>↗</span>
                       </a>
                     </li>
                   ))}
@@ -141,7 +141,7 @@ export default function SharedShelf({ shelf }: { shelf: PublicShelf }) {
 
         <div className="mt-8 text-center">
           <Link href="/" className="inline-flex rounded-full border border-white/25 px-6 py-2.5 font-letter text-sm transition hover:bg-white/10" style={{ color: PAPER }}>
-            {D.CTA} →
+            {D.CTA} <span aria-hidden>→</span>
           </Link>
         </div>
       </div>

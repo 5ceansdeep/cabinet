@@ -14,6 +14,7 @@ import Playlist from "./Playlist";
 import CardReveal from "@/components/share/CardReveal";
 import { findTracks, logThrow, type Track } from "./tracks";
 import { apiUrl } from "@/lib/api";
+import { KeyReturn } from "@phosphor-icons/react";
 
 const SEARCH_MS = 1200; // 서랍을 뒤지는 최소 시간 — 곡 찾기는 그동안 같이 한다(보통 이보다 오래 걸린다)
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -31,9 +32,8 @@ function useSaying(line: Line | null) {
   return line && said?.line === line ? said : null;
 }
 
-// 자막 아래 버튼 — Subtitle 의 링크 버튼과 같은 모양
-const choice =
-  "pointer-events-auto inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/90 px-5 py-2 font-letter text-sm text-neutral-800 shadow-[0_4px_16px_rgba(0,0,0,.12)] backdrop-blur-sm transition animate-[appear_.5s_both] hover:-translate-y-0.5 hover:bg-white";
+// 자막 아래 버튼 — 일반 UI 버튼(.btn), 3D 위에 뜨니 바탕을 깐다
+const choice = "btn pointer-events-auto bg-background/85";
 
 /* 4·4-1번 페이지 — 서랍 속에서 건져 올린 플로피 디스크들. 디스크도 서류함도 전부 3D 이고,
    그 위에 얹힌 DOM 은 제목·재생바 같은 글자뿐이다 */
@@ -200,31 +200,31 @@ export default function Results({ query }: { query: string }) {
             onDiscard={discard}
           />
 
-          <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-[10px] tracking-[.2em] text-foreground/50">
+          <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65">
             <div className="max-w-xl space-y-1">
               <p>
-                QUERY — <span className="normal-case tracking-normal text-foreground/80">{query || "(empty)"}</span>
+                QUERY <span className="ml-2 normal-case tracking-normal text-foreground/85">{query || "(empty)"}</span>
               </p>
               {interpretation.length > 0 && (
                 <p>
-                  요청 해석 — <span className="normal-case tracking-normal text-accent/80">{interpretation.slice(0, 5).join(" · ")}</span>
+                  요청 해석 <span className="ml-2 normal-case tracking-normal text-accent/85">{interpretation.slice(0, 5).join(" · ")}</span>
                 </p>
               )}
               {(missingArtist || (kinFor && kinArtists.length > 0)) && (
-                <p className="normal-case tracking-normal text-[#e2cd5a]/90">
+                <p className="normal-case tracking-normal text-subtitle">
                   {missingArtist ? RESULT_DIALOGUE.MISSING_ARTIST(missingArtist, kinArtists) : RESULT_DIALOGUE.FEW_ARTIST(kinFor!, kinArtists)}
                 </p>
               )}
-              {missingSong && <p className="normal-case tracking-normal text-[#e2cd5a]/90">{RESULT_DIALOGUE.MISSING_SONG(missingSong)}</p>}
+              {missingSong && <p className="normal-case tracking-normal text-subtitle">{RESULT_DIALOGUE.MISSING_SONG(missingSong)}</p>}
             </div>
             <span className="flex shrink-0 gap-4">
               {phase === "discs" && kept.length > 0 && (
-                <button onClick={store} className="pointer-events-auto text-accent/80 hover:text-accent">
+                <button type="button" onClick={store} className="pointer-events-auto text-accent/85 hover:text-accent">
                   서랍에 넣기
                 </button>
               )}
-              <Link href="/archive" className="pointer-events-auto text-accent/80 hover:text-accent">MY CABINET</Link>
-              <Link href="/search" className="pointer-events-auto text-accent/80 hover:text-accent">NEW REQUEST</Link>
+              <Link href="/archive" className="pointer-events-auto text-accent/85 hover:text-accent">MY CABINET</Link>
+              <Link href="/search" className="pointer-events-auto text-accent/85 hover:text-accent">NEW REQUEST</Link>
             </span>
           </header>
 
@@ -250,18 +250,18 @@ export default function Results({ query }: { query: string }) {
                 linkDelay={said.timeline.at(-1)![1] + said.timeline.at(-1)![0].length * LINE_PACE}
               />
               {failed && (
-                <div className="mt-4 flex justify-center" style={{ animationDelay: "1.5s" }}>
-                  <button className={choice} onClick={() => dig({ thrown })}>
+                <div className="mt-4 flex justify-center animate-[appear_.3s_1.5s_both]">
+                  <button type="button" className={choice} onClick={() => dig({ thrown })}>
                     {RESULT_DIALOGUE.FAILED_ACTION}
                   </button>
                 </div>
               )}
               {!dry && !failed && (
-                <div className="mt-4 flex flex-wrap justify-center gap-3" style={{ animationDelay: "1.5s" }}>
-                  <button className={choice} onClick={() => dig({ thrown })}>
+                <div className="mt-4 flex flex-wrap justify-center gap-3 animate-[appear_.3s_1.5s_both]">
+                  <button type="button" className={choice} onClick={() => dig({ thrown })}>
                     {RESULT_DIALOGUE.RETRY}
                   </button>
-                  <button className={choice} onClick={() => dig({ seen })}>
+                  <button type="button" className={choice} onClick={() => dig({ seen })}>
                     {RESULT_DIALOGUE.MORE}
                   </button>
                 </div>
@@ -281,24 +281,25 @@ export default function Results({ query }: { query: string }) {
                 e.preventDefault();
                 print();
               }}
-              className="pointer-events-auto absolute top-[44%] left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 rounded-md border border-white/20 bg-neutral-200/95 px-8 py-6 shadow-[0_12px_40px_rgba(0,0,0,.6)] animate-[appear_.35s_both]"
+              className="pointer-events-auto absolute top-[44%] left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-4 rounded-ui border border-white/20 bg-neutral-200/95 px-8 py-6 shadow-[0_12px_40px_rgba(0,0,0,.6)] animate-[appear_.3s_both] [--background:#e5e5e5] [--ui:var(--ink-light)]"
             >
-              <p className="font-mono text-[10px] tracking-[.25em] text-neutral-500">{RESULT_DIALOGUE.NAME_HINT}</p>
+              <p className="font-mono text-xs tracking-[.15em] text-neutral-600">{RESULT_DIALOGUE.NAME_HINT}</p>
               <input
                 autoFocus
                 value={tag}
                 onChange={(e) => setTag(e.target.value.slice(0, 16))}
                 aria-label="서랍 이름"
-                className="w-64 border-b border-neutral-400 bg-transparent pb-1 text-center font-mono text-xl tracking-[.2em] text-neutral-800 outline-none focus:border-neutral-700"
+                className="w-64 border-b-2 border-neutral-400 bg-transparent pb-1 text-center font-mono text-xl tracking-[.15em] text-neutral-800 outline-none focus:border-neutral-800"
               />
-              <button type="submit" className="mt-1 rounded-full bg-neutral-800 px-6 py-2 font-mono text-xs tracking-[.2em] text-neutral-100 transition hover:bg-neutral-950">
-                {RESULT_DIALOGUE.NAME_ACTION} ⏎
+              <button type="submit" className="btn-solid">
+                {RESULT_DIALOGUE.NAME_ACTION}
+                <KeyReturn aria-hidden size={14} weight="bold" />
               </button>
             </form>
           )}
 
           {/* 아래 가운데는 드라이브 자리 — 안내는 왼쪽 아래로 */}
-          <footer className="pointer-events-none absolute bottom-[3cqh] left-6 font-mono text-[10px] tracking-[.2em] text-foreground/40">
+          <footer className="pointer-events-none absolute bottom-[3cqh] left-6 font-mono text-xs tracking-[.15em] text-foreground/60">
             CLICK TO PLAY · WHEEL TO BROWSE · DRAG TO ROTATE · FLICK UP TO DISCARD
           </footer>
         </>

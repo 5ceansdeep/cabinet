@@ -129,7 +129,7 @@ export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: str
   }
 
   const glow = progress / 100;
-  const link = "hover:text-black/70";
+  const link = "underline-offset-4 hover:text-black/90 hover:underline";
 
   return (
     <main className="relative h-full overflow-hidden bg-background">
@@ -148,9 +148,10 @@ export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: str
       {phase === "loading" && <Halo p={glow} />}
 
       {phase === "auth" && (
-        <nav className="absolute top-8 right-8 flex flex-col items-end gap-2 font-letter text-xs tracking-wide text-black/45">
+        <nav className="absolute top-8 right-8 flex flex-col items-end gap-2 font-letter text-xs tracking-wide text-black/65">
           {returning ? (
             <button
+              type="button"
               className={link}
               onClick={() => {
                 clearSession();
@@ -172,7 +173,7 @@ export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: str
       )}
 
       {phase === "loading" && (
-        <p aria-live="polite" className="absolute inset-x-0 bottom-8 text-center font-mono text-[10px] tracking-[.3em] text-white/40">
+        <p aria-live="polite" className="absolute inset-x-0 bottom-8 text-center font-mono text-xs tracking-[.3em] text-white/65">
           {progress}%
         </p>
       )}

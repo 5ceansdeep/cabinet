@@ -286,7 +286,7 @@ export default function CabinetScene({
   // 후광이 비치는 동안(로딩)엔 서랍이 닫혀 있고 아무 반응도 하지 않는다 — 들썩임·파일·호버·커서 전부 잠금
   const slide = phase === "auth" && open ? FULL_OPEN : 0;
   const inputCls =
-    "border-b border-black/20 bg-transparent py-1 text-center font-mono text-black/80 outline-none placeholder:text-black/30 focus:border-black/50";
+    "border-b-2 border-black/20 bg-transparent py-1 text-center font-mono text-black/85 outline-none placeholder:text-black/50 focus:border-black/70";
 
   return (
     <>
@@ -318,7 +318,7 @@ export default function CabinetScene({
           onPointerOut={() => (document.body.style.cursor = "")}
         >
           <Carcass />
-          {["A — F", "G — M", "N — Z"].map((label, i) =>
+          {["A-F", "G-M", "N-Z"].map((label, i) =>
             i === drawer ? (
               <Drawer key={label} y={drawerY(i)} slide={slide} label={label} knock={!open && phase === "auth" && !locked} wave={waving}>
                 {fields.map((f, j) => (
@@ -363,14 +363,14 @@ export default function CabinetScene({
             style={{ width: `${CARD_VH * 0.62}cqh`, fontSize: `${CARD_VH * 0.038}cqh` }}
           />
           {step > 0 && (
-            <p className="absolute inset-x-0 top-full mt-3 text-center font-mono text-[10px] tracking-[.25em] text-black/30">{LINES.escHint}</p>
+            <p className="absolute inset-x-0 top-full mt-3 text-center font-mono text-xs tracking-[.15em] text-black/60">{LINES.escHint}</p>
           )}
         </form>
       )}
 
       {/* 소리가 막혀 있으면 — 클릭 한 번이면 풀린다는 안내 */}
       {muted && phase === "auth" && (
-        <p className="pointer-events-none absolute inset-x-0 top-8 z-50 text-center font-letter text-sm tracking-wide text-black/55 animate-[appear_.6s_both]">
+        <p className="pointer-events-none absolute inset-x-0 top-8 z-50 text-center font-letter text-sm tracking-wide text-black/65 animate-[appear_.3s_both]">
           {LINES.soundHint}
         </p>
       )}
@@ -391,7 +391,7 @@ export default function CabinetScene({
 
       {/* 키보드 사용자용 — 포커스하면 서랍이 열린다 */}
       {!open && phase === "auth" && !locked && (
-        <button onFocus={() => setOpen(true)} className="sr-only">
+        <button type="button" onFocus={() => setOpen(true)} className="sr-only">
           서류함 열기
         </button>
       )}

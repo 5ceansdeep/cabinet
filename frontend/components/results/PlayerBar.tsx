@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Eject, Pause, Play } from "@phosphor-icons/react";
 import { logEvent } from "@/lib/api";
 import type { Track } from "./tracks";
 
@@ -10,16 +11,6 @@ import type { Track } from "./tracks";
 
 const time = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
-const Play = () => (
-  <svg viewBox="0 0 16 16" className="ml-0.5 size-3.5" aria-hidden>
-    <path d="M4 2.5v11l9-5.5z" fill="currentColor" />
-  </svg>
-);
-const Pause = () => (
-  <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden>
-    <path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" fill="currentColor" />
-  </svg>
-);
 
 /* from = 어떤 편지로 꺼낸 곡인가(요청문, 공개 서랍이면 서랍 id) — 재생 기록에 같이 남긴다 */
 export default function PlayerBar({ track, onEject, from }: { track: Track | null; onEject: () => void; from?: { query?: string; shelfId?: string } }) {
@@ -77,19 +68,20 @@ export default function PlayerBar({ track, onEject, from }: { track: Track | nul
         <div className="border-t border-accent/15 pt-[1em]">
           <div className="flex items-center gap-[.8em]">
             <button
+              type="button"
               onClick={toggle}
               disabled={!track.previewUrl}
               aria-label={paused ? "재생" : "멈춤"}
               className="grid size-[2.4em] shrink-0 place-items-center rounded-full border border-accent/50 text-accent transition hover:bg-accent/10 disabled:opacity-30"
             >
-              {paused ? <Play /> : <Pause />}
+              {paused ? <Play aria-hidden weight="fill" className="ml-0.5 size-3.5" /> : <Pause aria-hidden weight="fill" className="size-3.5" />}
             </button>
             <div className="min-w-0 flex-1">
               <p className="truncate text-foreground/90">{track.title}</p>
-              <p className="truncate text-[.85em] text-accent/60">{track.artist}</p>
+              <p className="truncate text-[.85em] text-accent/75">{track.artist}</p>
             </div>
-            <button onClick={onEject} aria-label="꺼내기" className="shrink-0 px-1 text-accent/50 transition hover:text-accent">
-              ⏏
+            <button type="button" onClick={onEject} aria-label="꺼내기" className="grid size-8 shrink-0 place-items-center rounded-full text-accent/75 transition-colors hover:text-accent">
+              <Eject aria-hidden weight="fill" className="size-4" />
             </button>
           </div>
           {track.previewUrl ? (
@@ -114,19 +106,19 @@ export default function PlayerBar({ track, onEject, from }: { track: Track | nul
                 className="group relative mt-[.9em] h-3 cursor-pointer"
               >
                 <div className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 bg-accent/15" />
-                <div className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 bg-accent" style={{ width: `${(at / length) * 100}%` }} />
+                <div className="absolute inset-x-0 top-1/2 h-[2px] origin-left -translate-y-1/2 bg-accent" style={{ transform: `translateY(-50%) scaleX(${at / length})` }} />
                 <div
                   className="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent opacity-0 transition group-hover:opacity-100"
                   style={{ left: `${(at / length) * 100}%` }}
                 />
               </div>
-              <div className="mt-[.2em] flex justify-between font-mono text-[.75em] tabular-nums text-accent/40">
+              <div className="mt-[.2em] flex justify-between font-mono text-[.75em] tabular-nums text-accent/70">
                 <span>{time(at)}</span>
                 <span>{time(length)}</span>
               </div>
             </>
           ) : (
-            <p className="mt-[.8em] font-mono text-[.75em] tracking-[.15em] text-accent/40">미리듣기 없음</p>
+            <p className="mt-[.8em] font-mono text-[.75em] tracking-[.15em] text-accent/70">미리듣기 없음</p>
           )}
         </div>
       )}

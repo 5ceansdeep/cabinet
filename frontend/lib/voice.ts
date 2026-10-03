@@ -16,6 +16,24 @@ type Job = { text: string; key?: string; lines: number; onStart?: (delays: numbe
 const TAIL = 0.25; // 말이 끝나고 다음 대사까지 숨 고르는 시간(초)
 const READ_CPS = 7; // 녹음 없는 대사는 자막을 읽는 시간만큼(초당 글자) 다음 대사를 기다린다
 const MAX_LINE = 20; // 끝을 모르는 대사도 이 초가 지나면 끝난 것으로 — 대기열이 영영 멈추지 않게
+const GAIN = 1.3; // 신의 목소리를 살짝 크게(10/4 사용자) — <audio> 는 1 이 최대라 Web Audio 로 키운다
+let ctx: AudioContext | null = null;
+
+/* 소리를 GAIN 배로 + 리미터(키운 만큼 큰 소리가 찢어지지 않게). 클릭·키 입력이 한 번도 없으면 AudioContext 가 멈춰 있어
+   거기 물린 소리는 안 난다 — 그땐 그냥 튼다(어차피 브라우저가 막는다). 백엔드 음성은 다른 출처라 crossOrigin + CORS 가 필요 */
+function louder(a: HTMLAudioElement) {
+  if (!navigator.userActivation?.hasBeenActive) return;
+  ctx ??= new AudioContext();
+  void ctx.resume();
+  const gain = new GainNode(ctx, { gain: GAIN });
+  const limit = new DynamicsCompressorNode(ctx, { threshold: -3, knee: 0, ratio: 20, attack: 0.003, release: 0.1 });
+  const src = ctx.createMediaElementSource(a);
+  src.connect(gain).connect(limit).connect(ctx.destination);
+  const off = () => src.disconnect();
+  a.addEventListener("ended", off, { once: true });
+  a.addEventListener("pause", off, { once: true });
+}
+
 const analyses = new Map<string, Promise<{ starts: number[]; end: number }>>(); // 파일·줄 수별 — 한 번만 분석
 let busyUntil = 0; // 지금 대사가 말을 마치는 시각 (performance.now 기준 ms)
 let pending: Job | null = null; // 기다리는 대사 — 새로 오면 덮어쓴다 (같은 대사가 여러 번 와도 한 번만)
@@ -81,7 +99,10 @@ function silent(job: Job, id: number) {
 function play(job: Job, id: number) {
   if (!VOICE || !job.key) return silent(job, id);
   const src = /^https?:/.test(job.key) ? job.key : `/voice/${job.key}.mp3`;
-  const a = new Audio(src);
+  const a = new Audio();
+  a.crossOrigin = "anonymous";
+  a.src = src;
+  louder(a);
   current?.pause(); // 앞 대사 파일의 남은 끝소리(잔향)까지 멈춘다 — 파일 두 개가 겹치면 엔터로도 앞 것이 안 끊긴다
   current = a;
   busyUntil = untilKnown(); // 말을 언제 마치는지 알 때까지

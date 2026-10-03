@@ -25,10 +25,20 @@ export default function TrackSheet({ track, query, shelfId, onClose }: { track: 
         aria-labelledby="track-sheet-title"
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[86cqh] w-[min(92cqw,880px)] flex-col gap-6 overflow-y-auto rounded-ui border border-accent/15 bg-[#0b0f16]/95 p-6 shadow-[0_20px_50px_rgba(0,0,0,.6)] animate-[print_.5s_cubic-bezier(.2,.8,.2,1)_both] sm:flex-row"
+        className="relative flex max-h-[92cqh] w-[min(92cqw,880px)] flex-col gap-4 rounded-ui border border-accent/15 bg-[#0b0f16]/95 p-6 shadow-[0_20px_50px_rgba(0,0,0,.6)] animate-[print_.5s_cubic-bezier(.2,.8,.2,1)_both] sm:flex-row sm:gap-6"
       >
+        {/* 닫기 — 오른쪽 위 X(10/4 사용자: 아래 글자 버튼 대신). 스크롤 대신 화면 높이에 맞춰 줄어든다 */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={P.CLOSE}
+          className="absolute top-3 right-3 z-10 grid size-8 place-items-center rounded-full text-foreground/70 transition-colors hover:bg-white/10 hover:text-foreground"
+        >
+          <X aria-hidden size={18} weight="bold" />
+        </button>
+
         {/* 플로피 — 결과 화면 디스크와 같은 생김새를 크게 */}
-        <div className="flex w-full shrink-0 flex-col items-center rounded-ui bg-[#1c2230] px-6 pt-4 pb-6 sm:w-[300px]">
+        <div className="flex w-full shrink-0 flex-col items-center rounded-ui bg-[#1c2230] px-6 pt-4 pb-6 sm:w-[260px]">
           <div className="h-[56px] w-[120px] rounded-sm bg-[#aab1bb]" />
           <div className="mt-3 w-full overflow-hidden rounded-sm bg-[#ece8dc]">
             {track.artwork ? (
@@ -47,27 +57,22 @@ export default function TrackSheet({ track, query, shelfId, onClose }: { track: 
             <p className="mt-1 text-accent/85">{track.artist}</p>
           </div>
           {notes.length ? (
-            <dl className="flex flex-col gap-3 leading-relaxed">
+            <dl className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-hidden text-[.92em] leading-snug sm:gap-3 sm:text-base sm:leading-relaxed">
               {notes.map(([, label, keys, text]) => (
                 <div key={label}>
                   <dt className="font-mono text-xs tracking-[.15em] text-foreground/65">
                     {label}
                     {keys && <span className="ml-2 tracking-normal text-accent/85">{keys}</span>}
                   </dt>
-                  <dd className="mt-1 text-foreground/85">{text}</dd>
+                  {/* 길어도 스크롤 대신 두 줄에서 자른다 — 카드가 화면 높이 안에 늘 들어가게 */}
+                  <dd className="mt-1 text-foreground/85 line-clamp-2">{text}</dd>
                 </div>
               ))}
             </dl>
           ) : (
             <p className="text-foreground/70">{D.NO_NOTE}</p>
           )}
-          <div className="mt-auto">
-            <PlayerBar track={track} onEject={onClose} from={{ query, shelfId }} />
-          </div>
-          <button type="button" onClick={onClose} className="btn self-end">
-            {P.CLOSE}
-            <X aria-hidden size={14} weight="bold" />
-          </button>
+          <PlayerBar track={track} onEject={onClose} from={{ query, shelfId }} />
         </div>
       </div>
     </div>

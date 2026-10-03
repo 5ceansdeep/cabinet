@@ -15,8 +15,8 @@ model User {
   nickname   String
   password   String // bcrypt 해시
   resetHash  String?   @unique // 비밀번호 재설정 링크 토큰의 sha256 — 토큰 원문은 메일에만
-  resetUntil DateTime? // 이때까지만 유효(30분)
-  createdAt  DateTime  @default(now())
+  resetUntil DateTime? @db.Timestamptz(3) // 이때까지만 유효(30분)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
   shelves    Shelf[]
 }
 
@@ -26,7 +26,7 @@ model Shelf {
   tag       String
   query     String       @default("")
   keywords  String       @default("[]") // 그때 요청 해석 — 공유 카드 MOOD 칸(10/2 카드를 다시 보여 주려고)
-  createdAt DateTime     @default(now())
+  createdAt DateTime     @default(now()) @db.Timestamptz(3)
   userId    String
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   tracks    ShelfTrack[]
@@ -42,7 +42,7 @@ model Track {
   artwork      String? // iTunes 앨범 커버 URL
   previewUrl   String? // iTunes 30초 미리듣기
   videoId      String? // 유튜브 영상 ID — 재생목록에 담을 때 쓴다
-  checkedAt    DateTime? // 영상 ID 를 마지막으로 찾아본 때 — 못 찾았으면 30일 동안 다시 안 묻는다
+  checkedAt    DateTime?    @db.Timestamptz(3) // 영상 ID 를 마지막으로 찾아본 때 — 못 찾았으면 30일 동안 다시 안 묻는다
   tags         String       @default("{}") // Last.fm 태그 가중치 JSON {"indie": 100, "dreamy": 42} — SQLite 시절 그대로 문자열 (코드가 JSON.parse 한다)
   // 소리 숫자 — ReccoBeats 가 30초 미리듣기를 분석한 값(0~1, tempo 는 BPM). 분위기 점수에 쓴다 (docs/recommend-plan.md)
   energy       Float?
@@ -50,13 +50,13 @@ model Track {
   danceability Float?
   acousticness Float?
   tempo        Float?
-  soundAt      DateTime? // 분석해 본 때 — 분석이 안 되는 파일이면 숫자 없이 이것만 찍혀 다시 안 올린다
+  soundAt      DateTime?    @db.Timestamptz(3) // 분석해 본 때 — 분석이 안 되는 파일이면 숫자 없이 이것만 찍혀 다시 안 올린다
   // 뜻 — Gemini 가 가사·제목·소리로 쓴 곡 설명(감정/상황/가사/소리)과 그 임베딩. 가사 원문은 저장하지 않는다
   description  String?
   embedding    String? // JSON 숫자 배열(catalog/gemini.ts DIM 차원, 길이 1)
   hasLyrics    Boolean? // 가사를 보고 썼나 — 없으면 제목·가수만으로 써서 뜻이 약하다
   instrumental Boolean? // LRCLIB 기록 — true 연주곡, false 노래, null 못 찾음(연주곡인지 모른다)
-  describedAt  DateTime?
+  describedAt  DateTime?    @db.Timestamptz(3)
   shelves      ShelfTrack[]
   throws       ThrowLog[]
 
@@ -65,12 +65,12 @@ model Track {
 
 /// 서랍에 꽂힌 순서
 model ShelfTrack {
-  shelfId String
-  trackId String
-  order   Int
+  shelfId  String
+  trackId  String
+  order    Int
   semantic Int? // 그때 화면 일치도(%) — 공유 카드 MATCH 칸
-  shelf   Shelf  @relation(fields: [shelfId], references: [id], onDelete: Cascade)
-  track   Track  @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  shelf    Shelf  @relation(fields: [shelfId], references: [id], onDelete: Cascade)
+  track    Track  @relation(fields: [trackId], references: [id], onDelete: Cascade)
 
   @@id([shelfId, trackId])
 }
@@ -85,7 +85,7 @@ model SearchLog {
   tracks    String   @default("[]") // 화면에 나온 순서대로 ["가수 - 제목", ...]
   line      String   @default("") // 그때 신의 한마디(자막) — 재정렬이 늦거나 실패하면 빈 칸
   asked     String   @default("[]") // 편지에 직접 쓴 가수(해석 artists) — 곡 풀 넓히기가 그 가수 인기곡을 먼저 모은다(10/2 박효신)
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([createdAt])
 }
@@ -96,7 +96,7 @@ model ThrowLog {
   id        String   @id @default(cuid())
   trackId   String
   track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([createdAt])
 }
@@ -109,7 +109,7 @@ model EventLog {
   trackId   String?
   shelfId   String?
   query     String? // 요청문 — play·finish
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([createdAt])
 }

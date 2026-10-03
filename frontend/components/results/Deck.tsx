@@ -67,10 +67,18 @@ const SLOT_Y = -1.5; // 입구 높이 — 화면 아래 끝, 몸통은 어둠 �
 const DRIVE = { w: 1.3, h: 0.5, d: 1.1 };
 const SHOWN = 0.2; // 꽂힌 디스크가 입구 밖으로 남는 몫
 const FLAT = -Math.PI / 2; // 눕힌 디스크 — 위가 안쪽(셔터부터 들어간다)
-const FRONT = { x: X0, y: SLOT_Y, z: FRONT_Z + DISK / 2 + 0.04 }; // 입구 바로 앞
-const IN = { x: X0, y: SLOT_Y, z: FRONT_Z + DISK * (SHOWN - 0.5) }; // 들어간 자리
-type P = { x: number; y: number; z: number };
-const near = (a: P, b: P) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) < 0.03;
+const FRONT: Pose = { x: X0, y: SLOT_Y, z: FRONT_Z + DISK / 2 + 0.04, rx: FLAT, ry: 0 }; // 입구 바로 앞(누운 채)
+const IN: Pose = { x: X0, y: SLOT_Y, z: FRONT_Z + DISK * (SHOWN - 0.5), rx: FLAT, ry: 0 }; // 들어간 자리
+/* 드라이브 오가기는 시간을 정한 동작으로(10/3 사용자: 들어가고 나오는 모션이 대충이다 — 목표만 쫓아가 경로가 곧고 끝맺음이 흐렸다).
+   넣기: 줄에서 입구 앞까지 살짝 위로 호를 그리며 눕고(0.5초) → 입구로 밀려 들어가 찰칵 걸리며 살짝 튕긴다(0.34초).
+   빼기: 입구 밖으로 툭 밀려 나오고(0.26초) → 호를 그리며 일어나 줄로(0.5초) */
+type Pose = { x: number; y: number; z: number; rx: number; ry: number };
+type Stage = "row" | "toFront" | "toIn" | "in" | "toOut" | "toRow";
+type Tween = { from: Pose; to: Pose; t0: number; dur: number; lift: number; ease: (t: number) => number; then: Stage };
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+const easeOut = (t: number) => 1 - (1 - t) ** 3;
+const easeOutBack = (t: number) => 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2; // 끝에서 살짝 지나쳤다 돌아온다 — 걸쇠에 걸리는 느낌
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const SPAWN: [number, number, number] = [REVEAL_MOUTH[0], REVEAL_MOUTH[1] - 0.1, REVEAL_MOUTH[2] - 0.3]; // 결과 서랍 입구 안쪽
 
 function Disk({
@@ -109,7 +117,8 @@ function Disk({
   const gauge = useGauge();
   const [hover, setHover] = useState(false);
   const [thrown, setThrown] = useState(false);
-  const stage = useRef<"row" | "front" | "in" | "out">("row"); // 드라이브로 가는 길 — 줄 → 입구 앞 → 안, 뺄 때는 안 → 입구 앞(out) → 줄
+  const stage = useRef<Stage>("row"); // 드라이브로 가는 길 — 줄 → 입구 앞 → 안, 뺄 때는 안 → 입구 밖 → 줄
+  const tween = useRef<Tween | null>(null);
   const born = useRef(-1); // 생긴 시각(첫 프레임)
   const { invalidate } = useThree();
   const reduce = useReducedMotion(); // 감속 모드 — 날아오기·꽂기·관성 없이 바로, 던지면 날리지 않고 바로 빠진다
@@ -166,29 +175,50 @@ function Disk({
       prog.current = 0;
       gauge.draw(0);
     }
-    // 드라이브로 — 입구 앞까지 빠르게 와서 눕고, 다 누우면 입구로 밀려 들어간다(찰칵). 뺄 때는 거꾸로
-    if (slot && stage.current === "row") stage.current = "front";
-    if (!slot && stage.current === "in") stage.current = "out";
-    if (stage.current !== "row" && near(o.position, FRONT) && Math.abs(o.rotation.x - FLAT) < 0.06) {
-      if (stage.current === "front") {
-        stage.current = "in";
-        thud(260); // 찰칵
-      } else if (stage.current === "out") stage.current = "row";
+    // 드라이브로 — 시간을 정한 동작(위 Tween). 꽂힘이 바뀌면 지금 자세에서 다음 동작을 시작한다
+    const now = clock.elapsedTime;
+    const rowSlot: Pose = { x: X0 + offset * GAP, y: 0, z: DEPTH - Math.abs(offset) * 0.35, rx: 0, ry: 0 };
+    const pose = (): Pose => ({ x: o.position.x, y: o.position.y, z: o.position.z, rx: o.rotation.x, ry: o.rotation.y });
+    const go = (to: Pose, dur: number, lift: number, ease: Tween["ease"], then: Stage, as: Stage) => {
+      tween.current = { from: pose(), to, t0: now, dur: reduce ? 0 : dur, lift, ease, then };
+      stage.current = as;
+    };
+    if (slot && (stage.current === "row" || stage.current === "toRow")) {
+      spin.current.x = spin.current.y = spin.current.vx = spin.current.vy = 0;
+      go(FRONT, 0.5, 0.35, easeInOut, "toIn", "toFront");
+    }
+    if (!slot && (stage.current === "in" || stage.current === "toIn" || stage.current === "toFront")) {
+      thud(200); // 툭 — 밀려 나온다
+      go({ ...FRONT, z: FRONT.z + 0.08 }, 0.26, 0, easeOut, "toRow", "toOut");
+    }
+    const tw = tween.current;
+    if (tw) {
+      const t = tw.dur ? Math.min(1, (now - tw.t0) / tw.dur) : 1;
+      const e = tw.ease(t);
+      const lin = Math.min(1, Math.max(0, e)); // 호의 높이는 지나침 없이
+      o.position.set(lerp(tw.from.x, tw.to.x, e), lerp(tw.from.y, tw.to.y, e) + tw.lift * Math.sin(Math.PI * lin), lerp(tw.from.z, tw.to.z, e));
+      o.rotation.set(lerp(tw.from.rx, tw.to.rx, lin), lerp(tw.from.ry, tw.to.ry, lin), 0);
+      if (t >= 1) {
+        tween.current = null;
+        if (tw.then === "toIn") go(IN, 0.34, 0, easeOutBack, "in", "toIn");
+        else if (tw.then === "in") {
+          stage.current = "in";
+          thud(260); // 찰칵 — 걸렸다
+        } else if (tw.then === "toRow") go(rowSlot, 0.5, 0.25, easeInOut, "row", "toRow");
+        else stage.current = tw.then;
+      }
     }
     const st = stage.current;
-    const target = st === "in" ? IN : st === "row" ? { x: X0 + offset * GAP, y: hover ? 0.16 : 0, z: DEPTH - Math.abs(offset) * 0.35 } : FRONT;
-    const k = damp(st === "front" ? 16 : st === "in" ? 9 : 7, dt, reduce);
-    o.position.x += (target.x - o.position.x) * k;
-    o.position.y += (target.y - o.position.y) * k;
-    o.position.z += (target.z - o.position.z) * k;
-    const away = Math.hypot(target.x - o.position.x, target.y - o.position.y, target.z - o.position.z);
-    if (away < 1e-4) o.position.set(target.x, target.y, target.z);
     const s = spin.current;
-    if (st !== "row") {
-      // 눕는다 — 돌리던 건 잊고 정면으로
-      s.x = s.y = s.vx = s.vy = 0;
-      o.rotation.set(o.rotation.x + (FLAT - o.rotation.x) * k, o.rotation.y * (1 - k), 0);
-    } else {
+    let away = 0;
+    if (st === "row" && !tween.current) {
+      const target = { x: rowSlot.x, y: hover ? 0.16 : 0, z: rowSlot.z };
+      const k = damp(7, dt, reduce);
+      o.position.x += (target.x - o.position.x) * k;
+      o.position.y += (target.y - o.position.y) * k;
+      o.position.z += (target.z - o.position.z) * k;
+      away = Math.hypot(target.x - o.position.x, target.y - o.position.y, target.z - o.position.z);
+      if (away < 1e-4) o.position.set(target.x, target.y, target.z);
       // 놓은 뒤 관성으로 돌다가 정면으로 복귀(드라이브에서 나온 직후면 누운 데서 일어난다)
       if (!drag.current) {
         // 관성(rad/s)은 시간으로 — 프레임이 잦은 모니터에서 덜 도는 일이 없게
@@ -212,10 +242,11 @@ function Disk({
     }
     // 아직 움직이는 게 있을 때만 다음 프레임 — 다 멎으면 결과 화면도 쉰다(예전엔 디스크마다 매 프레임 불렀다)
     const settled =
+      !tween.current && // 드라이브 오가는 동작 중이면 계속
       away < 1e-4 &&
       o.scale.x >= 1 &&
       typed.current === want &&
-      (st !== "row" ? Math.abs(o.rotation.x - FLAT) < 1e-4 && Math.abs(o.rotation.y) < 1e-4 : !drag.current && !s.vx && !s.vy && !s.x && !s.y && o.rotation.x === s.x);
+      (st !== "row" || (!drag.current && !s.vx && !s.vy && !s.x && !s.y && o.rotation.x === s.x));
     if (!settled) invalidate();
   });
 

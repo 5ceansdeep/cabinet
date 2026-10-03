@@ -70,6 +70,8 @@ export function Logo({ display = "Anton", scale = 1 }: { display?: string; scale
 
 /* 뒤에 깔리는 앨범 표지 — 왼쪽 다섯 장(1~5번 곡), 오른쪽 다섯 장(6~10번 곡). 살짝씩 기울여 흩뿌린 듯, 안쪽은 영수증에 가린다.
    곡이 10곡보다 적으면 앞 곡 표지를 되풀이한다. Satori 는 absolute 위치를 엇나가게 계산해(위쪽 표지가 아래로 밀렸다) 세로 줄로 쌓는다 */
+const COVER_DIM = 0.55; // 뒤 표지 밝기 — 1 이면 그대로, 낮을수록 어둡다
+
 function Covers({ tracks, side }: { tracks: ShareData["tracks"]; side: "left" | "right" }) {
   const left = side === "left";
   const five = Array.from({ length: 5 }, (_, r) => tracks[(r + (left ? 0 : 5)) % Math.max(1, tracks.length)]);
@@ -82,6 +84,7 @@ function Covers({ tracks, side }: { tracks: ShareData["tracks"]; side: "left" | 
           flexShrink: 0,
           marginLeft: left ? (1080 - W) / 2 - COVER + 40 : 14, // 오른쪽 줄은 영수증보다 뒤에 그려져 덮으므로 겹치지 않게 띄운다
           transform: `rotate(${[-4, 3, -2, 5, -3][r] * (left ? 1 : -1)}deg)`,
+          opacity: COVER_DIM, // 어두운 바탕(#1b1b1f) 위에서 반투명 — 영수증보다 눈에 덜 띄게(10/3 사용자)
         } as const;
         return t?.artwork ? (
           // eslint-disable-next-line @next/next/no-img-element -- Satori 는 img 만 그린다

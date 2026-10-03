@@ -177,6 +177,7 @@ export const ARCHIVE_DIALOGUE = {
   NO_NOTE: "이 곡은 아직 설명이 없어요.", // 디스크를 눌렀을 때 곡 카드 — 설명 없는 곡(브라우저에만 있는 옛 서랍 등)
   EMPTY: "아직 저장한 서랍이 없어요. 편지를 써서 곡을 받아 보세요.",
   WRITE: "편지 쓰기",
+  CLOSE: "서랍 닫기", // 연 서랍에서 서류함으로 돌아가기(ESC·빈 곳 클릭도 같다)
 };
 
 /* ─ 5번 보관함: 서랍을 유튜브에서 이어 듣기 (읽지 않는 짧은 안내) ─ */
@@ -206,7 +207,6 @@ export const SHARED_DIALOGUE = {
 export const CARD_DIALOGUE = {
   TITLE: "공유 카드", // 대화상자 이름(스크린리더)
   PRINTING: "카드를 인쇄하는 중이에요.",
-  HOLD: "길게 눌러 저장", // 조작 안내
   DOWNLOAD: "사진 다운로드", // 10/3 사용자 — 스토리 공유 창 대신 그림 파일로
   COPY: "링크 복사",
   COPIED: "링크를 복사했어요.",

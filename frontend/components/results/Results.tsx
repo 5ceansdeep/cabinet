@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { saveShelf, suggestTag } from "@/components/archive/shelf";
+import { saveShelf, suggestTag, TAG_MAX } from "@/components/archive/shelf";
 import { RESULT_DIALOGUE, RESULT_LINES, type Line } from "@/components/landing/lines";
 import Subtitle, { LINE_PACE, subtitleDelays, subtitleLines } from "@/components/landing/Subtitle";
 import { thud } from "@/lib/thud";
@@ -287,7 +287,7 @@ export default function Results({ query }: { query: string }) {
               <input
                 autoFocus
                 value={tag}
-                onChange={(e) => setTag(e.target.value.slice(0, 16))}
+                onChange={(e) => setTag(e.target.value.slice(0, TAG_MAX))}
                 aria-label="서랍 이름"
                 className="w-64 border-b-2 border-neutral-400 bg-transparent pb-1 text-center font-mono text-xl tracking-[.15em] text-neutral-800 outline-none focus:border-neutral-800"
               />

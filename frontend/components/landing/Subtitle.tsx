@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ArrowRight } from "@phosphor-icons/react";
 import Link from "next/link";
+import { reducedMotion } from "@/lib/motion";
 
 /* 긴 자막은 영화처럼 문장마다 줄을 나눈다 ("- 첫 문장" / "- 다음 문장"). "땡." 같은 짧은 조각은 다음 문장에 붙인다 */
 export function subtitleLines(text: string) {
@@ -52,6 +53,24 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
   const boil = `boil${useId().replace(/:/g, "")}`; // 자글자글 필터 id — 자막이 여러 개 떠도 안 겹치게
   const [gone, setGone] = useState(false); // 대사가 끝나고 HOLD_S 초 — 자막 줄만 사라진다(버튼은 남는다)
   const sig = timeline.map(([l, d]) => `${l}@${d}`).join("|"); // 내용이 같으면 타이머를 다시 걸지 않는다
+  const noise = useRef<SVGFETurbulenceElement>(null);
+  const warp = useRef<SVGFEDisplacementMapElement>(null);
+
+  /* 자글자글을 불규칙하게 — 10/4 사용자: 정해진 주기(1.3·2.3초)로 되풀이돼 규칙적으로 꿀렁였다.
+     다음에 바뀔 때까지의 간격·씨앗·세기를 매번 새로 뽑는다. 대개 짧게 자글대다가 가끔 멈칫하고, 가끔 세게 튄다 */
+  useEffect(() => {
+    if (reducedMotion()) return;
+    let id: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      noise.current?.setAttribute("seed", String(1 + Math.floor(Math.random() * 999)));
+      const spike = Math.random() < 0.12;
+      warp.current?.setAttribute("scale", (spike ? 3 + Math.random() * 0.6 : 1.8 + Math.random() * 0.8).toFixed(2));
+      const pause = Math.random() < 0.15;
+      id = setTimeout(tick, pause ? 600 + Math.random() * 800 : 60 + Math.random() ** 2 * 500);
+    };
+    tick();
+    return () => clearTimeout(id);
+  }, []);
 
   useEffect(() => {
     const ids = timeline.map(([, d], i) => setTimeout(() => setCount((c) => Math.max(c, i + 1)), d * 1000));
@@ -66,19 +85,14 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
   const lines = timeline.slice(0, count).map(([l]) => l).reverse().slice(0, 2);
 
   return (
-    <div className="flex flex-col items-center font-subtitle text-[clamp(15px,calc(.9vw+6px),30px)] tracking-wide text-subtitle">
+    <div className="flex flex-col items-center font-subtitle text-[clamp(18px,calc(1.1vw+10px),40px)] tracking-wide text-subtitle">
       {/* 자글자글 — 옛 필름 자막처럼 글자·테두리가 아주 살짝 끓는다(잘게 낀 노이즈로 2~3px 비튼다).
-          10/2 사용자: 더 작은 입자로, 불규칙하게 — 노이즈를 촘촘히(0.22), 씨앗은 들쭉날쭉한 간격으로(1.3초), 비트는 세기는 가끔 튀게(2.3초).
-          두 주기가 안 맞물려 반복이 잘 안 보인다. 가장자리만 끓는다(10/2 사용자) — 글자를 1px 깎은 속은 원래 그대로, 그 바깥만 비튼 그림으로.
+          10/2 사용자: 더 작은 입자로(노이즈 0.22). 씨앗·세기는 위 useEffect 가 불규칙하게 바꾼다(10/4). 가장자리만 끓는다(10/2 사용자) — 글자를 1px 깎은 속은 원래 그대로, 그 바깥만 비튼 그림으로.
           움직임 줄이기를 켠 사람에겐 끈다 */}
       <svg aria-hidden className="absolute size-0">
         <filter id={boil}>
-          <feTurbulence type="fractalNoise" baseFrequency="0.22" numOctaves="2" seed="1" result="noise">
-            <animate attributeName="seed" values="1;7;3;12;5;9;2;11;4;8;6;10;13" keyTimes="0;.06;.1;.21;.27;.3;.42;.47;.58;.66;.71;.85;.93" dur="1.3s" repeatCount="indefinite" calcMode="discrete" />
-          </feTurbulence>
-          <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.4" result="boiled">
-            <animate attributeName="scale" values="2.2;2.2;3.4;2;2.6;2.2;3.1;2.2" keyTimes="0;.2;.24;.4;.55;.7;.74;1" dur="2.3s" repeatCount="indefinite" calcMode="discrete" />
-          </feDisplacementMap>
+          <feTurbulence ref={noise} type="fractalNoise" baseFrequency="0.22" numOctaves="2" seed="1" result="noise" />
+          <feDisplacementMap ref={warp} in="SourceGraphic" in2="noise" scale="2.2" result="boiled" />
           <feMorphology in="SourceAlpha" operator="erode" radius="1" result="core" />
           <feComposite in="SourceGraphic" in2="core" operator="in" result="inner" />
           <feComposite in="boiled" in2="core" operator="out" result="rim" />

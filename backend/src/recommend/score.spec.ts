@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { A, away, display, dot, lexical, rank, soundScore, throwPenalty, total } from './score.js';
+import { A, away, display, dot, lexical, rank, soundScore, throwPenalties, throwPenalty, total } from './score.js';
 
 describe('score', () => {
   it('길이 1 벡터의 내적 = 코사인', () => {
@@ -38,6 +38,24 @@ describe('score', () => {
     const penalty = new Map([['a1', throwPenalty(2)]]);
     expect(rank(pool, want, { center: false, penalty }).map((x) => x.id).slice(0, 3)).toEqual(['a2', 'a1', 'b1']);
     expect(throwPenalty(1000)).toBe(0.05);
+  });
+
+  it('던진 곡 감점은 던진 편지가 지금 편지와 비슷할수록 — 벡터 없는 예전 기록은 한 번으로', () => {
+    const letter = [1, 0];
+    const at = (cos: number) => [cos, Math.sqrt(1 - cos * cos)]; // 지금 편지와 코사인 cos 인 편지
+    const p = throwPenalties(
+      [
+        { trackId: 'same', vector: at(0.96) },
+        { trackId: 'half', vector: at(0.875) },
+        { trackId: 'other', vector: at(0.72) },
+        { trackId: 'old', vector: null },
+      ],
+      letter,
+    );
+    expect(p.get('same')).toBeCloseTo(0.01);
+    expect(p.get('half')).toBeCloseTo(0.005);
+    expect(p.has('other')).toBe(false);
+    expect(p.get('old')).toBeCloseTo(0.01);
   });
 
   it('화면 일치도는 60~99 로 늘린다', () => {

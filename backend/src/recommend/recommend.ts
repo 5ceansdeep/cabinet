@@ -9,7 +9,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { VoiceModule, VoiceService } from '../voice/voice.js';
 import { type Asked, Interpreter, normalize } from './interpret.js';
 import { Reranker } from './rerank.js';
-import { BONUS, type Candidate, display, lexical, rank, throwPenalty } from './score.js';
+import { BONUS, type Candidate, display, lexical, rank, throwPenalties } from './score.js';
 
 class ThrowDto {
   @ApiProperty({ description: '던진 곡 id' })
@@ -17,7 +17,7 @@ class ThrowDto {
   @MaxLength(40)
   id!: string;
 
-  @ApiProperty({ required: false, description: '그 곡을 꺼낸 편지 — Railway 로그 한 줄에만 쓰고 DB(ThrowLog)엔 안 남긴다' })
+  @ApiProperty({ required: false, description: '그 곡을 꺼낸 편지 — 글은 Railway 로그 한 줄에만, DB(ThrowLog)엔 뜻 벡터만(비슷한 편지에서만 깎으려고)' })
   @IsOptional()
   @IsString()
   @MaxLength(300) // Q_MAX — 이 클래스가 Q_MAX 선언보다 위에 있어 숫자로
@@ -129,7 +129,8 @@ export class RecommendService {
 
   async recommend(query: string, opts: { seen?: string[]; thrown?: string[]; genres?: string[]; limit?: number } = {}) {
     const { seen = [], thrown = [], genres = [], limit = SHOW } = opts;
-    const [said, pool, throws] = await Promise.all([this.interpreter.interpret(query), this.loadPool(), this.penalties()]); // 서로 필요 없다 — 같이
+    const [said, pool, thrownBy] = await Promise.all([this.interpreter.interpret(query), this.loadPool(), this.throwRows()]); // 서로 필요 없다 — 같이
+    const throws = throwPenalties(thrownBy, said.vector); // 이 편지와 비슷한 편지에서 던져진 곡일수록 깎는다
     // 편지에 꼽은 곡(10/2) — 곡 풀에 있으면 그 곡 벡터를 요청 벡터에 반반 섞어 결이 비슷한 곡을 찾고, 그 곡은 맨 앞에
     const songs = said.songs ?? [];
     const seeds = songs.map((g) => pool.find((t) => same(t.artist, g.artist) && sameTitle(t.title, g.title))).filter((t): t is Pooled => !!t);
@@ -246,11 +247,12 @@ export class RecommendService {
     return pool.filter((t) => lists.flat().some((r) => same(t.artist, r.artist) && sameTitle(t.title, r.title))).map((t) => t.id);
   }
 
-  /** 최근 THROW_DAYS 일 동안 던져진 곡 → 깎을 점수 */
-  private async penalties() {
+  /** 최근 THROW_DAYS 일 동안 던진 기록(곡 + 던진 편지 벡터).
+      ponytail: 요청마다 전부 읽는다 — 30일에 수천 건을 넘으면 곡별로 묶어 두거나 pgvector 로 */
+  private async throwRows() {
     const since = new Date(Date.now() - THROW_DAYS * 86_400_000);
-    const rows = await this.prisma.throwLog.groupBy({ by: ['trackId'], where: { createdAt: { gte: since } }, _count: true });
-    return new Map(rows.map((r) => [r.trackId, throwPenalty(r._count)]));
+    const rows = await this.prisma.throwLog.findMany({ where: { createdAt: { gte: since } }, select: { trackId: true, vector: true } });
+    return rows.map((r) => ({ trackId: r.trackId, vector: r.vector ? (JSON.parse(r.vector) as number[]) : null }));
   }
 
   /* 던진 곡 기록 — 화면에서 디스크를 던질 때마다. 로그인 없이 부르니, 한 곳(IP)에서 같은 곡은 한 번만, 하루 THROW_PER_IP 곡까지 센다
@@ -268,7 +270,11 @@ export class RecommendService {
     // 검색 기록 한 줄과 나란히 보이게 — 어떤 편지에서 어떤 곡을 던졌나(10/3 사용자). 모르는 곡(가짜 곡)은 안 찍는다
     const t = (await this.loadPool()).find((x) => x.id === id);
     if (t) this.log.log(`던짐 "${query.trim()}" → ${t.artist} - ${t.title}`);
-    await this.prisma.throwLog.create({ data: { trackId: id } }).catch((e) => this.log.warn(`던진 곡 기록 저장 실패: ${e}`));
+    // 던진 편지는 글 대신 뜻 벡터만 — 방금 그 편지로 꺼냈으니 해석 캐시에 있다(없으면 null, 예전처럼 한 번으로 센다)
+    const vector = query.trim() ? this.interpreter.cached(query)?.vector : undefined;
+    await this.prisma.throwLog
+      .create({ data: { trackId: id, vector: vector ? JSON.stringify(vector) : null } })
+      .catch((e) => this.log.warn(`던진 곡 기록 저장 실패: ${e}`));
   }
 
   /** 보여 준 곡들을 건네며 하는 신의 한마디 + 곡마다 이유 — 디스크가 뜬 뒤 따로 부른다. 요청 풀어쓰기는 캐시에 있다 */

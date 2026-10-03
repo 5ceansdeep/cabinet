@@ -113,6 +113,11 @@ export class Interpreter {
 
   constructor(private readonly gemini: Gemini) {}
 
+  /** 이미 해석해 둔 편지만 — 없으면 undefined(새로 묻지 않는다, 돈 안 듦) */
+  cached(query: string) {
+    return this.cache.get(normalize(query));
+  }
+
   async interpret(query: string): Promise<Asked> {
     const key = normalize(query);
     const hit = this.cache.get(key);

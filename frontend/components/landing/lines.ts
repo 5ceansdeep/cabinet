@@ -213,3 +213,13 @@ export const CARD_DIALOGUE = {
   ARCHIVE: "보관함으로",
   FAIL: "카드를 만들지 못했어요. 보관함에서 다시 만들 수 있어요.",
 } as const;
+
+/* ─ 없는 주소·오류 화면 (app/not-found.tsx·app/error.tsx) — 안내 글이라 평범한 말투 ─ */
+export const PAGE_DIALOGUE = {
+  NOT_FOUND: "이 서랍은 비어 있어요.",
+  NOT_FOUND_SUB: "주소가 바뀌었거나 없는 서랍이에요.",
+  ERROR: "서랍이 잠깐 걸렸어요.",
+  ERROR_SUB: "다시 열어 보거나 새 편지를 써 주세요.",
+  RETRY: "다시 시도",
+  WRITE: "새 편지 쓰기",
+} as const;

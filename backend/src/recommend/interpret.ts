@@ -44,7 +44,13 @@ const SCHEMA = {
   type: 'OBJECT',
   properties: {
     keywords: { type: 'ARRAY', items: { type: 'STRING' }, description: '요청을 어떻게 읽었는지 짧은 한국어 말 3~5개 (예: 퇴근길, 지친 하루, 위로)' },
-    tags: { type: 'ARRAY', items: { type: 'STRING' }, description: '어울리는 곡에 붙을 법한 Last.fm 영어 태그 2~3개, 소문자 (예: melancholy, rainy day, driving)' },
+    tags: {
+      type: 'ARRAY',
+      items: { type: 'STRING' },
+      description:
+        '어울리는 곡에 붙을 법한 Last.fm 영어 태그 2~3개, 소문자 (예: melancholy, rainy day, driving). ' +
+        '보컬 성별을 직접 말했거나("여자 보컬", "남자 목소리") "○○ 같은" 으로 꼽은 가수의 성별이 분명하면(그 가수 자신의 곡을 원한 게 아니어도) "female vocalists"/"male vocalists" 를 포함한다.',
+    },
     artists: {
       type: 'ARRAY',
       items: { type: 'STRING' },

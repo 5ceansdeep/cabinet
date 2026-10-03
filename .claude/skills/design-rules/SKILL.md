@@ -13,7 +13,7 @@ description: 화면을 새로 만들거나 고칠 때 따르는 디자인 규칙
 - **예외 없이 지키는 것**: 감속 모드(prefers-reduced-motion — 3D 포함, `lib/motion.ts` 의 `useReducedMotion`),
   쉬는 동안 렌더하지 않기(R3F `frameloop="demand"` + 움직일 때만 `invalidate`), 프레임 속도와 무관한 감쇠(`1 - exp(-r·dt)`),
   `useFrame` 안 할당 금지, 포커스 표시, WCAG AA 대비, 화면 글 em-dash 금지.
-- 버튼은 `globals.css` 의 `.btn`(테두리 알약)·`.btn-solid`(주 행동 하나) 두 가지. 패널·시트·입력은 반경 8px. 아이콘은 `@phosphor-icons/react` 만.
+- 버튼은 `globals.css` 의 `.btn`(테두리)·`.btn-solid`(주 행동 하나) 두 가지. 모서리는 버튼·패널·시트·입력 모두 8px(알약 모양 쓰지 않음 — 10/3 사용자). 아이콘은 `@phosphor-icons/react` 만.
 
 # 1. Taste Skill (Anti-AI Slop Rules)
 - Avoid generic AI design tropes: bright purple/neon blue gradients on dark backgrounds, excessive glassmorphism, or floating glow effects.

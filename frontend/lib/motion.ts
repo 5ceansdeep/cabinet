@@ -16,5 +16,8 @@ export const useReducedMotion = () => useSyncExternalStore(subscribe, () => matc
 /** useFrame·루프 안에서 그때그때 — 훅을 못 쓰는 곳 */
 export const reducedMotion = () => typeof matchMedia !== "undefined" && matchMedia(QUERY).matches;
 
-/** 프레임 속도와 무관한 감쇠 비율 — 매 프레임 x += (목표 - x) * damp(rate, dt). 감속 모드면 1(바로 도착) */
-export const damp = (rate: number, dt: number, reduce = false) => (reduce ? 1 : 1 - Math.exp(-rate * dt));
+const MAX_DT = 1 / 20; // 한 프레임으로 칠 최대 경과(초)
+/** 프레임 속도와 무관한 감쇠 비율 — 매 프레임 x += (목표 - x) * damp(rate, dt). 감속 모드면 1(바로 도착).
+    dt 는 MAX_DT 까지만 — frameloop="demand" 는 쉬었다 깨어난 첫 프레임의 dt 가 쉰 시간 전부(몇 초)라,
+    그대로 쓰면 2초에 걸칠 변화가 한 번에 끝났다(10/3 후광 때 서류함이 갑자기 검게 변했다) */
+export const damp = (rate: number, dt: number, reduce = false) => (reduce ? 1 : 1 - Math.exp(-rate * Math.min(dt, MAX_DT)));

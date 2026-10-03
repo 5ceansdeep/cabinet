@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { LETTER } from "@/components/landing/lines";
 
 /* 흰 공간에 떠 있는 편지지 — 흰색과 그림자색뿐. 편지(자연어 질의)만 받는다.
    10/2 장르 칩을 뺐다 — 편지에 "재즈 듣고 싶어"처럼 쓰면 서버가 알아서 그 장르로 거른다(겹치는 기능이었다) */
@@ -40,17 +41,22 @@ export default function RequestForm({
           setQuery(e.target.value);
           onType(e.currentTarget.form!.getBoundingClientRect());
         }}
-        placeholder="새벽 2시에 혼자 버스 타고 집에 갈 때 듣고 싶은, 너무 우울하지는 않은 몽환적인 한국 노래를 들려주세요."
+        placeholder={LETTER.PLACEHOLDER}
+        aria-describedby="letter-guide"
         className="w-full resize-none bg-[repeating-linear-gradient(transparent,transparent_calc(2.25em-1.5px),rgba(0,0,0,.07)_2.25em)] bg-transparent text-[1em] leading-[2.25em] outline-none placeholder:text-black/60"
       />
-      <footer className="mt-[2em] flex items-end justify-between">
-        <span className="text-[.85em] text-black/60">서류함 앞에서</span>
+      {/* 쓰는 요령 — 편지지 아래 작게(입력하는 동안에도 보이게 placeholder 와 따로) */}
+      <p id="letter-guide" className="mt-[1.2em] text-[.8em] leading-[1.7] text-black/60">
+        {LETTER.GUIDE}
+      </p>
+      <footer className="mt-[1.6em] flex items-end justify-between">
+        <span className="text-[.85em] text-black/60">{LETTER.SIGN}</span>
         <button
           type="submit"
           disabled={!query.trim()}
           className="btn"
         >
-          편지 부치기
+          {LETTER.SEND}
         </button>
       </footer>
     </form>

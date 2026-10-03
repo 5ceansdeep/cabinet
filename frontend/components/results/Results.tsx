@@ -58,6 +58,8 @@ export default function Results({ query }: { query: string }) {
   const [index, setIndex] = useState(0); // 가운데 앞에 나온 곡 (늘어선 줄 기준)
   const [reveal, setReveal] = useState(0); // 곡이 올 때마다 하나씩 — 정면 서랍이 쭉 빠진다
   const [saved, setSaved] = useState<{ id: string; remote: boolean } | null>(null); // 서랍에 넣었다 — 공유 카드
+  const [keepHint, setKeepHint] = useState(false); // 듣기 시작하고 3초 뒤 "서랍에 넣기" 말풍선
+  const keepHintShown = useRef(false); // 한 번만
 
   /* 서랍에 넣는 동안 걸어 둔 타이머들 — 도중에 다른 화면으로 가면 전부 끈다.
      안 끄면 떠난 뒤에도 이름이 마저 찍히고, 서랍이 저장되고, 보관함으로 끌려간다 */
@@ -98,6 +100,16 @@ export default function Results({ query }: { query: string }) {
   useEffect(() => {
     dig(); // eslint-disable-line react-hooks/set-state-in-effect -- 처음 한 번 서랍을 뒤진다
   }, [dig]);
+
+  // 노래를 듣기 시작하면 3초 뒤 "서랍에 넣기" 말풍선(한 번만, 10/4 사용자)
+  useEffect(() => {
+    if (!playing || keepHintShown.current) return;
+    const t = setTimeout(() => {
+      keepHintShown.current = true;
+      setKeepHint(true);
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [playing]);
 
   const row = kept.filter((t) => t !== playing); // 꽂힌 디스크는 줄에서 빠진다
   const move = useCallback((d: number) => setIndex((i) => Math.max(0, Math.min(row.length - 1, i + d))), [row.length]);
@@ -142,6 +154,7 @@ export default function Results({ query }: { query: string }) {
 
   /* 서랍에 넣기 — 디스크가 아래 서랍으로 빨려 들고, 다 삼키면 "탁" 닫히며 네임택을 내민다 */
   function store() {
+    setKeepHint(false);
     setPhase("saving");
     setPlaying(null);
     setTag(suggestTag(query));
@@ -219,9 +232,19 @@ export default function Results({ query }: { query: string }) {
             </div>
             <span className="flex shrink-0 gap-4">
               {phase === "discs" && kept.length > 0 && (
-                <button type="button" onClick={store} className="pointer-events-auto text-accent/85 hover:text-accent">
-                  서랍에 넣기
-                </button>
+                <span className="relative">
+                  <button type="button" onClick={store} className="pointer-events-auto text-accent/85 hover:text-accent">
+                    서랍에 넣기
+                  </button>
+                  {keepHint && (
+                    <span
+                      role="status"
+                      className="pointer-events-none absolute top-full right-0 mt-2 w-max max-w-[14em] rounded-ui bg-foreground px-3 py-1.5 text-xs leading-snug font-sans tracking-normal text-background normal-case shadow-[0_8px_20px_rgba(0,0,0,.4)] animate-[appear_.25s_both] before:absolute before:-top-1 before:right-4 before:size-2 before:rotate-45 before:bg-foreground"
+                    >
+                      {RESULT_DIALOGUE.KEEP_HINT}
+                    </span>
+                  )}
+                </span>
               )}
               <Link href="/archive" className="pointer-events-auto text-accent/85 hover:text-accent">MY CABINET</Link>
               <Link href="/search" className="pointer-events-auto text-accent/85 hover:text-accent">NEW REQUEST</Link>

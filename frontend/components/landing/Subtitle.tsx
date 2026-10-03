@@ -64,11 +64,28 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
     let id: ReturnType<typeof setTimeout>;
     const tick = () => {
       noise.current?.setAttribute("seed", String(1 + Math.floor(Math.random() * 999)));
-      grain.current?.setAttribute("seed", String(1 + Math.floor(Math.random() * 999))); // 입자도 같은 박자로 자글자글(10/4 사용자)
       const spike = Math.random() < 0.12;
       warp.current?.setAttribute("scale", (spike ? 3 + Math.random() * 0.6 : 1.8 + Math.random() * 0.8).toFixed(2));
       const pause = Math.random() < 0.15;
       id = setTimeout(tick, pause ? 600 + Math.random() * 800 : 60 + Math.random() ** 2 * 500);
+    };
+    tick();
+    return () => clearTimeout(id);
+  }, []);
+
+  /* 입자는 따로 — 가장자리와 같은 박자면 대부분 짧은 간격이라 일정하게 깜빡이는 것처럼 보였다(10/4 사용자).
+     몇 번(2~7) 빠르게 몰아서 바뀌다가 0.3~2초 멈춘다. 몰아치는 길이·멈춤 길이가 매번 달라 박자가 안 잡힌다 */
+  useEffect(() => {
+    if (reducedMotion()) return;
+    let id: ReturnType<typeof setTimeout>;
+    let left = 0;
+    const tick = () => {
+      grain.current?.setAttribute("seed", String(1 + Math.floor(Math.random() * 999)));
+      if (left-- > 0) id = setTimeout(tick, 40 + Math.random() * 90);
+      else {
+        left = 1 + Math.floor(Math.random() * 6);
+        id = setTimeout(tick, 300 + Math.random() ** 1.5 * 1700);
+      }
     };
     tick();
     return () => clearTimeout(id);
@@ -98,7 +115,7 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
           <feMorphology in="SourceAlpha" operator="erode" radius="1" result="core" />
           <feComposite in="SourceGraphic" in2="core" operator="in" result="inner" />
           <feComposite in="boiled" in2="core" operator="out" result="rim" />
-          {/* 필름 입자 — 글자 안에 잘게 박힌 검은 점(10/4 사용자: 노이즈, 거의 안 보여 촘촘히). 가장자리와 같은 불규칙한 박자로 바뀐다. 노이즈 밝은 쪽 절반쯤을 점으로, 글자 모양 안에만 */}
+          {/* 필름 입자 — 글자 안에 잘게 박힌 검은 점(10/4 사용자: 노이즈, 거의 안 보여 촘촘히). 몰아서 자글대다 멈추는 불규칙한 박자로 바뀐다(위 useEffect). 노이즈 밝은 쪽 절반쯤을 점으로, 글자 모양 안에만 */}
           <feTurbulence ref={grain} type="fractalNoise" baseFrequency="0.65" numOctaves="1" seed="2" result="grain" />
           <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  4 0 0 0 -1.8" result="specks" />
           <feComposite in="specks" in2="core" operator="in" result="grained" />

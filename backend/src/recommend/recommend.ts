@@ -46,6 +46,9 @@ const KIN_BONUS = 0.08; // 비슷한 가수 곡에 더하는 점수(1단계 0~1)
 const KIN_MS = 2500; // Last.fm 비슷한 가수·곡이 이보다 늦으면 없이 간다
 const LOST_LEAD = 2; // 꼽은 곡이 서류함에 없을 때 그 가수 곡을 맨 앞에 몇 곡 — 가산만으론 재정렬이 걸러 냈다
 const LIKE_BONUS = 0.1; // 꼽은 곡과 Last.fm 이 비슷하다고 한 곡에 더하는 점수 — 실제 청취 기록 기반이라 가수보다 조금 더
+const VOCAL_TAGS = ['female vocalists', 'male vocalists']; // 해석이 보컬 성별을 명시했을 때만(interpret.ts tags) — "아이유 같은" 처럼 가수 본인 곡은 아니어도 성별은 맞춘다
+const VOCAL_BONUS = 0.08; // Last.fm 태그 가중치 10 이상인 곡에 — 태그가 없는 곡은 그대로(걸러내지 않는다, 태그 누락이 많다)
+const VOCAL_MIN_WEIGHT = 10;
 const MIN_GENRE = SHOW; // 고른 장르 곡이 이보다 적으면 나머지 곡으로 채운다 — 빈 서랍보다 낫다(장르 곡이 앞)
 const THROW_DAYS = 30; // 이만큼 지난 던진 기록은 순위에 안 쓴다 — 곡 설명을 고치면 다시 기회를
 const THROW_PER_IP = 100; // 한 곳에서 하루에 세는 던진 곡 수
@@ -148,6 +151,8 @@ export class RecommendService {
     for (const t of pool) if (kin.some((k) => same(t.artist, k))) add(t.id, KIN_BONUS);
     for (const t of pool) if (lostBy.some((a) => same(t.artist, a))) add(t.id, LIKE_BONUS); // 그 곡을 부른 가수 본인 곡이 제일 가깝다
     for (const id of like) add(id, LIKE_BONUS);
+    const vocalWant = (asked.tags ?? []).find((t) => VOCAL_TAGS.includes(t));
+    if (vocalWant) for (const t of pool) if (((JSON.parse(t.tags) as Record<string, number>)[vocalWant] ?? 0) >= VOCAL_MIN_WEIGHT) add(t.id, VOCAL_BONUS);
     const { ranked, cands, pick } = stage1(pool, asked, { seen, thrown, penalty, genres });
     // 2단계 — 후보의 곡 설명을 LLM 이 읽고 순서를 다시 매긴다(+ 신의 한마디). 늦거나 실패하면 1단계 순서 그대로
     const notes = [

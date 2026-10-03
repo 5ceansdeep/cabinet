@@ -9,7 +9,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
    고정 대사는 public/voice/{키}.mp3 로 미리 녹음해 둔다(docs/voice-script.csv).
    ELEVENLABS_ENABLED=true 일 때만 — 크레딧을 아끼려고 평소엔 꺼 둔다. 꺼져 있으면 프론트는 기계 음성으로 자막을 읽는다.
    아무 글이나 읽히지 못하게, 프론트는 글이 아니라 서버가 만든 대사의 id 만 보낸다.
-   만든 음성은 DB(VoiceClip)에 남긴다 — 같은 요청은 같은 대사라(온도 0) 두 번째부터 크레딧이 안 든다.
+   만든 음성은 DB(VoiceClip)에 남긴다 — 같은 편지는 같은 대사(LetterLine)라 두 번째부터 크레딧이 안 든다.
    10/4: 예전엔 서버 디스크(.voice-cache)였는데 Railway 는 배포마다 디스크를 비워 같은 대사를 다시 샀다.
    ponytail: id → 영어 대사는 메모리(최근 LINES_MAX) — 서버를 끄면 아직 안 만든 대사는 못 찾는다(프론트는 기계 음성으로) */
 

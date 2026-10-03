@@ -68,6 +68,20 @@ const THROW_MAX = 0.05; // 아무리 많이 던져져도 이만큼까지 — 어
 /** 던진 횟수 → 깎을 점수. ponytail: 보여 준 횟수로 나누지 않는다(노출 기록이 없다) — 자주 나오는 곡이 더 깎인다 */
 export const throwPenalty = (n: number) => Math.min(THROW_MAX, THROW_STEP * n);
 
+/* 던진 편지가 지금 편지와 얼마나 비슷한가 → 그 던짐을 몇 번으로 칠까(0~1). 운동 편지에서 던진 곡이 이별 편지에선 안 깎이게(10/4 사용자).
+   10/4 잰 값(해석 벡터 코사인): 같은 결 0.96 · 겹치는 결(비 오는 밤↔이별) 0.87 · 다른 결 0.69~0.79.
+   ponytail: 편지 7개로 고른 경계 — 던진 기록이 쌓이면 다시 잰다 */
+const ALIKE_LO = 0.8;
+const ALIKE_HI = 0.95;
+export const throwWeight = (cos: number) => Math.min(1, Math.max(0, (cos - ALIKE_LO) / (ALIKE_HI - ALIKE_LO)));
+
+/** 던진 기록 → 곡별 깎을 점수. 편지 벡터가 없는 기록(10/4 전)은 한 번으로 센다 */
+export function throwPenalties(rows: { trackId: string; vector: number[] | null }[], letter: number[]) {
+  const n = new Map<string, number>();
+  for (const r of rows) n.set(r.trackId, (n.get(r.trackId) ?? 0) + (r.vector ? throwWeight(dot(letter, r.vector)) : 1));
+  return new Map([...n].filter(([, c]) => c > 0).map(([id, c]) => [id, throwPenalty(c)]));
+}
+
 /** 곡 풀 전체 순위 — seen·thrown 은 빼고, 가수당 PER_ARTIST 곡까지 먼저(한 가수로 몰리지 않게), 모자라면 나머지.
     penalty = 곡 id → 깎을 점수(사람들이 자주 던진 곡) */
 export function rank<T extends Candidate>(

@@ -91,11 +91,12 @@ model SearchLog {
 }
 
 /// 던진 곡 기록 — 여러 사람이 자꾸 던지는 곡은 순위를 조금 내리고(recommend/score.ts), 곡 풀 넓히기 씨앗 가수에서 뺀다.
-/// 요청문 원문과 사용자는 남기지 않는다
+/// 요청문 원문과 사용자는 남기지 않는다 — 던진 편지는 뜻 벡터만(비슷한 편지에서만 깎으려고, 10/4)
 model ThrowLog {
   id        String   @id @default(cuid())
   trackId   String
   track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  vector    String? // 던진 편지의 해석 벡터 JSON(Track.embedding 과 같은 꼴). 10/4 전 기록·해석 캐시에 없던 편지는 null
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([createdAt])

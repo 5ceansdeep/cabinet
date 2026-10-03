@@ -66,10 +66,7 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
   const lines = timeline.slice(0, count).map(([l]) => l).reverse().slice(0, 2);
 
   return (
-    <div
-      className="flex flex-col items-center font-subtitle text-[clamp(15px,calc(.9vw+6px),30px)] tracking-wide text-subtitle"
-      style={{ textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6)` }}
-    >
+    <div className="flex flex-col items-center font-subtitle text-[clamp(15px,calc(.9vw+6px),30px)] tracking-wide text-subtitle">
       {/* 자글자글 — 옛 필름 자막처럼 글자·테두리가 아주 살짝 끓는다(잘게 낀 노이즈로 2~3px 비튼다).
           10/2 사용자: 더 작은 입자로, 불규칙하게 — 노이즈를 촘촘히(0.22), 씨앗은 들쭉날쭉한 간격으로(1.3초), 비트는 세기는 가끔 튀게(2.3초).
           두 주기가 안 맞물려 반복이 잘 안 보인다. 가장자리만 끓는다(10/2 사용자) — 글자를 1px 깎은 속은 원래 그대로, 그 바깥만 비튼 그림으로.
@@ -85,13 +82,25 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
           <feMorphology in="SourceAlpha" operator="erode" radius="1" result="core" />
           <feComposite in="SourceGraphic" in2="core" operator="in" result="inner" />
           <feComposite in="boiled" in2="core" operator="out" result="rim" />
+          {/* 필름 입자 — 글자 안에 잘게 깜빡이는 검은 점(10/4 사용자: 노이즈). 밝은 노이즈만 남겨 듬성듬성, 글자 모양 안에만 */}
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="1" seed="2" result="grain">
+            <animate attributeName="seed" values="2;9;4;14;6;11;3" dur="0.42s" repeatCount="indefinite" calcMode="discrete" />
+          </feTurbulence>
+          <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.6 0 0 0 -1.35" result="specks" />
+          <feComposite in="specks" in2="core" operator="in" result="grained" />
           <feMerge>
             <feMergeNode in="rim" />
             <feMergeNode in="inner" />
+            <feMergeNode in="grained" />
           </feMerge>
         </filter>
       </svg>
-      <div className="flex flex-col items-center motion-reduce:![filter:none]" style={{ filter: `url(#${boil})` }}>
+      {/* 글리치 — 몇 초에 한 번 0.2초 남짓 빨강·시안으로 갈라지고 옆으로 튀며 한 줄이 찢어진다(10/4 사용자). 평소엔 그대로 읽힌다.
+          갈라진 색은 --rgb(globals.css sub-glitch)로, 테두리 그림자 맨 아래에 깐다 */}
+      <div
+        className="flex flex-col items-center animate-[sub-glitch_3.7s_steps(1,end)_infinite] motion-reduce:![filter:none]"
+        style={{ filter: `url(#${boil})`, textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6),var(--rgb,0 0 transparent)` }}
+      >
         {lines.map((l) => (
           // 위에서 살짝 내려오며 나타난다(높이는 애니메이션하지 않는다 — 디자인 규칙)
           <div key={l} className="animate-[subline_.3s_cubic-bezier(.16,1,.3,1)_both]">

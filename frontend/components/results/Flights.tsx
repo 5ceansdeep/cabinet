@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Vector3, type Group } from "three";
+import { Vector3, type Group, type PointLight } from "three";
 import { thud } from "@/lib/thud";
-import { FloppyBody, useLabel } from "./floppy";
+import { FloppyBody } from "./floppy";
 import { onToss, type Toss } from "./flying";
 
 /* 손을 떠난 디스크 — 중력을 받아 날아가고, 빙 둘러선 서류함 벽(원통)에 부딪혀 튕기고,
@@ -22,7 +22,6 @@ const active = new Map<number, Flight>();
 let nextId = 0;
 
 function Flying({ flight }: { flight: Flight }) {
-  const label = useLabel(flight.toss.track);
   const g = useRef<Group>(null!);
   // 물리가 움직인 자리를 매 프레임 물체에 옮겨 준다
   useFrame(() => {
@@ -31,9 +30,7 @@ function Flying({ flight }: { flight: Flight }) {
   });
   return (
     <group ref={g} position={flight.p}>
-      <FloppyBody map={label.tex} />
-      {/* 제 빛을 내어 어둠 속에서도 보이고, 부딪히는 서랍도 잠깐 밝힌다 */}
-      <pointLight position={[0, 0, 0.5]} intensity={4} distance={4} decay={2} color="#e8f4ff" />
+      <FloppyBody map={flight.toss.tex} />
     </group>
   );
 }
@@ -41,6 +38,9 @@ function Flying({ flight }: { flight: Flight }) {
 export default function Flights({ wallRadius }: { wallRadius: number }) {
   const { invalidate } = useThree();
   const [ids, setIds] = useState<number[]>([]);
+  // 날아가는 디스크가 제 빛을 내어 어둠 속에서도 보이고, 부딪히는 서랍도 잠깐 밝힌다 — 조명은 하나를 늘 두고 세기·자리만 바꾼다.
+  // 디스크마다 조명을 붙였다 떼면 조명 수가 바뀌어 three 가 재질 셰이더를 다시 컴파일한다(던지는 순간 끊김)
+  const light = useRef<PointLight>(null!);
 
   useEffect(() => {
     const off = onToss((toss) => {
@@ -53,7 +53,10 @@ export default function Flights({ wallRadius }: { wallRadius: number }) {
   }, [invalidate]);
 
   useFrame((_, raw) => {
-    if (!active.size) return;
+    if (!active.size) {
+      light.current.intensity = 0;
+      return;
+    }
     const dt = Math.min(0.032, raw);
     const landed: Flight[] = [];
     for (const f of active.values()) {
@@ -88,13 +91,17 @@ export default function Flights({ wallRadius }: { wallRadius: number }) {
           f.v.z *= 0.7;
           thud(55);
         } else {
-          f.v.set(f.v.x * 0.6, 0, f.v.z * 0.6); // 바닥 마찰
+          const rub = 0.6 ** (dt * 60); // 바닥 마찰 — 60Hz 한 프레임에 0.6, 프레임 속도와 무관하게
+          f.v.set(f.v.x * rub, 0, f.v.z * rub);
           f.rest += dt;
         }
       }
       // 멎었거나, 어딘가에 끼여 오래 굴러다니면(안전장치) 거둬들인다
       if (f.rest > 0.5 || f.age > 8) landed.push(f);
     }
+    const last = [...active.values()].at(-1); // 빛은 가장 최근에 던진 디스크를 따라간다
+    light.current.intensity = last ? 4 : 0;
+    if (last) light.current.position.set(last.p.x, last.p.y, last.p.z + 0.5);
     if (landed.length) {
       landed.forEach((f) => active.delete(f.id));
       setIds((prev) => prev.filter((id) => active.has(id)));
@@ -105,6 +112,7 @@ export default function Flights({ wallRadius }: { wallRadius: number }) {
 
   return (
     <>
+      <pointLight ref={light} intensity={0} distance={4} decay={2} color="#e8f4ff" />
       {ids.map((id) => {
         const f = active.get(id);
         return f ? <Flying key={id} flight={f} /> : null;

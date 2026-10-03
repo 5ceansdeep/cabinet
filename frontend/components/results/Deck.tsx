@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import { CanvasTexture, type Group, type Mesh } from "three";
 import { thud } from "@/lib/thud";
+import { damp, reducedMotion, useReducedMotion } from "@/lib/motion";
 import { DISK, FloppyBody, useLabel } from "./floppy";
 import { MOUTH } from "./SaveDrawer";
 import { REVEAL_LEAD, REVEAL_MOUTH } from "./room";
@@ -18,7 +19,12 @@ function useGauge() {
     c.width = c.height = 256;
     const ctx = c.getContext("2d")!;
     const tex = new CanvasTexture(c);
-    const draw = (p: number) => {
+    const st = { drawn: -1 };
+    // 2% 단위로만 다시 그린다 — 누르는 동안 매 프레임 256² 캔버스를 그려 올리지 않게
+    const draw = (raw: number) => {
+      const p = Math.round(raw * 50) / 50;
+      if (p === st.drawn) return;
+      st.drawn = p;
       ctx.clearRect(0, 0, 256, 256);
       // 얇은 흰 원 — 바탕은 아주 흐리게, 차오르는 쪽만 또렷하게
       ctx.lineWidth = 5;
@@ -51,6 +57,9 @@ const TO_WALL = 3.8; // 벽 쪽으로 밀어주는 속도 — 앞으로 덜 뻗�
 const HOLD_MS = 900; // 이만큼 가만히 꾹 누르고 있으면 저절로 던져진다
 const HOLD_SLOP = 6; // 이만큼(px) 움직이면 꾹 누르기가 아니라 돌리기 — 게이지를 취소한다
 const TAP_MS = 300; // 이보다 짧게, 거의 움직이지 않고 떼면 클릭
+const SPIN = 0.012; // 끈 1px 이 몇 라디안
+const SPIN_DECAY = 3.7; // 놓은 뒤 회전이 잦아드는 빠르기(1/s) — 예전 60Hz 기준 프레임당 0.94 와 같은 손맛, 120Hz 에서도 같게
+const SAMPLE_MS = 80; // 손놀림 속도는 최근 이만큼의 이동으로 잰다 — 이벤트 하나로 재면 들쭉날쭉했다
 /* 드라이브 — 진짜 플로피 드라이브처럼 앞면에 가로 입구. 화면 아래 어둠에 몸통이 잠기고 입구만 보인다.
    디스크는 드라이브 앞으로 빠르게 와서 눕고(셔터가 안쪽), 입구로 미끄러져 들어간다 */
 const FRONT_Z = -2.9; // 드라이브 앞면
@@ -90,7 +99,8 @@ function Disk({
   const spin = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
   const drag = useRef<{ px: number; py: number } | null>(null);
   const start = useRef({ x: 0, y: 0, t: 0 }); // 누른 자리·때 — 손이 움직이면 꾹 누르기도 클릭도 아니다
-  const flick = useRef({ vx: 0, vy: 0, t: 0, up: 0 });
+  const flick = useRef({ up: 0 });
+  const trail = useRef<{ x: number; y: number; t: number }[]>([]); // 최근 손놀림 — 속도(px/ms)를 고르게 잰다
   const typed = useRef(0);
   const sank = useRef(Infinity); // 이 디스크가 빨려 들기 시작하는 시각
   const held = useRef(false); // 꾹 누르고 있나
@@ -102,6 +112,9 @@ function Disk({
   const stage = useRef<"row" | "front" | "in" | "out">("row"); // 드라이브로 가는 길 — 줄 → 입구 앞 → 안, 뺄 때는 안 → 입구 앞(out) → 줄
   const born = useRef(-1); // 생긴 시각(첫 프레임)
   const { invalidate } = useThree();
+  const reduce = useReducedMotion(); // 감속 모드 — 날아오기·꽂기·관성 없이 바로, 던지면 날리지 않고 바로 빠진다
+  // 목표가 바뀌면 깨운다 — 멎은 장면은 그리지 않으니(frameloop="demand") 호버·넘기기·꽂기·빨려 들기의 시작을 알려야 한다
+  useEffect(() => invalidate(), [hover, slot, offset, swallow, invalidate]);
 
   /* 손을 떠난다 — 손놀림(vx)이 있으면 그 방향으로, 꾹 눌러 던지면 곧장 위로 */
   function launch(vx: number, vy = MIN_UP) {
@@ -111,7 +124,8 @@ function Disk({
     removeEventListener("pointermove", move);
     setThrown(true);
     thud(150);
-    tossDisk({ track, p: [p.x, p.y, p.z], v: [vx, vy, -TO_WALL], onLanded: onDiscard });
+    if (reducedMotion()) return onDiscard();
+    tossDisk({ track, tex: label.tex, p: [p.x, p.y, p.z], v: [vx, vy, -TO_WALL], onLanded: onDiscard });
   }
 
   useFrame(({ clock }, dt) => {
@@ -122,12 +136,12 @@ function Disk({
     const hidden = clock.elapsedTime - born.current < rise;
     o.visible = !hidden;
     if (hidden) return invalidate();
-    if (o.scale.x < 1 && swallow < 0) o.scale.setScalar(Math.min(1, o.scale.x + dt * 3));
+    if (o.scale.x < 1 && swallow < 0) o.scale.setScalar(reduce ? 1 : Math.min(1, o.scale.x + dt * 3));
     // 서랍에 넣는 중 — 차례로 아래 서랍 입으로 빨려 들며 눕고 작아진다
     if (swallow >= 0) {
       if (sank.current === Infinity) sank.current = clock.elapsedTime + swallow;
       const eat = clock.elapsedTime >= sank.current;
-      const kk = 1 - Math.exp(-5 * dt);
+      const kk = damp(5, dt, reduce);
       if (eat) {
         o.position.x += (MOUTH[0] - o.position.x) * kk;
         o.position.y += (MOUTH[1] - o.position.y) * kk;
@@ -136,7 +150,7 @@ function Disk({
         const want = Math.max(0, 1 - (clock.elapsedTime - sank.current) * 1.4);
         o.scale.setScalar(o.scale.x + (want - o.scale.x) * kk);
       }
-      invalidate();
+      if (!eat || o.scale.x > 0.001) invalidate(); // 다 빨려 들면 쉰다
       return;
     }
     // 꾹 누르는 중 — 게이지가 차오르고, 다 차면 저절로 던져진다
@@ -163,10 +177,12 @@ function Disk({
     }
     const st = stage.current;
     const target = st === "in" ? IN : st === "row" ? { x: X0 + offset * GAP, y: hover ? 0.16 : 0, z: DEPTH - Math.abs(offset) * 0.35 } : FRONT;
-    const k = 1 - Math.exp((st === "front" ? -16 : st === "in" ? -9 : -7) * dt);
+    const k = damp(st === "front" ? 16 : st === "in" ? 9 : 7, dt, reduce);
     o.position.x += (target.x - o.position.x) * k;
     o.position.y += (target.y - o.position.y) * k;
     o.position.z += (target.z - o.position.z) * k;
+    const away = Math.hypot(target.x - o.position.x, target.y - o.position.y, target.z - o.position.z);
+    if (away < 1e-4) o.position.set(target.x, target.y, target.z);
     const s = spin.current;
     if (st !== "row") {
       // 눕는다 — 돌리던 건 잊고 정면으로
@@ -175,10 +191,14 @@ function Disk({
     } else {
       // 놓은 뒤 관성으로 돌다가 정면으로 복귀(드라이브에서 나온 직후면 누운 데서 일어난다)
       if (!drag.current) {
-        s.x += (0 - s.x) * k * 0.6 + s.vx;
-        s.y += (0 - s.y) * k * 0.6 + s.vy;
-        s.vx *= 0.94;
-        s.vy *= 0.94;
+        // 관성(rad/s)은 시간으로 — 프레임이 잦은 모니터에서 덜 도는 일이 없게
+        s.x += (0 - s.x) * k * 0.6 + s.vx * dt;
+        s.y += (0 - s.y) * k * 0.6 + s.vy * dt;
+        const fade = Math.exp(-SPIN_DECAY * dt);
+        s.vx *= fade;
+        s.vy *= fade;
+        if (Math.abs(s.vx) + Math.abs(s.vy) < 1e-3) s.vx = s.vy = 0;
+        if (!s.vx && !s.vy && Math.abs(s.x) + Math.abs(s.y) < 1e-4) s.x = s.y = 0;
       }
       const rx = Math.abs(o.rotation.x - s.x) > 0.3 ? o.rotation.x + (s.x - o.rotation.x) * k : s.x;
       o.rotation.set(rx, s.y, 0);
@@ -190,7 +210,13 @@ function Disk({
       typed.current = Math.max(0, Math.min(label.length, typed.current));
       label.draw(typed.current);
     }
-    invalidate();
+    // 아직 움직이는 게 있을 때만 다음 프레임 — 다 멎으면 결과 화면도 쉰다(예전엔 디스크마다 매 프레임 불렀다)
+    const settled =
+      away < 1e-4 &&
+      o.scale.x >= 1 &&
+      typed.current === want &&
+      (st !== "row" ? Math.abs(o.rotation.x - FLAT) < 1e-4 && Math.abs(o.rotation.y) < 1e-4 : !drag.current && !s.vx && !s.vy && !s.x && !s.y && o.rotation.x === s.x);
+    if (!settled) invalidate();
   });
 
   /* 잡기 — 디스크 밖으로 끌고 나가도 끊기지 않게 창 전체에서 손놀림을 듣는다 */
@@ -200,7 +226,9 @@ function Disk({
     prog.current = 0;
     drag.current = { px: e.clientX, py: e.clientY };
     start.current = { x: e.clientX, y: e.clientY, t: e.timeStamp };
-    flick.current = { vx: 0, vy: 0, t: e.timeStamp, up: 0 };
+    flick.current = { up: 0 };
+    trail.current = [{ x: e.clientX, y: e.clientY, t: e.timeStamp }];
+    spin.current.vx = spin.current.vy = 0;
     addEventListener("pointermove", move);
     addEventListener("pointerup", up, { once: true });
   }
@@ -212,16 +240,12 @@ function Disk({
     const dx = e.clientX - drag.current.px;
     const dy = e.clientY - drag.current.py;
     const f = flick.current;
-    const dt = Math.max(1, e.timeStamp - f.t);
-    f.vx = dx / dt;
-    f.vy = dy / dt;
-    f.t = e.timeStamp;
     f.up = dy < 0 ? f.up - dy : 0; // 아래로 방향이 바뀌면 처음부터
+    trail.current.push({ x: e.clientX, y: e.clientY, t: e.timeStamp });
+    while (trail.current.length > 2 && e.timeStamp - trail.current[0].t > SAMPLE_MS) trail.current.shift();
     const s = spin.current;
-    s.vy = dx * 0.012;
-    s.vx = dy * 0.012;
-    s.y += s.vy;
-    s.x += s.vx;
+    s.y += dx * SPIN;
+    s.x += dy * SPIN;
     drag.current = { px: e.clientX, py: e.clientY };
     invalidate();
   }
@@ -234,11 +258,24 @@ function Disk({
     // 짧게 한 번 — 슬롯에 꽂거나(재생), 꽂힌 디스크면 뺀다(멈춤)
     const s0 = start.current;
     if (e.timeStamp - s0.t < TAP_MS && Math.hypot(e.clientX - s0.x, e.clientY - s0.y) < HOLD_SLOP) return slot ? onEject() : onInsert();
+    // 손을 뗄 때의 속도(px/ms) — 최근 SAMPLE_MS 동안의 이동으로
+    const tr = trail.current;
+    const first = tr.find((p) => e.timeStamp - p.t <= SAMPLE_MS) ?? tr[0];
+    const span = Math.max(8, e.timeStamp - first.t);
+    const vx = (e.clientX - first.x) / span;
+    const vy = (e.clientY - first.y) / span;
     const f = flick.current;
-    if (f.vy > -THROW_SPEED || f.up <= 40) return; // 살살 놓았다 — 그냥 제자리로
+    if (vy > -THROW_SPEED || f.up <= 40) {
+      // 살살 놓았다 — 그 빠르기로 조금 더 돌다가 제자리로(감속 모드면 바로)
+      if (!reducedMotion()) {
+        spin.current.vy = vx * 1000 * SPIN;
+        spin.current.vx = vy * 1000 * SPIN;
+      }
+      return invalidate();
+    }
     if (slot) return onEject(); // 꽂힌 디스크를 위로 — 빼서 제자리로
     // 화면은 아래가 +y, 3D 는 위가 +y — 부호를 뒤집어 위로 솟구치게 한다
-    launch(f.vx * 1000 * perPx * 0.35, Math.max(-f.vy * 1000 * perPx, MIN_UP));
+    launch(vx * 1000 * perPx * 0.35, Math.max(-vy * 1000 * perPx, MIN_UP));
   }
 
   if (thrown) return null; // 이제부터는 Flights 가 그린다
@@ -265,8 +302,6 @@ function Disk({
         <planeGeometry args={[0.62, 0.62]} />
         <meshBasicMaterial map={gauge.tex} transparent depthWrite={false} toneMapped={false} />
       </mesh>
-      {/* 재생 중이면 시안 빛을 머금는다 */}
-      {slot && <pointLight position={[0, 0, 0.5]} intensity={4} distance={3} color="#00e5ff" />}
     </group>
   );
 }
@@ -337,6 +372,8 @@ export default function Deck({
         />
       ))}
       <Drive on={!!playing} visible={!saving} />
+      {/* 재생 중이면 꽂힌 디스크가 시안 빛을 머금는다 — 조명은 늘 두고 세기만 바꾼다(붙였다 떼면 셰이더를 다시 컴파일해 꽂는 순간 끊겼다) */}
+      <pointLight position={[IN.x, IN.y + 0.5, IN.z]} intensity={playing && !saving ? 4 : 0} distance={3} color="#00e5ff" />
       {/* 디스크를 앞에서 비추는 빛 — 라벨이 어둠에 묻히지 않게 */}
       <pointLight position={[X0, 1.4, DEPTH + 3]} intensity={2.2} distance={9} decay={2} color="#dfe8f2" />
     </>

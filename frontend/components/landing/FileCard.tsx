@@ -2,6 +2,7 @@
 
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
+import { damp, useReducedMotion } from "@/lib/motion";
 import { RoundedBox } from "@react-three/drei";
 import { Object3D, Quaternion, Vector3, type Group } from "three";
 import { CABINET, CAMERA, PRESENT, PRESENT_SCALE } from "./dimensions";
@@ -16,15 +17,31 @@ const ident = new Quaternion();
 
 /* 서랍 속 행잉 폴더 한 장. out 이면 위로 들렸다가 눈앞까지 날아오고, 아니면 제자리로 쏙 들어간다.
    Drawer 의 자식으로 두고, 날아갈 목적지만 월드 좌표에서 서랍 로컬로 바꿔 쓴다. */
-export default function FileCard({ slot, out, tab }: { slot: number; out: boolean; tab: string }) {
+export default function FileCard({ slot, out, tab, onArrive, onLeave }: { slot: number; out: boolean; tab: string; onArrive?: () => void; onLeave?: () => void }) {
   const g = useRef<Group>(null!);
   const t = useRef(0);
+  const placed = useRef(-1); // 마지막으로 자리를 잡아 준 t — 같으면 계산을 건너뛴다(멎은 카드)
+  const arrived = useRef(false);
+  const reduce = useReducedMotion(); // 감속 모드 — 날아오지 않고 바로 눈앞에
   const home = useMemo(() => new Vector3(0, -CABINET.H * 0.4 + FOLDER.h / 2 + 0.01, -0.12 - slot * 0.08), [slot]);
   const m = materials();
 
-  useFrame((_, dt) => {
-    t.current += ((out ? 1 : 0) - t.current) * (1 - Math.exp(-(out ? 3.5 : 6) * dt));
-    if (Math.abs((out ? 1 : 0) - t.current) < 0.002) t.current = out ? 1 : 0;
+  useFrame(({ invalidate }, dt) => {
+    const goal = out ? 1 : 0;
+    t.current += (goal - t.current) * damp(out ? 3.5 : 6, dt, reduce);
+    if (Math.abs(goal - t.current) < 0.002) t.current = goal;
+    // 거의 다 왔을 때 알린다 — 입력칸(DOM)이 카드보다 먼저 뜨지 않게
+    if (out && t.current > 0.9 && !arrived.current) {
+      arrived.current = true;
+      onArrive?.();
+    }
+    if (!out && arrived.current) {
+      arrived.current = false; // 들어가기 시작 — 다시 날아오면 그때 또 알린다(대조 실패로 같은 칸이 다시 올 때)
+      onLeave?.();
+    }
+    if (t.current === placed.current) return;
+    placed.current = t.current;
+    if (t.current !== goal) invalidate();
     const s = t.current * t.current * (3 - 2 * t.current); // smoothstep
     end.copy(PRESENT);
     g.current.parent!.worldToLocal(end);

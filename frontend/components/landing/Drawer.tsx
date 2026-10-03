@@ -1,7 +1,8 @@
 "use client";
 
-import { useLayoutEffect, useRef, type ReactNode } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { damp, useReducedMotion } from "@/lib/motion";
 import { RoundedBox } from "@react-three/drei";
 import { Color, Object3D, type Group, type InstancedMesh, type PointLight } from "three";
 import { CABINET, FRONT_Z } from "./dimensions";
@@ -17,6 +18,8 @@ const wobble = new Object3D(); // 파도칠 때 행렬 계산용
 /* 안에서 뭔가 부딪힌 듯 — 때린 순간 확 흔들렸다가 빠르게 잦아든다 */
 const jolt = (t: number) => (t < 0 ? 0 : Math.exp(-t * 14) * Math.sin(t * 90));
 const MAX_FOLDERS = 160;
+const KNOCK_EVERY = 3000; // 덜컹 간격(ms) — 장면은 쉬는 동안 안 그리니 타이머가 깨운다
+const KNOCK_LEN = 0.5; // 덜컹 한 번이 잦아드는 시간(초) — 이 동안만 그린다
 
 /* 서랍 한 칸. slide 만큼 앞으로 빠지며, 열릴 땐 촤르륵·닫힐 땐 "탁" 빠르게.
    브루스 올마이티의 끝없는 서랍처럼 몸통이 빠진 길이만큼 늘어나고, 그 안을 폴더가 빽빽이 채운다 */
@@ -43,6 +46,19 @@ export default function Drawer({
   const waving = useRef(0); // 파도 세기 0~1
   const seats = useRef<{ x: number; y: number; z: number; tilt: number }[]>([]); // 폴더 제자리 — 파도칠 때 여기서 들린다
   const m = materials();
+  const reduce = useReducedMotion(); // 감속 모드 — 덜컹·파도 없음, 서랍은 바로 도착
+  const invalidate = useThree((s) => s.invalidate);
+  const knockAt = useRef(-1); // 마지막 덜컹 시작(시계 초) — 타이머가 찍는다
+
+  // 덜컹 — 3초마다 한 번 깨운다(frameloop="demand"). 그사이엔 아무것도 안 그린다
+  useEffect(() => {
+    if (!knock || reduce) return;
+    const id = setInterval(() => {
+      knockAt.current = -2; // 다음 프레임의 시계로 시작
+      invalidate();
+    }, KNOCK_EVERY);
+    return () => clearInterval(id);
+  }, [knock, reduce, invalidate]);
 
   useLayoutEffect(() => {
     const o = new Object3D();
@@ -66,11 +82,14 @@ export default function Drawer({
   }, []);
 
   useFrame(({ clock }, dt) => {
-    const k = 1 - Math.exp(-(FRONT_Z + slide > base.current ? 3 : 14) * dt);
-    base.current += (FRONT_Z + slide - base.current) * k;
+    const target = FRONT_Z + slide;
+    const k = damp(target > base.current ? 3 : 14, dt, reduce);
+    base.current += (target - base.current) * k;
+    if (Math.abs(target - base.current) < 1e-4) base.current = target;
     // 덜컹 — 3초마다 서랍 안에서 뭔가 두 번 부딪힌다. 서랍은 제자리, 충격만 전해진다
-    const t = clock.elapsedTime % 3;
-    const hit = knock ? jolt(t) + jolt(t - 0.26) * 0.7 : 0;
+    if (knockAt.current === -2) knockAt.current = clock.elapsedTime;
+    const t = knockAt.current < 0 ? KNOCK_LEN : clock.elapsedTime - knockAt.current;
+    const hit = knock && !reduce && t < KNOCK_LEN ? jolt(t) + jolt(t - 0.26) * 0.7 : 0;
     const g = group.current.position;
     g.z = base.current + Math.abs(hit) * 0.012; // 앞으로 아주 조금 들썩
     g.y = y + hit * 0.004; // 위아래로 달그락
@@ -80,12 +99,14 @@ export default function Drawer({
     body.current.scale.z = len;
     folders.current.count = Math.max(0, Math.min(MAX_FOLDERS, Math.floor((len - 0.5) / SPACING)));
     // 서랍 속에서 새어 나오는 하얀 빛 — 살짝 밀려 나온 틈으로도 샌다
-    glow.current.intensity += ((slide > 0 ? 1.2 : Math.abs(hit) * 0.5) - glow.current.intensity) * k;
+    const glowTo = slide > 0 ? 1.2 : Math.abs(hit) * 0.5;
+    glow.current.intensity += (glowTo - glow.current.intensity) * k;
 
     // 파일 파도 — 앞에서부터 차례로 살짝 올라왔다 내려간다 (서류 정리 중)
     const shiver = knock ? Math.abs(hit) : 0; // 부딪힐 때 안의 파일도 들썩
-    if (wave || waving.current > 0.01 || shiver > 0.001) {
-      waving.current += ((wave ? 1 : 0) - waving.current) * (1 - Math.exp(-4 * dt));
+    const waveOn = wave && !reduce; // 감속 모드면 파도 대신 자막만
+    if (waveOn || waving.current > 0.01 || shiver > 0.001) {
+      waving.current += ((waveOn ? 1 : 0) - waving.current) * damp(4, dt);
       const o = wobble;
       for (let i = 0; i < folders.current.count; i++) {
         const seat = seats.current[i];
@@ -100,6 +121,8 @@ export default function Drawer({
       }
       folders.current.instanceMatrix.needsUpdate = true;
     }
+    // 움직이는 동안만 다음 프레임을 부른다 — 다 멎으면 장면이 쉰다
+    if (base.current !== target || (knock && !reduce && t < KNOCK_LEN) || waveOn || waving.current > 0.01 || Math.abs(glowTo - glow.current.intensity) > 0.01) invalidate();
   });
 
   return (

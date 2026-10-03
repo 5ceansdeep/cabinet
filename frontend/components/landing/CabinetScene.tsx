@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { damp, useReducedMotion } from "@/lib/motion";
 import { ContactShadows, Environment, Lightformer, RoundedBox } from "@react-three/drei";
 import { Color, type AmbientLight, type DirectionalLight, type Fog, type SpotLight } from "three";
 import { bark } from "@/lib/bark";
@@ -45,8 +46,12 @@ function Lights({ dim }: { dim: boolean }) {
   const fill = useRef<DirectionalLight>(null!);
   const key = useRef<SpotLight>(null!);
   const d = useRef(0);
-  useFrame(({ scene }, dt) => {
-    d.current += ((dim ? 1 : 0) - d.current) * (1 - Math.exp(-1.5 * dt));
+  const reduce = useReducedMotion();
+  useFrame(({ scene, invalidate }, dt) => {
+    const goal = dim ? 1 : 0;
+    d.current += (goal - d.current) * damp(1.5, dt, reduce);
+    if (Math.abs(goal - d.current) < 0.001) d.current = goal;
+    else invalidate();
     const l = 1 - 0.85 * d.current;
     amb.current.intensity = 0.5 * l;
     fill.current.intensity = 0.8 * l;
@@ -83,9 +88,14 @@ function keepContext({ gl, invalidate }: { gl: { domElement: HTMLCanvasElement }
 
 const noop = () => () => {}; // 바뀌지 않는 값 구독용
 
-/* 카메라는 서랍 정면에 고정 */
+/* 카메라는 서랍 정면에 고정 — 한 번만 맞춘다(매 프레임 lookAt 할 필요 없다) */
 function Rig() {
-  useFrame(({ camera }) => camera.lookAt(LOOK));
+  const camera = useThree((s) => s.camera);
+  const invalidate = useThree((s) => s.invalidate);
+  useLayoutEffect(() => {
+    camera.lookAt(LOOK);
+    invalidate();
+  }, [camera, invalidate]);
   return null;
 }
 
@@ -145,6 +155,7 @@ export default function CabinetScene({
 }) {
   const [open, setOpen] = useState(false); // 한 번 호버하면 열린 채로 유지
   const [step, setStep] = useState(0);
+  const [landed, setLanded] = useState(-1); // 눈앞에 도착한 파일 번호 — 입력칸은 파일이 도착한 뒤에 뜬다
   const [values, setValues] = useState<Record<string, string>>({}); // 받은 값 — 되돌아오면 입력칸에 다시 채운다
   const [error, setError] = useState<{ line: Line | null; n: number }>({ line: null, n: 0 }); // n — 같은 꾸지람도 다시 들리게
   const [caps, setCaps] = useState(false);
@@ -295,6 +306,7 @@ export default function CabinetScene({
         shadows="percentage"
         camera={{ position: CAMERA.toArray(), fov: 30 }}
         dpr={[1, 1.5]}
+        frameloop="demand" // 움직일 때만 그린다 — 서랍·카드·조명이 멎으면 장면이 쉰다(디자인 규칙)
         className="absolute! inset-0"
         onCreated={keepContext}
       >
@@ -322,7 +334,7 @@ export default function CabinetScene({
             i === drawer ? (
               <Drawer key={label} y={drawerY(i)} slide={slide} label={label} knock={!open && phase === "auth" && !locked} wave={waving}>
                 {fields.map((f, j) => (
-                  <FileCard key={f.name} slot={j} out={open && phase === "auth" && j === step} tab={f.label} />
+                  <FileCard key={f.name} slot={j} out={open && phase === "auth" && j === step} tab={f.label} onArrive={() => setLanded(j)} onLeave={() => setLanded((l) => (l === j ? -1 : l))} />
                 ))}
               </Drawer>
             ) : (
@@ -336,12 +348,12 @@ export default function CabinetScene({
 
       {/* 입력칸 — 카메라가 고정이라 파일은 늘 같은 화면 자리에 도착한다. 3D Html 대신 DOM 으로 얹어
           매 프레임 계산 없이 즉시 뜨고 바로 입력된다. 파일 크기(세로 화면 비례)에 맞춰 vh 단위 */}
-      {open && field && phase === "auth" && (
+      {open && field && phase === "auth" && landed === step && (
         <form
           key={step}
           noValidate
           onSubmit={submit}
-          className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 animate-[appear_.35s_.3s_both]"
+          className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 animate-[appear_.3s_both]"
           style={{ top: `${PRESENT_TOP}%` }}
         >
           <input

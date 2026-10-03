@@ -96,9 +96,9 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
           <feMorphology in="SourceAlpha" operator="erode" radius="1" result="core" />
           <feComposite in="SourceGraphic" in2="core" operator="in" result="inner" />
           <feComposite in="boiled" in2="core" operator="out" result="rim" />
-          {/* 필름 입자 — 글자 안에 잘게 박힌 검은 점(10/4 사용자: 노이즈, 깜빡이지 않게 고정). 밝은 노이즈만 남겨 듬성듬성, 글자 모양 안에만 */}
+          {/* 필름 입자 — 글자 안에 잘게 박힌 검은 점(10/4 사용자: 노이즈, 깜빡이지 않게 고정, 거의 안 보여 촘촘히). 노이즈 밝은 쪽 절반쯤을 점으로, 글자 모양 안에만 */}
           <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="1" seed="2" result="grain" />
-          <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.6 0 0 0 -1.35" result="specks" />
+          <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  4 0 0 0 -1.8" result="specks" />
           <feComposite in="specks" in2="core" operator="in" result="grained" />
           <feMerge>
             <feMergeNode in="rim" />

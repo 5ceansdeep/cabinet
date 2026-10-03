@@ -7,9 +7,9 @@ import { analyzeSpeech } from "./cues";
    onStart — 그 대사의 소리가 실제로 시작될 때 불린다. 자막 줄(lines 개)마다 "지금부터 몇 초 뒤"를 주거나, 모르면 null.
    브라우저는 사용자가 한 번이라도 클릭·키 입력을 해야 소리를 낸다 (그 전엔 소리 없이 자막만). */
 
-/* 목소리 켜기 — 10/2 사용자: 베타는 음성을 다 끄고 자막만. 꺼져 있으면 mp3 를 받지도 틀지도 않고, 자막은 읽는 시간만큼 기다린다.
-   다시 켜려면 true (녹음 파일·분석 코드는 그대로 있다) */
-const VOICE = false;
+/* 목소리 켜기 — 10/2 베타는 자막만으로 껐다가, 10/4 ElevenLabs Starter 결제 후 다시 켬(사용자).
+   false 면 mp3 를 받지도 틀지도 않고, 자막은 읽는 시간만큼 기다린다. 신의 한마디 음성은 백엔드 ELEVENLABS_ENABLED 도 켜져 있어야 한다 */
+const VOICE = true;
 
 type Job = { text: string; key?: string; lines: number; onStart?: (delays: number[] | null) => void };
 

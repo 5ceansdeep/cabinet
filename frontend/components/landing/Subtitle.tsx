@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { ArrowRight } from "@phosphor-icons/react";
 import Link from "next/link";
 
 /* 긴 자막은 영화처럼 문장마다 줄을 나눈다 ("- 첫 문장" / "- 다음 문장"). "땡." 같은 짧은 조각은 다음 문장에 붙인다 */
@@ -66,7 +67,7 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
 
   return (
     <div
-      className="flex flex-col items-center font-subtitle text-[clamp(15px,calc(.9vw+6px),30px)] tracking-wide text-[#e2cd5a]"
+      className="flex flex-col items-center font-subtitle text-[clamp(15px,calc(.9vw+6px),30px)] tracking-wide text-subtitle"
       style={{ textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6)` }}
     >
       {/* 자글자글 — 옛 필름 자막처럼 글자·테두리가 아주 살짝 끓는다(잘게 낀 노이즈로 2~3px 비튼다).
@@ -92,20 +93,17 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
       </svg>
       <div className="flex flex-col items-center motion-reduce:![filter:none]" style={{ filter: `url(#${boil})` }}>
         {lines.map((l) => (
-          // 높이가 0 에서 펼쳐지며 들어와, 아래 줄들이 부드럽게 밀려난다
-          <div key={l} className="overflow-hidden animate-[subline_.45s_ease-out_both]">
-            <p className={`mb-1 px-3 leading-tight transition-opacity duration-700 ${gone ? "opacity-0" : ""}`}>- {l}</p>
+          // 위에서 살짝 내려오며 나타난다(높이는 애니메이션하지 않는다 — 디자인 규칙)
+          <div key={l} className="animate-[subline_.3s_cubic-bezier(.16,1,.3,1)_both]">
+            <p className={`mb-1 px-3 leading-tight transition-opacity duration-300 ${gone ? "opacity-0" : ""}`}>- {l}</p>
           </div>
         ))}
       </div>
       {link && linked && (
-        // 자막과 구분되는 버튼 — 흰 알약, 어두운 명조 글씨, 테두리 없는 자막과 달리 얇은 테두리와 그림자
-        <Link
-          href={link.href}
-          className="pointer-events-auto mt-3 inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/90 px-5 py-2 font-letter text-sm tracking-normal text-neutral-800 shadow-[0_4px_16px_rgba(0,0,0,.12)] backdrop-blur-sm transition [text-shadow:none] animate-[appear_.5s_both] hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_6px_20px_rgba(0,0,0,.16)]"
-        >
+        // 자막 아래 버튼 — 일반 UI 버튼(.btn). 3D 장면 위에 뜨니 바탕을 깔아 대비를 지킨다
+        <Link href={link.href} className="btn pointer-events-auto mt-4 bg-background/85 [text-shadow:none] animate-[appear_.3s_both]">
           {link.label}
-          <span aria-hidden className="text-neutral-400">→</span>
+          <ArrowRight aria-hidden size={14} weight="bold" />
         </Link>
       )}
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowRight, CaretDown, CaretUp } from "@phosphor-icons/react";
 // import { useRouter } from "next/navigation"; // 보고서 꺼 둠 — 디스크를 눌러 보고서로 갈 때 쓴다
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
@@ -222,9 +223,12 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(#000_3%,rgba(0,0,0,.7)_16%,transparent_36%,transparent_64%,rgba(0,0,0,.75)_84%,#000_97%)]" />
       </div>
 
-      <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-[10px] tracking-[.2em] text-foreground/50">
-        <p>MY CABINET — 건져 올린 것들</p>
-        <Link href="/search" className="pointer-events-auto text-accent/80 hover:text-accent">
+      <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65">
+        <h1 className="font-[inherit] font-normal">
+          MY CABINET
+          <span className="block normal-case tracking-normal text-foreground/65">건져 올린 것들</span>
+        </h1>
+        <Link href="/search" className="pointer-events-auto text-accent/85 hover:text-accent">
           NEW REQUEST
         </Link>
       </header>
@@ -234,24 +238,25 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
       {/* 아직 넣은 서랍이 없다 — 빈 서류함 대신 한마디와 편지 쓰러 가기 */}
       {shelves.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center">
-          <p className="font-letter text-sm text-foreground/70">{ARCHIVE_DIALOGUE.EMPTY}</p>
-          <Link href="/search" className="rounded-full border border-accent/40 px-4 py-1.5 font-mono text-[10px] tracking-[.15em] text-accent/90 hover:bg-accent/10">
-            {ARCHIVE_DIALOGUE.WRITE} →
+          <p className="font-letter text-sm text-foreground/75">{ARCHIVE_DIALOGUE.EMPTY}</p>
+          <Link href="/search" className="btn">
+            {ARCHIVE_DIALOGUE.WRITE}
+            <ArrowRight aria-hidden size={14} weight="bold" />
           </Link>
         </div>
       )}
 
       {pages > 1 && (
         /* 다른 서랍 칸으로 — 위가 최근에 넣은 것 */
-        <nav className="absolute top-1/2 right-6 flex -translate-y-1/2 flex-col items-center gap-3 font-mono text-[10px] tracking-[.2em] text-accent/70">
-          <button aria-label="최근 서랍" disabled={page === 0} onClick={() => turn(-1)} className="px-3 py-2 hover:text-accent disabled:opacity-20">
-            ▲
+        <nav aria-label="서랍 칸" className="absolute top-1/2 right-6 flex -translate-y-1/2 flex-col items-center gap-2 font-mono text-xs tracking-[.15em] text-accent/85">
+          <button type="button" aria-label="최근 서랍" disabled={page === 0} onClick={() => turn(-1)} className="grid size-10 place-items-center rounded-full hover:text-accent disabled:opacity-30">
+            <CaretUp aria-hidden size={18} weight="bold" />
           </button>
-          <span className="text-foreground/40">
+          <span className="text-foreground/65">
             {page + 1}/{pages}
           </span>
-          <button aria-label="지난 서랍" disabled={page === pages - 1} onClick={() => turn(1)} className="px-3 py-2 hover:text-accent disabled:opacity-20">
-            ▼
+          <button type="button" aria-label="지난 서랍" disabled={page === pages - 1} onClick={() => turn(1)} className="grid size-10 place-items-center rounded-full hover:text-accent disabled:opacity-30">
+            <CaretDown aria-hidden size={18} weight="bold" />
           </button>
         </nav>
       )}
@@ -270,8 +275,8 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
         />
       )}
 
-      <footer className="relative px-6 pb-8 text-center font-mono text-[10px] tracking-[.2em] text-foreground/40">
-        {openShelf ? `${openShelf.tag} — ${openShelf.kept.length}장` : shown.length ? "CLICK A DRAWER TO OPEN" : null}
+      <footer className="relative px-6 pb-8 text-center font-mono text-xs tracking-[.15em] text-foreground/60">
+        {openShelf ? `${openShelf.tag} · ${openShelf.kept.length}장` : shown.length ? "CLICK A DRAWER TO OPEN" : null}
       </footer>
     </main>
   );

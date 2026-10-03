@@ -109,10 +109,11 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
           </feMerge>
         </filter>
       </svg>
-      {/* 글리치 — 빨강·시안이 테두리 밖으로 살짝 어긋나 삐져나온다(10/4 사용자). 깜빡이지 않게 고정 — 튀고 찢어지던 애니메이션은 뺐다 */}
+      {/* 색 번짐 — 유리를 지난 빛처럼 주황·노랑은 왼쪽, 파랑·시안은 오른쪽으로 흐릿하게 갈라진다(10/4 사용자 레퍼런스: Ion Lucin 'Forget me not', 가로 유리선은 빼고).
+          가까운 번짐(살짝 흐림) + 먼 번짐(많이 흐림) 두 겹. em 이라 글자 크기를 따라간다. 깜빡이지 않게 고정 */}
       <div
         className="flex flex-col items-center motion-reduce:![filter:none]"
-        style={{ filter: `url(#${boil})`, textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6),-2px 0 rgba(255,40,90,.7),2px 0 rgba(0,229,255,.7)` }}
+        style={{ filter: `url(#${boil})`, textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6),-.08em 0 .05em rgba(255,150,0,.9),.08em 0 .05em rgba(30,140,255,.9),-.2em .03em .3em rgba(255,190,40,.7),.2em -.03em .3em rgba(0,170,255,.7)` }}
       >
         {lines.map((l) => (
           // 위에서 살짝 내려오며 나타난다(높이는 애니메이션하지 않는다 — 디자인 규칙)

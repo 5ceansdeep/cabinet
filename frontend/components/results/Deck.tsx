@@ -285,9 +285,12 @@ function Disk({
     f.up = dy < 0 ? f.up - dy : 0; // 아래로 방향이 바뀌면 처음부터
     trail.current.push({ x: e.clientX, y: e.clientY, t: e.timeStamp });
     while (trail.current.length > 2 && e.timeStamp - trail.current[0].t > SAMPLE_MS) trail.current.shift();
-    const s = spin.current;
-    s.y += dx * SPIN;
-    s.x += dy * SPIN;
+    // 터치는 돌리지 않는다 — 폰에선 옆으로 밀어 넘기려다 디스크가 돌았다(10/6 사용자). 위로 던지기는 그대로
+    if (e.pointerType !== "touch") {
+      const s = spin.current;
+      s.y += dx * SPIN;
+      s.x += dy * SPIN;
+    }
     drag.current = { px: e.clientX, py: e.clientY };
     invalidate();
   }
@@ -309,7 +312,7 @@ function Disk({
     const f = flick.current;
     if (vy > -THROW_SPEED || f.up <= 40) {
       // 살살 놓았다 — 그 빠르기로 조금 더 돌다가 제자리로(감속 모드면 바로)
-      if (!reducedMotion()) {
+      if (!reducedMotion() && e.pointerType !== "touch") {
         spin.current.vy = vx * 1000 * SPIN;
         spin.current.vx = vy * 1000 * SPIN;
       }

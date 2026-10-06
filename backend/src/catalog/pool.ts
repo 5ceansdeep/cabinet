@@ -105,14 +105,14 @@ export class PoolService implements OnModuleInit, OnModuleDestroy {
       ...(only?.length ? [] : CHARTS.map(chart)),
       ...tags.map((t) => tagTopTracks(t, only?.length ? 40 : 20)),
     ]);
-    const out: Ref[] = [];
+    // 여기선 seen 에 넣지 않는다 — 실제로 들여다본 곡만 run 이 넣는다. 10/6 새벽: 모은 후보를 전부 seen 에 넣었더니
+    // 목표(30곡)를 채우고 남은 후보까지 "본 것"이 돼, 서버를 안 껐던 다음 날 밤 후보가 0곡이었다(배포한 날만 메모리가 비어 돌았다)
+    const out = new Map<string, Ref>();
     for (const r of interleave(lists)) {
       const k = keyOf(r);
-      if (this.seen.has(k) || ALT_VERSION.test(r.title)) continue;
-      this.seen.add(k);
-      out.push(r);
+      if (!this.seen.has(k) && !out.has(k) && !ALT_VERSION.test(r.title)) out.set(k, r);
     }
-    return out;
+    return [...out.values()];
   }
 
   private async run(target: number, only?: string[]) {
@@ -122,6 +122,7 @@ export class PoolService implements OnModuleInit, OnModuleDestroy {
     try {
       while (queue.length && this.status.added < target) {
         const r = queue.shift()!;
+        this.seen.add(keyOf(r));
         this.status.tried++;
         this.status.queued = queue.length;
         const { calledITunes, added } = await this.add(r);

@@ -251,7 +251,7 @@ export default function Results({ query }: { query: string }) {
           )}
           {/* 세로 화면(폰)은 옆으로 나란히 둘 폭이 없다 — 버튼 줄을 위에, 편지·해석을 그 아래에. 폰은 자간을 줄여 한 줄에 */}
           <header
-            className={`pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65 portrait:flex-col-reverse portrait:gap-3 portrait:px-4 portrait:pt-[max(.75rem,env(safe-area-inset-top))] portrait:text-[11px] portrait:tracking-[.1em] ${keepHint ? "z-50" : ""}`}
+            className={`pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65 portrait:flex-col-reverse portrait:gap-3 portrait:px-4 portrait:pt-[calc(env(safe-area-inset-top)+1rem)] portrait:text-[11px] portrait:tracking-[.1em] ${keepHint ? "z-50" : ""}`}
           >
             {/* 라벨 | 값 두 칸 — 라벨 폭이 달라도 값이 한 줄로 선다. 한글에는 자간을 주지 않는다.
                 폰은 라벨 없이 요청문을 제목처럼 크게, 해석은 그 아래 작게(10/6 사용자: 폰 UI 가 엉성하다) */}

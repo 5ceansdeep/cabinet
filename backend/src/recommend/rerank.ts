@@ -19,7 +19,7 @@ const SCHEMA = {
   properties: {
     order: { type: 'ARRAY', items: { type: 'INTEGER' }, description: '가장 어울리는 것부터 후보 번호 10개(후보가 10곡보다 적으면 전부). 이 순서대로 화면에 보여 준다' },
     // 곡별 이유(reasons)는 10/1 뺐다 — 화면에서 안 쓰고, 10문장을 더 쓰느라 응답이 늦었다. parse 는 와도 받는다
-    line_ko: { type: 'STRING', description: '신의 한마디 — 한국어 자막. 한두 문장, 40자 안팎' },
+    line_ko: { type: 'STRING', description: '신의 한마디 — 한국어 자막. 딱 한 문장, 30자 안팎' },
     line_en: { type: 'STRING', description: 'line_ko 와 같은 뜻의 영어 음성 대사. line_ko 와 문장 수가 같게 — 음성의 문장 쉼에 맞춰 한국어 자막 줄을 넘긴다' },
   },
   required: ['order', 'line_ko', 'line_en'],
@@ -44,16 +44,16 @@ export function promptFor(query: string, want: string, cands: Cand[]) {
     '사용자의 사정을 지어내 아는 척하지 않는다: 편지에 없는 물건·시간·숫자·장소·사람("그 슬리퍼", "새벽 두 시에", "세 번째")을 꾸며 넣지 않는다. 편지에 적힌 것만 가지고 논다.',
     // 10/6 사용자: 유행하는 밈을 아는 척하는 대사도 가끔(맨날은 아님)
     '가끔만(열 번에 한두 번, 편지에 딱 들어맞을 때만) 요즘 유행어·밈을 아는 척한다 — 어디서 주워들은 어르신처럼 "요즘은 ~라고 한다더군", "~라던가" 하고 살짝 어색하게. 누구나 아는 것만 쓰고, 지어내지 않는다. 맞는 게 없으면 쓰지 않는다. 밈을 설명하지 않는다.',
-    '단, 정말 무거운 일(누가 죽었다, 죽고 싶다, 크게 아프다)이면 농담을 접는다 — 비유·소품 없이 담담한 한 문장만. 예: "그랬군. 오늘은 말을 줄이겠네."',
+    '단, 정말 무거운 일(누가 죽었다, 죽고 싶다, 크게 아프다)이면 농담을 접는다 — 비유·소품 없이 담담한 한 문장만. 예: "오늘은 말을 줄이겠네."',
     '이런 틀은 쓰지 않는다(다들 이렇게 써서 뻔하다): "~에 어울리는 곡들이지/이네", "~를 위한 곡", "~해 줄 곡", "자네 마음을 다 알고 있네", "기특하네", "편히 쉬게나", 상황을 그대로 되풀이하는 첫 문장.',
-    '과장·감탄사·명언조·위로 명언 금지. 한 문장이 제일 좋고 길어도 두 문장. 곡 이름·가수 이름은 말하지 않는다.',
+    '과장·감탄사·명언조·위로 명언 금지. 딱 한 문장(10/6 사용자: 음성 크레딧이 아깝다). 영어도 한 문장. 곡 이름·가수 이름은 말하지 않는다.',
     '예(결만 참고한다. 문장·소재를 그대로 가져오지 말고 이 요청에 맞게 새로 쓴다):',
     '  "치킨 시켰는데 한 시간째 안 와" → "한 시간이면 닭이 걸어와도 도착했지."',
-    '  "고양이가 나를 무시해" → "무시가 아니라 심사 중이네. 자네는 아직 수습이거든."',
-    '  "양말 한 짝이 없어졌어" → "양말은 원래 혼자 떠나네. 남은 쪽이 더 딱하지."', // 흔한 상황(시험 망했어)을 예로 두면 비슷한 편지에 그대로 베껴 쓴다 — "발표 망했어" 에 "성적표" 가 나왔다
-    '  "오늘도 야근" → "회사가 자네를 참 좋아하네. 놓아줄 생각이 없는 걸 보면."',
-    '  "의심돼" → "의심은 대개 맞지. 그래서 다들 모르는 척하는 거고."',
-    '  (밈을 아는 척 — 가끔만) "비 와서 약속 취소됐어" → "이럴 때 요즘은 \'오히려 좋아\' 라고 한다더군. 뭐가 좋은지는 아직 못 들었네."',
+    '  "고양이가 나를 무시해" → "무시가 아니라 심사 중이네, 자네는 아직 수습이거든."',
+    '  "양말 한 짝이 없어졌어" → "양말은 원래 혼자 떠나고 남은 쪽만 딱하지."', // 흔한 상황(시험 망했어)을 예로 두면 비슷한 편지에 그대로 베껴 쓴다 — "발표 망했어" 에 "성적표" 가 나왔다
+    '  "오늘도 야근" → "회사가 자네를 놓아줄 생각이 없나 보군."',
+    '  "의심돼" → "의심은 대개 맞아서 다들 모르는 척하는 거지."',
+    '  (밈을 아는 척 — 가끔만) "비 와서 약속 취소됐어" → "이럴 때 요즘은 \'오히려 좋아\' 라고 한다더군."',
     '영어 대사(line_en)는 같은 뜻을 여유롭고 위트 있는 구어체로 (casual, confident, warm, dry wit).',
     // 10/6 사용자: 대사마다 [dryly] 가 붙었고, 목소리를 랜딩과 같은 Multilingual v2 로 되돌렸다(v2 는 지문을 소리 내 읽는다) — 지문 없이
     '영어 대사에는 대괄호 지문([chuckles] 같은 것)을 넣지 않는다. 말투는 문장으로 드러낸다.',
@@ -69,6 +69,9 @@ export function promptFor(query: string, want: string, cands: Cand[]) {
 /** 영어 대사에서 대괄호 지문([dryly] [chuckles] 등)을 뗀다 — v2 목소리는 지문을 소리 내 읽는다. 저장된 옛 대사(v3 때)에도 쓴다 */
 export const plainLine = (en: string) => en.replace(/\[[^\]]*\]\s*/g, '').replace(/\s{2,}/g, ' ').trim();
 
+/** 첫 문장만 — 마침표·물음표·느낌표(와 뒤따르는 따옴표·말줄임) 뒤 공백에서 자른다 */
+export const firstSentence = (t: string) => t.trim().split(/(?<=[.?!…]["'”’]?)\s+/)[0];
+
 type Raw = { order?: unknown; reasons?: { n?: unknown; why?: unknown }[]; line_ko?: unknown; line_en?: unknown };
 
 /** Gemini 응답 → 후보 id 순서. 없는 번호·겹친 번호는 버리고, 빠진 후보는 1단계 순서대로 뒤에 붙인다 */
@@ -80,8 +83,9 @@ export function parse(raw: Raw, cands: Cand[]): Reranked {
     const id = pick(r.n);
     if (id && typeof r.why === 'string' && r.why.trim()) reasons[id] = r.why.trim();
   }
-  const ko = typeof raw.line_ko === 'string' ? raw.line_ko.trim() : '';
-  const en = typeof raw.line_en === 'string' ? plainLine(raw.line_en) : '';
+  // 딱 한 문장 — 그래도 둘이 오면 첫 문장만(음성은 글자 수만큼 크레딧이 든다, 10/6 사용자)
+  const ko = typeof raw.line_ko === 'string' ? firstSentence(raw.line_ko) : '';
+  const en = typeof raw.line_en === 'string' ? firstSentence(plainLine(raw.line_en)) : '';
   return {
     order: [...order, ...cands.map((c) => c.id).filter((id) => !order.includes(id))],
     reasons,

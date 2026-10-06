@@ -158,9 +158,6 @@ export const RESULT_DIALOGUE = {
   DRY_ACTION: "새 편지 쓰기",
   FAILED: "서랍이 뻑뻑해서 안 열리네. 이 서랍장도 나만큼 오래돼서 말이야. 한 번 더 당겨 보게.", // 서버 오류
   FAILED_ACTION: "다시 찾기",
-  // 듣기 시작하고 3초 뒤 "서랍에 넣기" 버튼 옆 말풍선(10/4 사용자)
-  KEEP_HINT: "영수증을 뽑을 수 있어요",
-  KEEP_HINT_CLOSE: "화면을 누르면 닫혀요",
   // 서랍에 넣을 때 네임택(읽지 않는 안내, 평범한 말투)
   NAME_HINT: "서랍 이름표. 고쳐 써도 돼요",
   NAME_ACTION: "이름 붙이기",
@@ -169,9 +166,19 @@ export const RESULT_DIALOGUE = {
     kin.length ? `아직 ${name} 님 곡은 서류함에 없어요. 결이 비슷한 ${kin.join("·")} 곡으로 골랐어요. 곧 채워 둘게요.` : `아직 ${name} 님 곡은 서류함에 없어요. 비슷한 결로 골랐어요. 곧 채워 둘게요.`,
   MISSING_SONG: (song: string) => `「${song}」은 아직 서류함에 없어요. 결이 비슷한 곡으로 골랐어요. 곧 채워 둘게요.`,
   FEW_ARTIST: (name: string, kin: string[]) => `${name} 님 곡이 아직 적어서 결이 비슷한 ${kin.join("·")} 곡도 함께 골랐어요.`,
-  // 디스크 조작 안내 — 화면 구석 한 줄. 폰(세로 화면)은 휠·끌어 돌리기 대신 밀어 넘기기
-  HINT: "CLICK TO PLAY · WHEEL TO BROWSE · DRAG TO ROTATE · FLICK UP TO DISCARD",
-  HINT_TOUCH: "TAP TO PLAY · SWIPE · FLICK UP", // 폰 한 줄에 들어가게 짧게(10/6) — 위로 튕기면 버린다
+  /* 처음 결과 화면 투어 — 화면을 뿌옇게 깔고 헷갈릴 만한 곳을 차례로 비춘다(10/6 사용자: 구석 영어 한 줄 대신).
+     target = 비출 DOM(data-tour), area = 3D 자리(디스크 하나·디스크 줄). touch = 터치 화면용 글 */
+  TOUR: [
+    { area: "disc", title: "디스크를 누르면 들려요", body: "가운데 디스크를 누르면 아래 드라이브에 꽂혀 30초 미리듣기가 나와요.", touch: "가운데 디스크를 탭하면 아래 드라이브에 꽂혀 30초 미리듣기가 나와요." },
+    { area: "row", title: "옆 디스크로 넘기기", body: "마우스 휠을 굴리거나 ← → 키로 넘겨요. 디스크를 잡고 끌면 돌려 볼 수도 있어요.", touch: "디스크 위를 옆으로 밀어 넘겨요." },
+    { area: "disc", title: "별로면 위로 던지기", body: "디스크를 잡고 위로 휙 던지면 목록에서 빠져요.", touch: "디스크를 위로 휙 밀어 올리면 목록에서 빠져요." },
+    { target: "playlist", title: "곡 목록", body: "추천 순위대로 놓인 곡이에요. 누르면 바로 재생돼요.", touch: "PLAYLIST 를 누르면 목록이 펼쳐져요. 곡을 누르면 바로 재생돼요." },
+    { target: "store", title: "마음에 들면 서랍에 넣기", body: "이 곡들을 내 서랍에 넣고 영수증 카드로 남겨요. 링크로 공유할 수 있어요." },
+  ],
+  TOUR_NEXT: "다음",
+  TOUR_SKIP: "건너뛰기",
+  TOUR_DONE: "시작하기",
+  TOUR_NEVER: "다시 보지 않기",
 } as const;
 
 export const RESULT_LINES = {

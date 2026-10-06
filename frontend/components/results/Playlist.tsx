@@ -69,7 +69,7 @@ export default function Playlist({
 
   if (portrait)
     return (
-      <aside className="pointer-events-auto absolute inset-x-4 bottom-[15cqh] flex flex-col gap-2 text-[14px] animate-[appear_.3s_both]">
+      <aside data-tour="playlist" className="pointer-events-auto absolute inset-x-4 bottom-[15cqh] flex flex-col gap-2 text-[14px] animate-[appear_.3s_both]">
         <div className="overflow-hidden rounded-[1.1em] border border-white/10 bg-black/80 backdrop-blur-md">
           <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={`flex min-h-11 w-full items-center justify-between px-[1em] ${head}`}>
             {title}
@@ -82,7 +82,7 @@ export default function Playlist({
     );
 
   return (
-    <aside className="pointer-events-auto absolute right-[2.5cqw] top-[14cqh] flex max-h-[80cqh] w-[clamp(240px,25cqw,360px)] flex-col rounded-[1.1em] border border-white/10 bg-black/70 p-[1em] text-[clamp(12px,1.75cqh,15px)] shadow-[0_10px_40px_rgba(0,0,0,.5)] backdrop-blur-md animate-[appear_.3s_both]">
+    <aside data-tour="playlist" className="pointer-events-auto absolute right-[2.5cqw] top-[14cqh] flex max-h-[80cqh] w-[clamp(240px,25cqw,360px)] flex-col rounded-[1.1em] border border-white/10 bg-black/70 p-[1em] text-[clamp(12px,1.75cqh,15px)] shadow-[0_10px_40px_rgba(0,0,0,.5)] backdrop-blur-md animate-[appear_.3s_both]">
       <p className={`mb-[.6em] px-[.1em] ${head}`}>{title}</p>
       <div className="min-h-0 flex-1 overflow-y-auto">{list}</div>
       {playing && <div className="mt-[.9em]">{card}</div>}

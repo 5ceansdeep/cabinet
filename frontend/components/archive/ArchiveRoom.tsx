@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, CaretDown, CaretLeft, CaretRight, CaretUp } from
 // import { useRouter } from "next/navigation"; // 보고서 꺼 둠 — 디스크를 눌러 보고서로 갈 때 쓴다
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { RoundedBox } from "@react-three/drei";
+import { PerspectiveCamera, RoundedBox } from "@react-three/drei";
 import { Vector3, type Group, type PointLight } from "three";
 import { CABINET } from "@/components/landing/dimensions";
 import { labelMaterial, materials } from "@/components/landing/materials";
@@ -15,6 +15,7 @@ import type { Track } from "@/components/results/tracks";
 import { thud } from "@/lib/thud";
 import { keepContext } from "@/lib/gl";
 import { damp, useReducedMotion } from "@/lib/motion";
+import { onSwipe, swiped } from "@/lib/screen";
 import { ARCHIVE_DIALOGUE, PLAYLIST_DIALOGUE } from "@/components/landing/lines";
 import CardReveal from "@/components/share/CardReveal";
 import ListenPanel from "./ListenPanel";
@@ -30,6 +31,15 @@ const OPEN = 0.8; // 서랍이 빠지는 거리 — 안에 꽂힌 디스크가 �
 const PER_PAGE = 3; // 서류함 한 짝에 서랍 3개
 const FRONT = new Vector3(0, 0, 3.2); // 서류함을 정면에서
 const ENTER = 0.5; // 칸을 넘기면 새 서랍이 이만큼(월드) 넘긴 쪽에서 밀려 들어온다 — 아래 서랍일수록 조금 더 멀리서(엇갈림)
+const FOV = 55;
+const FIT = 0.8; // 세로 화면(폰) — 서류함 폭이 화면 폭의 이만큼을 넘지 않게 화각을 넓힌다(화각은 세로 기준이라 좁은 화면은 좌우가 잘린다)
+
+/* 카메라 — 정면 고정. 화각만 화면 비율을 따라간다 */
+function Lens() {
+  const aspect = useThree((s) => s.size.width / s.size.height);
+  const need = (W + 2 * T) / FIT / aspect / (2 * (FRONT.z - D / 2)); // 서랍 앞면 깊이에서 그 폭이 보이려면 — tan(화각/2)
+  return <PerspectiveCamera makeDefault position={FRONT.toArray()} fov={Math.max(FOV, (2 * Math.atan(need) * 180) / Math.PI)} />;
+}
 
 
 /* 정면 조명 — 열린 서랍(z≈2.1) 바로 위에 놓여 안을 하얗게 날린다, 열면 줄인다(10/2). 툭 바뀌지 않고 서랍과 같은 빠르기로 */
@@ -130,7 +140,8 @@ function Spread({ kept, pick, fromY, onPick, onOpenTrack }: { kept: Track[]; pic
   const fov = ((camera as unknown as { fov: number }).fov * Math.PI) / 180;
   const vh = 2 * (FRONT.z - SPREAD_Z) * Math.tan(fov / 2); // 가운데 깊이에서 보이는 높이
   const vw = vh * (px.width / px.height);
-  const disk = Math.min(vh * 0.42, vw * 0.2); // 위 머리말·아래 듣기 버튼 자리를 남긴다
+  // 위 머리말·아래 듣기 버튼 자리를 남긴다. 세로 화면(폰)은 가운데 한 장을 크게, 양옆은 살짝만 걸친다(결과 화면처럼)
+  const disk = vw < vh ? Math.min(vh * 0.3, vw * 0.52) : Math.min(vh * 0.42, vw * 0.2);
   const gap = disk * 1.12;
   // 서랍 안 자리 — 종이 파일 사이에 한 줄 IN_ROW 장, 넘치면 뒤 줄(예전 서랍 속 모습)
   const cols = Math.min(IN_ROW, kept.length);
@@ -307,6 +318,14 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
     addEventListener("wheel", onWheel, { passive: true });
     return () => removeEventListener("wheel", onWheel);
   }, [sheet, sharing, open, pages]);
+  // 폰 — 연 서랍은 옆으로 밀어 디스크를, 닫힌 서류함은 위아래로 밀어 칸을 넘긴다(위로 밀면 지난 서랍 — 휠을 아래로 굴린 것과 같다)
+  useEffect(() => {
+    if (sheet || sharing) return;
+    return onSwipe((dx, dy) => {
+      if (open !== null) return void (swiped(dx, dy) && browseRef.current(dx < 0 ? 1 : -1));
+      if (swiped(dy, dx)) turnRef.current(dy < 0 ? 1 : -1);
+    });
+  }, [sheet, sharing, open]);
   const pitch = H + GAP;
   const drawerY = (i: number) => ((shown.length - 1) / 2 - i) * pitch; // 보이는 서랍들의 가운데가 화면 가운데
 
@@ -315,11 +334,11 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
       <div className="fixed inset-0">
         <Canvas
           frameloop="demand"
-          camera={{ position: FRONT.toArray(), fov: 55 }}
           dpr={[1, 1.5]}
           onCreated={keepContext}
           onPointerMissed={() => !sheet && !sharing && open !== null && openDrawer(null)} // 빈 곳을 누르면 서랍을 닫는다
         >
+          <Lens />
           <color attach="background" args={["#000000"]} />
           <fog attach="fog" args={["#000000", 7, 14]} />
           <ambientLight intensity={0.12} />
@@ -367,19 +386,20 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(#000_3%,rgba(0,0,0,.7)_16%,transparent_36%,transparent_64%,rgba(0,0,0,.75)_84%,#000_97%)]" />
       </div>
 
-      <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65">
+      <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65 portrait:px-4 portrait:pt-[max(1rem,env(safe-area-inset-top))]">
         <h1 className="font-[inherit] font-normal">
           MY CABINET
           <span className="block normal-case tracking-normal text-foreground/65">건져 올린 것들</span>
         </h1>
         <span className="flex items-center gap-4">
           {open !== null && (
-            <button type="button" onClick={() => setOpen(null)} className="btn pointer-events-auto">
+            // 세로 화면(폰)은 한 줄에 다 안 들어간다 — 머리말 아래 줄 왼쪽으로
+            <button type="button" onClick={() => setOpen(null)} className="btn pointer-events-auto portrait:absolute portrait:top-full portrait:left-4 portrait:mt-3">
               <ArrowLeft aria-hidden size={14} weight="bold" />
               {ARCHIVE_DIALOGUE.CLOSE}
             </button>
           )}
-          <Link href="/search" className="pointer-events-auto text-accent/85 hover:text-accent">
+          <Link href="/search" className="pointer-events-auto text-accent/85 hover:text-accent pointer-coarse:-my-2 pointer-coarse:py-2">
             NEW REQUEST
           </Link>
         </span>
@@ -438,8 +458,15 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
         />
       )}
 
-      <footer className="relative px-6 pb-8 text-center font-mono text-xs tracking-[.15em] text-foreground/60">
-        {openShelf ? `${openShelf.tag} · ${pick + 1}/${openShelf.kept.length}${kept[pick] ? ` · ${kept[pick].title}` : ""}` : shown.length ? "CLICK A DRAWER TO OPEN" : null}
+      <footer className="relative px-6 pb-[max(2rem,env(safe-area-inset-bottom))] text-center font-mono text-xs tracking-[.15em] text-foreground/60">
+        {openShelf ? (
+          `${openShelf.tag} · ${pick + 1}/${openShelf.kept.length}${kept[pick] ? ` · ${kept[pick].title}` : ""}`
+        ) : shown.length ? (
+          <>
+            <span className="pointer-coarse:hidden">{ARCHIVE_DIALOGUE.HINT}</span>
+            <span className="hidden pointer-coarse:inline">{ARCHIVE_DIALOGUE.HINT_TOUCH}</span>
+          </>
+        ) : null}
       </footer>
     </main>
   );

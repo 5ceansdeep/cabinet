@@ -119,8 +119,9 @@ export const LINES = {
   },
   stale: { text: D.COOLDOWN, voiceKey: "COOLDOWN" },
   capsLock: { text: D.CAPS_LOCK, voiceKey: "CAPS_LOCK" },
-  escHint: "ESC: 앞 서류로", // 조작 안내라 페르소나 밖, 읽지 않음
-  soundHint: "화면 아무 곳이나 클릭하면 음성이 나옵니다.", // 브라우저가 소리를 막고 있을 때 — 조작 안내라 페르소나 밖, 읽지 않음
+  escKey: "ESC:", // 키보드가 있는 화면에서만 앞에 붙는다
+  escHint: "앞 서류로", // 조작 안내라 페르소나 밖, 읽지 않음. 누르는 버튼이기도 하다(폰엔 ESC 가 없다)
+  soundHint: "화면 아무 곳이나 누르면 음성이 나옵니다.", // 브라우저가 소리를 막고 있을 때 — 조작 안내라 페르소나 밖, 읽지 않음
   checking: { text: D.SUBMITTING, voiceKey: "SUBMITTING" },
   wrong: { text: D.PASSWORD_LOGIN.incorrect, voiceKey: "PASSWORD_LOGIN.incorrect" },
   noAccount: { text: D.NO_ACCOUNT, voiceKey: "NO_ACCOUNT", link: { href: "/", label: D.NO_ACCOUNT_ACTION } }, // 이메일 확인과 로그인 사이에 계정이 지워졌을 때뿐 — 처음부터 다시
@@ -166,6 +167,9 @@ export const RESULT_DIALOGUE = {
     kin.length ? `아직 ${name} 님 곡은 서류함에 없어요. 결이 비슷한 ${kin.join("·")} 곡으로 골랐어요. 곧 채워 둘게요.` : `아직 ${name} 님 곡은 서류함에 없어요. 비슷한 결로 골랐어요. 곧 채워 둘게요.`,
   MISSING_SONG: (song: string) => `「${song}」은 아직 서류함에 없어요. 결이 비슷한 곡으로 골랐어요. 곧 채워 둘게요.`,
   FEW_ARTIST: (name: string, kin: string[]) => `${name} 님 곡이 아직 적어서 결이 비슷한 ${kin.join("·")} 곡도 함께 골랐어요.`,
+  // 디스크 조작 안내 — 화면 구석 한 줄. 폰(세로 화면)은 휠·끌어 돌리기 대신 밀어 넘기기
+  HINT: "CLICK TO PLAY · WHEEL TO BROWSE · DRAG TO ROTATE · FLICK UP TO DISCARD",
+  HINT_TOUCH: "TAP TO PLAY · SWIPE TO BROWSE · FLICK UP TO DISCARD",
 } as const;
 
 export const RESULT_LINES = {
@@ -180,6 +184,8 @@ export const ARCHIVE_DIALOGUE = {
   EMPTY: "아직 저장한 서랍이 없어요. 편지를 써서 곡을 받아 보세요.",
   WRITE: "편지 쓰기",
   CLOSE: "서랍 닫기", // 연 서랍에서 서류함으로 돌아가기(ESC·빈 곳 클릭도 같다)
+  HINT: "CLICK A DRAWER TO OPEN", // 화면 아래 한 줄 — 터치 화면은 TAP
+  HINT_TOUCH: "TAP A DRAWER TO OPEN",
 };
 
 /* ─ 5번 보관함: 서랍을 유튜브에서 이어 듣기 (읽지 않는 짧은 안내) ─ */

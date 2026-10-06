@@ -55,7 +55,8 @@ export function promptFor(query: string, want: string, cands: Cand[]) {
     '  "의심돼" → "의심은 대개 맞지. 그래서 다들 모르는 척하는 거고."',
     '  (밈을 아는 척 — 가끔만) "비 와서 약속 취소됐어" → "이럴 때 요즘은 \'오히려 좋아\' 라고 한다더군. 뭐가 좋은지는 아직 못 들었네."',
     '영어 대사(line_en)는 같은 뜻을 여유롭고 위트 있는 구어체로 (casual, confident, warm, dry wit).',
-    '영어 대사에는 목소리 연기 지문을 0~2개 넣어도 된다 — 대괄호 영어, 그 말 바로 앞에: [chuckles] [sighs] [laughs softly] [whispers] [clears throat] [dryly] 같은 것. 꼭 필요할 때만, 한국어 대사(line_ko)에는 넣지 않는다.',
+    // 10/6 사용자: 대사마다 [dryly] 가 붙었고, 목소리를 랜딩과 같은 Multilingual v2 로 되돌렸다(v2 는 지문을 소리 내 읽는다) — 지문 없이
+    '영어 대사에는 대괄호 지문([chuckles] 같은 것)을 넣지 않는다. 말투는 문장으로 드러낸다.',
     '',
     `사용자: ${query}`,
     `요청을 풀어 쓴 것:\n${want}`,
@@ -64,6 +65,9 @@ export function promptFor(query: string, want: string, cands: Cand[]) {
     ...cands.map((c, i) => `${i + 1}. ${c.artist} - ${c.title}\n${c.description ?? '(설명 없음)'}`),
   ].join('\n');
 }
+
+/** 영어 대사에서 대괄호 지문([dryly] [chuckles] 등)을 뗀다 — v2 목소리는 지문을 소리 내 읽는다. 저장된 옛 대사(v3 때)에도 쓴다 */
+export const plainLine = (en: string) => en.replace(/\[[^\]]*\]\s*/g, '').replace(/\s{2,}/g, ' ').trim();
 
 type Raw = { order?: unknown; reasons?: { n?: unknown; why?: unknown }[]; line_ko?: unknown; line_en?: unknown };
 
@@ -77,7 +81,7 @@ export function parse(raw: Raw, cands: Cand[]): Reranked {
     if (id && typeof r.why === 'string' && r.why.trim()) reasons[id] = r.why.trim();
   }
   const ko = typeof raw.line_ko === 'string' ? raw.line_ko.trim() : '';
-  const en = typeof raw.line_en === 'string' ? raw.line_en.trim() : '';
+  const en = typeof raw.line_en === 'string' ? plainLine(raw.line_en) : '';
   return {
     order: [...order, ...cands.map((c) => c.id).filter((id) => !order.includes(id))],
     reasons,

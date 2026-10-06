@@ -8,7 +8,7 @@ import { similarArtists, similarTracks } from '../catalog/lastfm.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VoiceModule, VoiceService } from '../voice/voice.js';
 import { type Asked, Interpreter, normalize } from './interpret.js';
-import { Reranker } from './rerank.js';
+import { plainLine, Reranker } from './rerank.js';
 import { BONUS, type Candidate, display, lexical, rank, throwPenalties } from './score.js';
 
 class ThrowDto {
@@ -189,7 +189,7 @@ export class RecommendService {
       void this.prisma.letterLine
         .upsert({ where: { query: letter }, create: { query: letter, ...rr.line }, update: {} })
         .catch((e) => this.log.warn(`편지 대사 저장 실패: ${e}`));
-    const line = spoken ? { ...spoken, voice: this.voice.register(spoken.en) } : null; // 영어 음성 id — ElevenLabs 를 꺼 두면 null
+    const line = spoken ? { ...spoken, en: plainLine(spoken.en), voice: this.voice.register(plainLine(spoken.en)) } : null; // 영어 음성 id — ElevenLabs 를 꺼 두면 null
 
     // 처음 뒤질 때만 남긴다("다시 찾기"·"몇 곡 더"는 같은 요청) — 실패해도 결과는 준다. 편지 글·나온 곡·신의 한마디도(10/2) — Railway 로그에도 한 줄
     if (!seen.length && !thrown.length && query.trim()) {
@@ -299,7 +299,7 @@ export class RecommendService {
     if (!cands.length) return { line: null, reasons: {} };
     const { reasons, line } = await this.reranker.rerank(query, readings(asked), cands);
     // 영어 음성 id — ELEVENLABS_ENABLED 가 꺼져 있으면 null(프론트는 기계 음성)
-    return { line: line && { ...line, voice: this.voice.register(line.en) }, reasons };
+    return { line: line && { ...line, en: plainLine(line.en), voice: this.voice.register(plainLine(line.en)) }, reasons };
   }
 
   /** 곡 하나를 요청문에 대 본다 — 보고서. 일치도는 곡 풀 전체 안에서 늘린 값이라 전체 순위를 낸다 */

@@ -248,31 +248,32 @@ export default function Results({ query }: { query: string }) {
           <header
             className={`pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65 portrait:flex-col-reverse portrait:gap-2 portrait:px-4 portrait:pt-[max(.75rem,env(safe-area-inset-top))] portrait:tracking-[.06em] ${keepHint ? "z-50" : ""}`}
           >
-            <div className={`max-w-xl space-y-1 transition-opacity portrait:max-w-full ${keepHint ? "opacity-0" : ""}`}>
-              <p className="portrait:line-clamp-2">
-                QUERY <span className="ml-2 normal-case tracking-normal text-foreground/85">{query || "(empty)"}</span>
-              </p>
+            {/* 라벨 | 값 두 칸 — 라벨 폭이 달라도 값이 한 줄로 선다. 한글에는 자간을 주지 않는다 */}
+            <div className={`grid max-w-xl grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1.5 transition-opacity portrait:max-w-full ${keepHint ? "opacity-0" : ""}`}>
+              <span className="text-foreground/45">QUERY</span>
+              <span className="font-sans text-sm tracking-normal text-foreground/90 portrait:line-clamp-2">{query || "(empty)"}</span>
               {interpretation.length > 0 && (
-                <p>
-                  요청 해석 <span className="ml-2 normal-case tracking-normal text-accent/85">{interpretation.slice(0, 5).join(" · ")}</span>
-                </p>
+                <>
+                  <span className="text-foreground/45">READ AS</span>
+                  <span className="font-sans text-sm tracking-normal text-accent/85">{interpretation.slice(0, 5).join(" · ")}</span>
+                </>
               )}
               {(missingArtist || (kinFor && kinArtists.length > 0)) && (
-                <p className="normal-case tracking-normal text-subtitle">
+                <p className="col-span-2 font-sans tracking-normal text-subtitle">
                   {missingArtist ? RESULT_DIALOGUE.MISSING_ARTIST(missingArtist, kinArtists) : RESULT_DIALOGUE.FEW_ARTIST(kinFor!, kinArtists)}
                 </p>
               )}
-              {missingSong && <p className="normal-case tracking-normal text-subtitle">{RESULT_DIALOGUE.MISSING_SONG(missingSong)}</p>}
+              {missingSong && <p className="col-span-2 font-sans tracking-normal text-subtitle">{RESULT_DIALOGUE.MISSING_SONG(missingSong)}</p>}
               {/* 조작 안내 — 세로 화면은 아래가 드라이브·자막 자리라 여기에 */}
-              {phase === "discs" && kept.length > 0 && <p className="hidden text-foreground/60 portrait:block">{hint}</p>}
+              {phase === "discs" && kept.length > 0 && <p className="col-span-2 hidden text-foreground/60 portrait:block">{hint}</p>}
             </div>
-            <span className="flex shrink-0 gap-4 portrait:w-full portrait:flex-row-reverse portrait:justify-between">
+            <span className="flex shrink-0 items-center gap-6 portrait:w-full portrait:flex-row-reverse portrait:justify-between">
               {phase === "discs" && kept.length > 0 && (
                 <span className="relative">
                   <button
                     type="button"
                     onClick={store}
-                    className={`${action} ${keepHint ? "text-accent [text-shadow:0_0_12px_rgba(0,229,255,.8)]" : "text-accent/85 hover:text-accent"}`}
+                    className={`${action} rounded-ui border border-accent/40 px-3 py-1 font-sans text-sm tracking-normal ${keepHint ? "border-accent text-accent [text-shadow:0_0_12px_rgba(0,229,255,.8)]" : "text-accent/85 hover:text-accent"}`}
                   >
                     서랍에 넣기
                   </button>

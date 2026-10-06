@@ -31,6 +31,15 @@ export class TrackDto {
   @ApiProperty({ nullable: true, description: '유튜브 영상 ID — 재생목록에 담을 때 쓴다' }) videoId!: string | null;
 }
 
+export class DescribeDto {
+  @ApiProperty({ required: false, maximum: 500, description: '이번에 설명을 붙일 곡 수 — 비우면 설명 없는 곡 전부. 곡당 Gemini 2번(돈이 든다)이라 나눠 돌릴 때 쓴다' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  limit?: number;
+}
+
 export class GrowDto {
   @ApiProperty({ required: false, default: 30, maximum: 500, description: '새로 담을 곡 수 — iTunes 제한 때문에 곡당 3초쯤 걸린다(500곡 ≈ 25분)' })
   @IsOptional()

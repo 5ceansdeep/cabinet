@@ -98,7 +98,10 @@ export function promptFor(t: Row, lyrics: Lyrics) {
 /** 임베딩할 글이자 DB·화면에 남길 설명 */
 export const describeText = (p: Parts) => `감정: ${p.emotion}\n상황: ${p.situation}\n가사: ${p.lyrics}\n소리: ${p.sound}`;
 
-export type DescribeStatus = { running: boolean; done: number; noLyrics: number; failed: number; left: number };
+export type DescribeStatus = { running: boolean; done: number; noLyrics: number; failed: number; left: number; stopped?: string }; // stopped = 도중에 멈춘 까닭
+
+/** 선불 크레딧이 바닥났나(402) — 다시 불러도 같고, 추천도 같은 크레딧을 쓴다 */
+export const outOfCredit = (e: unknown) => / 402 /.test(String(e)); // Gemini.call 의 오류 글은 "모델 상태코드 본문"
 
 @Injectable()
 export class DescribeService implements OnModuleInit, OnModuleDestroy {
@@ -116,21 +119,23 @@ export class DescribeService implements OnModuleInit, OnModuleDestroy {
     return this.status;
   }
 
-  /** 설명이 없는 곡을 전부 — 뒤에서 돌고 바로 상태를 돌려준다 */
-  start() {
+  /** 설명이 없는 곡을 limit 곡까지(안 주면 전부) — 뒤에서 돌고 바로 상태를 돌려준다.
+      10/6: 한 번에 전부 돌리다 선불 크레딧이 바닥나 추천까지 멈췄다 — 나눠 돌릴 수 있게 */
+  start(limit?: number) {
     if (this.status.running) return this.status;
     this.status = { running: true, done: 0, noLyrics: 0, failed: 0, left: 0 };
-    void this.run()
+    void this.run(limit)
       .catch((e) => this.log.warn(`곡 설명 실패: ${e}`))
       .finally(() => (this.status.running = false));
     return this.status;
   }
 
-  private async run() {
+  private async run(limit?: number) {
     const rows = await this.prisma.track.findMany({
       where: { describedAt: null },
       select: { id: true, title: true, artist: true, tags: true, energy: true, valence: true, acousticness: true, danceability: true, tempo: true },
       orderBy: { shelves: { _count: 'desc' } },
+      take: limit,
     });
     this.status.left = rows.length;
     let streak = 0; // 연달아 실패한 수
@@ -150,6 +155,10 @@ export class DescribeService implements OnModuleInit, OnModuleDestroy {
       } catch (e) {
         this.status.failed++; // 다음 배치가 다시 한다 — describedAt 을 안 찍었으니
         this.log.warn(`${t.artist} - ${t.title}: ${e}`);
+        if (outOfCredit(e)) {
+          this.status.stopped = 'Gemini 선불 크레딧 없음 — 충전 뒤 다시';
+          break; // 세 번 채울 것 없이 바로 — 남은 곡도 전부 같은 답이다
+        }
         if (++streak >= 3) break; // 연달아 실패면 한도·키 문제 — 오늘은 그만
       }
       this.status.left--;

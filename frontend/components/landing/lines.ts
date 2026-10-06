@@ -184,6 +184,8 @@ export const ARCHIVE_DIALOGUE = {
   EMPTY: "아직 저장한 서랍이 없어요. 편지를 써서 곡을 받아 보세요.",
   WRITE: "편지 쓰기",
   CLOSE: "서랍 닫기", // 연 서랍에서 서류함으로 돌아가기(ESC·빈 곳 클릭도 같다)
+  HINT: "CLICK A DRAWER TO OPEN", // 화면 아래 한 줄 — 터치 화면은 TAP
+  HINT_TOUCH: "TAP A DRAWER TO OPEN",
 };
 
 /* ─ 5번 보관함: 서랍을 유튜브에서 이어 듣기 (읽지 않는 짧은 안내) ─ */

@@ -71,9 +71,21 @@ export default function Playlist({
     return (
       <aside data-tour="playlist" className="pointer-events-auto absolute inset-x-4 bottom-[15cqh] flex flex-col gap-2 text-[14px] animate-[appear_.3s_both]">
         <div className="overflow-hidden rounded-[1.1em] border border-white/10 bg-black/80 backdrop-blur-md">
-          <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={`flex min-h-11 w-full items-center justify-between px-[1em] ${head}`}>
-            {title}
-            <CaretUp aria-hidden weight="bold" className={`size-4 text-foreground/60 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+          {/* 접힌 줄 — 겹친 표지 석 장 + 곡 수·첫 곡들(10/6 사용자: 글자만 있는 상자가 밋밋하다) */}
+          <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex min-h-14 w-full items-center gap-3 py-2 pr-3 pl-2.5 text-left">
+            <span className="flex shrink-0">
+              {tracks.slice(0, 3).map((t, n) => (
+                <span key={t.id} className={`size-9 overflow-hidden rounded-md bg-white/5 ring-2 ring-black ${n ? "-ml-4" : ""}`} style={{ zIndex: 3 - n }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- iTunes 표지 */}
+                  {t.artwork && <img src={t.artwork} alt="" className="size-full object-cover" />}
+                </span>
+              ))}
+            </span>
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className={`block ${head}`}>{title}</span>
+              <span className="mt-0.5 block truncate text-[13px] text-foreground/60">{tracks.slice(0, 3).map((t) => t.title).join(" · ")}</span>
+            </span>
+            <CaretUp aria-hidden weight="bold" className={`size-4 shrink-0 text-foreground/60 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
           </button>
           {open && list}
         </div>

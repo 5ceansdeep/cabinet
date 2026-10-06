@@ -80,8 +80,9 @@ canvas {
   position: fixed;
   inset: 0;
   margin: auto;
+  /* 세로 화면은 높이를 주지 않고 inset 0 으로 화면에 맞춘다 — 100dvh 를 주면 아이폰 사파리에서 그 값이 보이는 영역보다 클 때가 있어
+     margin:auto 가 넘친 만큼 위로 반 올려 머리글이 잘렸다(10/6) */
   width: 100vw;
-  height: 100dvh;
   overflow: hidden;
   container-type: size;
   transform: translateZ(0);

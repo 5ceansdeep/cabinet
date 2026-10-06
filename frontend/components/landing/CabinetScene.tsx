@@ -381,8 +381,8 @@ export default function CabinetScene({
             aria-label={field.label}
             placeholder={field.label.toLowerCase()}
             className={inputCls}
-            // 세로 화면은 파일이 작게 뜬다 — 글자가 16px 아래면 아이폰이 입력칸으로 화면을 확대해 버린다
-            style={{ width: `${cardVh(fov) * 0.62}cqh`, fontSize: `max(${fov > FOV ? 16 : 0}px, ${cardVh(fov) * 0.038}cqh)` }}
+            // 폰은 파일이 작게 뜬다(세워도 눕혀도) — 글자가 16px 아래면 아이폰이 입력칸으로 화면을 확대해 버린다
+            style={{ width: `${cardVh(fov) * 0.62}cqh`, fontSize: `max(16px, ${cardVh(fov) * 0.038}cqh)` }}
           />
           {step > 0 && (
             <button type="button" onClick={back} className="absolute inset-x-0 top-full mt-1 py-2 text-center font-mono text-xs tracking-[.15em] text-black/60">

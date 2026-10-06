@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Eject, Pause, Play } from "@phosphor-icons/react";
+import { Eject, Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
 import { logEvent } from "@/lib/api";
 import type { Track } from "./tracks";
 
@@ -13,17 +13,21 @@ const time = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).
 
 
 /* from = 어떤 편지로 꺼낸 곡인가(요청문, 공개 서랍이면 서랍 id) — 재생 기록에 같이 남긴다 */
-/* compact = 폰의 미니 플레이어 — 한 줄(재생·곡·꺼내기), 진행선은 줄 위 테두리에 얇게. 부모 줄이 relative 여야 한다 */
+/* card = 결과 화면의 카드 모양(아래), onPrev·onNext = 이전·다음 곡(없으면 버튼이 흐려진다) */
 export default function PlayerBar({
   track,
   onEject,
   from,
-  compact,
+  card,
+  onPrev,
+  onNext,
 }: {
   track: Track | null;
   onEject: () => void;
   from?: { query?: string; shelfId?: string };
-  compact?: boolean;
+  card?: boolean;
+  onPrev?: () => void;
+  onNext?: () => void;
 }) {
   const audio = useRef<HTMLAudioElement>(null);
   const [paused, setPaused] = useState(true);
@@ -76,34 +80,82 @@ export default function PlayerBar({
     />
   );
 
-  if (compact)
+  /* 결과 화면 카드 — 둥근 앨범(재생 중이면 디스크처럼 천천히 돈다, 가운데 구멍) + 곡·가수·꺼내기, 진행선, 이전·재생·다음.
+     10/6 사용자 레퍼런스(둥근 표지가 붙은 미니 플레이어)를 검은 방에 맞게 — 어두운 유리 카드, 시안 진행선 */
+  if (card)
     return (
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <>
         {player}
         {track && (
-          <>
-            <div aria-hidden className="absolute inset-x-0 top-0 h-[2px] bg-accent/10">
-              <div className="h-full origin-left bg-accent" style={{ transform: `scaleX(${at / length})` }} />
+          <div className="flex items-center gap-[1em] rounded-[1.1em] border border-white/10 bg-white/[.06] p-[.75em] pr-[.9em] shadow-[0_12px_32px_rgba(0,0,0,.45)]">
+            <div className="relative size-[5.2em] shrink-0">
+              <div
+                className="size-full overflow-hidden rounded-full bg-gradient-to-br from-slate-600 to-slate-900 shadow-[0_6px_18px_rgba(0,0,0,.6)] ring-1 ring-white/15 animate-[spin_9s_linear_infinite] motion-reduce:animate-none"
+                style={{ animationPlayState: paused ? "paused" : "running" }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- iTunes 표지 */}
+                {track.artwork && <img src={track.artwork} alt="" className="size-full object-cover" />}
+              </div>
+              <span aria-hidden className="absolute top-1/2 left-1/2 size-[.8em] -translate-x-1/2 -translate-y-1/2 rounded-full bg-neutral-100 ring-[.25em] ring-black/60" />
             </div>
-            <button
-              type="button"
-              onClick={toggle}
-              disabled={!track.previewUrl}
-              aria-label={paused ? "재생" : "멈춤"}
-              className="grid size-10 shrink-0 place-items-center rounded-full bg-accent text-background disabled:opacity-30"
-            >
-              {paused ? <Play aria-hidden weight="fill" className="ml-0.5 size-4" /> : <Pause aria-hidden weight="fill" className="size-4" />}
-            </button>
-            <div className="min-w-0 flex-1 leading-tight">
-              <p className="truncate text-[14px] text-foreground">{track.title}</p>
-              <p className="truncate text-[12px] text-foreground/50">{track.previewUrl ? track.artist : `${track.artist} · 미리듣기 없음`}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start gap-[.4em]">
+                <div className="min-w-0 flex-1 leading-tight">
+                  <p className="truncate text-foreground">{track.title}</p>
+                  <p className="mt-[.15em] truncate text-[.82em] text-foreground/50">{track.artist}</p>
+                </div>
+                <button type="button" onClick={onEject} aria-label="꺼내기" className="-mt-[.3em] -mr-[.3em] grid size-[2em] shrink-0 place-items-center rounded-full text-foreground/45 transition-colors hover:text-foreground pointer-coarse:size-10">
+                  <Eject aria-hidden weight="fill" className="size-[1em]" />
+                </button>
+              </div>
+              {track.previewUrl ? (
+                <div
+                  role="slider"
+                  aria-label="재생 위치"
+                  aria-valuemin={0}
+                  aria-valuemax={Math.round(length)}
+                  aria-valuenow={Math.round(at)}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (!audio.current) return;
+                    if (e.key === "ArrowRight") audio.current.currentTime = Math.min(length, at + 5);
+                    if (e.key === "ArrowLeft") audio.current.currentTime = Math.max(0, at - 5);
+                  }}
+                  onPointerDown={(e) => {
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                    seek(e);
+                  }}
+                  onPointerMove={(e) => e.currentTarget.hasPointerCapture(e.pointerId) && seek(e)}
+                  className="relative mt-[.55em] h-[1em] cursor-pointer touch-none"
+                >
+                  <div className="absolute inset-x-0 top-1/2 h-[4px] -translate-y-1/2 overflow-hidden rounded-full bg-white/12">
+                    <div className="h-full origin-left rounded-full bg-accent" style={{ transform: `scaleX(${at / length})` }} />
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-[.55em] text-[.75em] text-foreground/45">미리듣기 없음</p>
+              )}
+              <div className="mt-[.2em] flex items-center justify-between">
+                <button type="button" onClick={onPrev} disabled={!onPrev} aria-label="이전 곡" className="grid size-[2.2em] place-items-center text-foreground/80 transition hover:text-foreground disabled:opacity-25 pointer-coarse:size-10">
+                  <SkipBack aria-hidden weight="fill" className="size-[1.1em]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={toggle}
+                  disabled={!track.previewUrl}
+                  aria-label={paused ? "재생" : "멈춤"}
+                  className="grid size-[2.5em] place-items-center rounded-full bg-accent text-background transition hover:brightness-110 disabled:opacity-30 pointer-coarse:size-11"
+                >
+                  {paused ? <Play aria-hidden weight="fill" className="ml-[.1em] size-[1.1em]" /> : <Pause aria-hidden weight="fill" className="size-[1.1em]" />}
+                </button>
+                <button type="button" onClick={onNext} disabled={!onNext} aria-label="다음 곡" className="grid size-[2.2em] place-items-center text-foreground/80 transition hover:text-foreground disabled:opacity-25 pointer-coarse:size-10">
+                  <SkipForward aria-hidden weight="fill" className="size-[1.1em]" />
+                </button>
+              </div>
             </div>
-            <button type="button" onClick={onEject} aria-label="꺼내기" className="grid size-11 shrink-0 place-items-center text-foreground/60">
-              <Eject aria-hidden weight="fill" className="size-[18px]" />
-            </button>
-          </>
+          </div>
         )}
-      </div>
+      </>
     );
 
   return (

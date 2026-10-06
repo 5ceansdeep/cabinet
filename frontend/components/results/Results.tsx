@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { saveShelf, suggestTag, TAG_MAX } from "@/components/archive/shelf";
 import { RESULT_DIALOGUE, RESULT_LINES, type Line } from "@/components/landing/lines";
 import Subtitle, { LINE_PACE, subtitleDelays, subtitleLines } from "@/components/landing/Subtitle";
+import { onSwipe, swiped } from "@/lib/screen";
 import { thud } from "@/lib/thud";
 import { speak } from "@/lib/voice";
 import CabinetWall from "./CabinetWall";
@@ -36,7 +37,13 @@ function useSaying(line: Line | null) {
 const choice = "btn pointer-events-auto bg-background/85";
 // 위 글자 버튼(서랍에 넣기·MY CABINET·NEW REQUEST) — 터치는 손가락이 닿게 위아래를 넓힌다
 const action = "pointer-events-auto pointer-coarse:-my-2 pointer-coarse:py-2";
-const SWIPE_PX = 40; // 이만큼 옆으로 밀면 한 칸 넘긴다(폰)
+// 조작 안내 — 마우스면 클릭·휠, 터치면 탭·밀기
+const hint = (
+  <>
+    <span className="pointer-coarse:hidden">{RESULT_DIALOGUE.HINT}</span>
+    <span className="hidden pointer-coarse:inline">{RESULT_DIALOGUE.HINT_TOUCH}</span>
+  </>
+);
 
 /* 4·4-1번 페이지 — 서랍 속에서 건져 올린 플로피 디스크들. 디스크도 서류함도 전부 3D 이고,
    그 위에 얹힌 DOM 은 제목·재생바 같은 글자뿐이다 */
@@ -155,30 +162,10 @@ export default function Results({ query }: { query: string }) {
     return () => removeEventListener("wheel", onWheel);
   }, [phase, move]);
 
-  /* 폰은 휠도 화살표도 없다 — 3D 위를 옆으로 밀어 넘긴다. 위로 던지기(디스크 버리기)와 안 겹치게 가로가 뚜렷할 때만.
-     마우스로 끄는 건 디스크 돌리기라 손가락·펜만 듣는다 */
+  // 폰은 휠도 화살표도 없다 — 3D 위를 옆으로 밀어 넘긴다(가로가 뚜렷할 때만 — 위로 던지기와 안 겹치게)
   useEffect(() => {
     if (phase !== "discs") return;
-    let from: { x: number; y: number } | null = null;
-    const down = (e: PointerEvent) => {
-      from = e.pointerType !== "mouse" && (e.target as HTMLElement).tagName === "CANVAS" ? { x: e.clientX, y: e.clientY } : null;
-    };
-    const up = (e: PointerEvent) => {
-      if (!from) return;
-      const dx = e.clientX - from.x;
-      const dy = e.clientY - from.y;
-      from = null;
-      if (Math.abs(dx) > SWIPE_PX && Math.abs(dx) > 1.5 * Math.abs(dy)) move(dx < 0 ? 1 : -1);
-    };
-    const cancel = () => (from = null);
-    addEventListener("pointerdown", down);
-    addEventListener("pointerup", up);
-    addEventListener("pointercancel", cancel);
-    return () => {
-      removeEventListener("pointerdown", down);
-      removeEventListener("pointerup", up);
-      removeEventListener("pointercancel", cancel);
-    };
+    return onSwipe((dx, dy) => swiped(dx, dy) && move(dx < 0 ? 1 : -1));
   }, [phase, move]);
 
   /* 서랍에 넣기 — 디스크가 아래 서랍으로 빨려 들고, 다 삼키면 "탁" 닫히며 네임택을 내민다 */
@@ -260,7 +247,7 @@ export default function Results({ query }: { query: string }) {
               )}
               {missingSong && <p className="normal-case tracking-normal text-subtitle">{RESULT_DIALOGUE.MISSING_SONG(missingSong)}</p>}
               {/* 조작 안내 — 세로 화면은 아래가 드라이브·자막 자리라 여기에 */}
-              {phase === "discs" && kept.length > 0 && <p className="hidden text-foreground/60 portrait:block">{RESULT_DIALOGUE.HINT_TOUCH}</p>}
+              {phase === "discs" && kept.length > 0 && <p className="hidden text-foreground/60 portrait:block">{hint}</p>}
             </div>
             <span className="flex shrink-0 gap-4 portrait:w-full portrait:flex-row-reverse portrait:justify-between">
               {phase === "discs" && kept.length > 0 && (
@@ -355,7 +342,7 @@ export default function Results({ query }: { query: string }) {
 
           {/* 아래 가운데는 드라이브 자리 — 안내는 왼쪽 아래로 */}
           <footer className="pointer-events-none absolute bottom-[3cqh] left-6 font-mono text-xs tracking-[.15em] text-foreground/60 portrait:hidden">
-            {RESULT_DIALOGUE.HINT}
+            {hint}
           </footer>
         </>
       {saved && (

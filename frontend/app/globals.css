@@ -55,6 +55,15 @@ body {
   background: #000; /* 영화 프레임 바깥 — 레터박스 */
   color: var(--foreground);
   font-family: var(--font-inter), "Pretendard", system-ui, sans-serif;
+  overscroll-behavior: none; /* 폰 — 끝에서 당겨도 새로고침·고무줄이 안 걸리게(화면은 스크롤하지 않는다) */
+  -webkit-tap-highlight-color: transparent;
+}
+/* 폰 — 3D 를 끌거나 꾹 눌러도 스크롤·확대·길게 눌러 뜨는 메뉴·글자 선택이 끼어들지 않게 (디스크 돌리기·던지기·꾹 누르기) */
+canvas {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* 영화 비율 프레임 — 모든 화면이 2.39:1 스크린 안에서 돌아간다. 남는 위아래(또는 좌우)는 검은 띠.
@@ -95,7 +104,7 @@ body {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 0 24px clamp(12px, 2.8dvh, 44px);
+  padding: 0 24px calc(clamp(12px, 2.8dvh, 44px) + env(safe-area-inset-bottom)); /* 아이폰 홈 막대 위로 */
   pointer-events: none;
   z-index: 60;
 }

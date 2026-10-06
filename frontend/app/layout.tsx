@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fragment_Mono, Inter, Nanum_Myeongjo } from "next/font/google";
 import localFont from "next/font/local";
 import Script from "next/script";
@@ -34,6 +34,14 @@ const chosunGulim = localFont({
 export const metadata: Metadata = {
   title: "cabinet",
   description: "상황과 감정을 적으면 서류함에서 음악을 건져 올려 주는 아카이브",
+};
+
+/* 폰 — 노치·홈 막대 자리까지 화면을 쓰고(자막은 CSS env() 로 안전 영역을 피한다), 키보드가 올라오면 화면이 그만큼 줄어든다(안드로이드 크롬.
+   아이폰은 이 값을 모른다 — 입력칸을 화면 위쪽에 둬서 키보드에 안 가리게 한다) */
+export const viewport: Viewport = {
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
+  themeColor: "#000000",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

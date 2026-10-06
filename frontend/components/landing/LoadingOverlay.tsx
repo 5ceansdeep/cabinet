@@ -1,4 +1,4 @@
-import { CABINET_TOP } from "./dimensions";
+import { cabinetTop } from "./dimensions";
 
 /* 흰 핵 + 불규칙한 빛살(주기가 다른 원뿔 그라디언트 두 겹) — 가장자리는 마스크로 흩어진다 */
 const BURST = [
@@ -10,7 +10,8 @@ const FADE = "radial-gradient(circle, #000 14%, transparent 58%)";
 
 /* 2번 로딩 — 서류함 뒤에서 흰 빛살이 터지듯 비치고, 점점 밝아지다 화면 전체를 하얗게 덮는다.
    behind(빛살)는 캔버스(투명 배경) 뒤, 앞쪽 흰 빛은 캔버스 위. 흰 배경에서 흰 빛이 보이게 뒤에 옅은 그림자색을 깐다. p = 0..1 */
-export function Halo({ p, behind }: { p: number; behind?: boolean }) {
+export function Halo({ p, behind, fov }: { p: number; behind?: boolean; fov: number }) {
+  const top = `${cabinetTop(fov)}%`; // 화각이 넓어지면(세로 화면) 서류함이 화면 가운데 쪽으로 온다
   if (behind)
     return (
       <>
@@ -20,7 +21,7 @@ export function Halo({ p, behind }: { p: number; behind?: boolean }) {
           aria-hidden
           className="pointer-events-none absolute left-1/2 -m-[50cqmax] size-[100cqmax] animate-[turn_90s_linear_infinite] transition-[transform,opacity] duration-700 ease-out"
           style={{
-            top: `${CABINET_TOP}%`,
+            top,
             transform: `scale(${0.7 + p * 1.8})`, // translate 대신 margin 으로 가운데 — rotate 가 제자리에서 돌게
             opacity: Math.min(1, p * 8),            background: BURST,
             maskImage: FADE,
@@ -33,7 +34,7 @@ export function Halo({ p, behind }: { p: number; behind?: boolean }) {
       aria-hidden
       className="pointer-events-none absolute left-1/2 size-[100cqmax] rounded-full transition-[transform,opacity] duration-700 ease-out"
       style={{
-        top: `${CABINET_TOP}%`,
+        top,
         transform: `translate(-50%, -50%) scale(${0.2 + 6 * p ** 3})`,
         opacity: p ** 2,
         background: "radial-gradient(circle, #fff 0 30%, rgba(255,255,255,0) 70%)",

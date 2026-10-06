@@ -19,19 +19,45 @@ const MAX_LINE = 20; // 끝을 모르는 대사도 이 초가 지나면 끝난 �
 const GAIN = 1.3; // 신의 목소리를 살짝 크게(10/4 사용자) — <audio> 는 1 이 최대라 Web Audio 로 키운다
 let ctx: AudioContext | null = null;
 
-/* 소리를 GAIN 배로 + 리미터(키운 만큼 큰 소리가 찢어지지 않게). 클릭·키 입력이 한 번도 없으면 AudioContext 가 멈춰 있어
-   거기 물린 소리는 안 난다 — 그땐 그냥 튼다(어차피 브라우저가 막는다). 백엔드 음성은 다른 출처라 crossOrigin + CORS 가 필요 */
-function louder(a: HTMLAudioElement) {
-  if (!navigator.userActivation?.hasBeenActive) return;
-  ctx ??= new AudioContext();
-  void ctx.resume();
-  const gain = new GainNode(ctx, { gain: GAIN });
-  const limit = new DynamicsCompressorNode(ctx, { threshold: -3, knee: 0, ratio: 20, attack: 0.003, release: 0.1 });
-  const src = ctx.createMediaElementSource(a);
-  src.connect(gain).connect(limit).connect(ctx.destination);
-  const off = () => src.disconnect();
-  a.addEventListener("ended", off, { once: true });
-  a.addEventListener("pause", off, { once: true });
+/* 오디오 요소 하나를 계속 쓴다 — 폰(특히 iOS)은 탭 안에서 한 번 튼 요소만 나중에 스스로 틀 수 있다.
+   대사마다 새 Audio 를 만들면 곡을 찾고 몇 초 뒤 오는 신의 한마디는 탭 밖이라 막혔다(10/6 사용자: 폰에서 안 들림).
+   백엔드 음성은 다른 출처라 crossOrigin + CORS 가 필요 */
+let el: HTMLAudioElement | null = null;
+function audio() {
+  if (!el) {
+    el = new Audio();
+    el.crossOrigin = "anonymous";
+  }
+  return el;
+}
+const SILENCE =
+  "data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+/* 첫 탭·키 입력 안에서 — 요소를 빈 소리로 한 번 틀어 풀고, 소리를 GAIN 배로 키우는 Web Audio(+ 리미터, 키운 만큼 찢어지지 않게)를 깨운다.
+   예전엔 AudioContext 를 탭 밖에서 만들었다 — iOS 는 그러면 멈춘 채라 거기 물린 목소리가 통째로 무음이었다 */
+function prime() {
+  const a = audio();
+  if (a.paused) {
+    // 막혀서 못 튼 대사는 다시 틀지 않는다(unblock) — 그 대사의 리스너를 떼고 빈 소리로
+    a.onplaying = a.onerror = a.onended = null;
+    a.src = SILENCE;
+    a.play().catch(() => undefined);
+  }
+  if (!ctx) {
+    ctx = new AudioContext();
+    const gain = new GainNode(ctx, { gain: GAIN });
+    const limit = new DynamicsCompressorNode(ctx, { threshold: -3, knee: 0, ratio: 20, attack: 0.003, release: 0.1 });
+    ctx.createMediaElementSource(a).connect(gain).connect(limit).connect(ctx.destination);
+  }
+  void ctx.resume().then(() => {
+    if (ctx?.state !== "running") return;
+    removeEventListener("pointerdown", prime, true);
+    removeEventListener("keydown", prime, true);
+  });
+}
+if (typeof window !== "undefined") {
+  addEventListener("pointerdown", prime, true);
+  addEventListener("keydown", prime, true);
 }
 
 const analyses = new Map<string, Promise<{ starts: number[]; end: number }>>(); // 파일·줄 수별 — 한 번만 분석
@@ -99,32 +125,30 @@ function silent(job: Job, id: number) {
 function play(job: Job, id: number) {
   if (!VOICE || !job.key) return silent(job, id);
   const src = /^https?:/.test(job.key) ? job.key : `/voice/${job.key}.mp3`;
-  const a = new Audio();
-  a.crossOrigin = "anonymous";
+  const a = audio();
+  a.pause(); // 앞 대사의 남은 끝소리(잔향)까지 멈춘다
+  a.onended = null;
   a.src = src;
-  louder(a);
-  current?.pause(); // 앞 대사 파일의 남은 끝소리(잔향)까지 멈춘다 — 파일 두 개가 겹치면 엔터로도 앞 것이 안 끊긴다
+  if (ctx?.state === "suspended") void ctx.resume(); // 폰이 백그라운드에 갔다 오면 멈춰 있다
   current = a;
   busyUntil = untilKnown(); // 말을 언제 마치는지 알 때까지
   a.onerror = () => silent(job, id); // 파일이 아직 없으면 자막만
-  a.addEventListener(
-    "playing",
-    () => {
-      setMuted(false); // 소리가 났다 — 막힘 풀림
-      analyze(src, job.lines)
-        .then(({ starts, end }) => {
-          if (id !== gen) return;
-          job.onStart?.(starts.map((t) => t - a.currentTime)); // 분석하는 동안 흐른 재생 시간을 뺀다
-          doneAt(id, end - a.currentTime);
-        })
-        .catch(() => {
-          if (id !== gen) return;
-          job.onStart?.(null);
-          a.onended = () => doneAt(id, 0);
-        });
-    },
-    { once: true },
-  );
+  // 요소를 같이 쓰니 앞 대사의 리스너가 남지 않게 속성으로 건다(덮어쓴다)
+  a.onplaying = () => {
+    a.onplaying = null;
+    setMuted(false); // 소리가 났다 — 막힘 풀림
+    analyze(src, job.lines)
+      .then(({ starts, end }) => {
+        if (id !== gen) return;
+        job.onStart?.(starts.map((t) => t - a.currentTime)); // 분석하는 동안 흐른 재생 시간을 뺀다
+        doneAt(id, end - a.currentTime);
+      })
+      .catch(() => {
+        if (id !== gen) return;
+        job.onStart?.(null);
+        a.onended = () => doneAt(id, 0);
+      });
+  };
   a.play().catch((e: Error) => {
     if (e.name === "NotSupportedError" || id !== gen) return; // 파일 없음은 onerror 가 맡는다
     if (e.name === "NotAllowedError") {

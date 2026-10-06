@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { parse, promptFor } from './rerank.js';
+import { parse, plainLine, promptFor } from './rerank.js';
 
 const cands = ['a', 'b', 'c', 'd'].map((id) => ({ id, title: `곡${id}`, artist: `가수${id}`, description: `설명${id}` }));
+
+describe('영어 대사 지문', () => {
+  it('대괄호 지문은 전부 뗀다', () => {
+    expect(plainLine("[dryly] Moods don't switch. [chuckles] Nice.")).toBe("Moods don't switch. Nice.");
+  });
+});
 
 describe('재정렬', () => {
   it('번호 → id, 없는·겹친 번호는 버리고 빠진 후보는 1단계 순서로 뒤에', () => {

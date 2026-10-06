@@ -386,7 +386,7 @@ export default function ArchiveRoom({ fresh }: { fresh: string | null }) {
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(#000_3%,rgba(0,0,0,.7)_16%,transparent_36%,transparent_64%,rgba(0,0,0,.75)_84%,#000_97%)]" />
       </div>
 
-      <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65 portrait:px-4 portrait:pt-[max(1rem,env(safe-area-inset-top))]">
+      <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65 portrait:px-4 portrait:pt-[calc(env(safe-area-inset-top)+1rem)]">
         <h1 className="font-[inherit] font-normal">
           MY CABINET
           <span className="block normal-case tracking-normal text-foreground/65">건져 올린 것들</span>

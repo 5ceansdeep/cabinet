@@ -51,6 +51,10 @@
   --font-subtitle: var(--font-chosun), "Gulim", sans-serif;
 }
 
+/* 아이폰 사파리(iOS 26)는 상단 상태바 띠를 페이지 바탕색으로 칠한다 — html 에 색이 없으면 흰 띠가 검은 방 위를 덮었다(10/6) */
+html {
+  background: #000;
+}
 body {
   background: #000; /* 영화 프레임 바깥 — 레터박스 */
   color: var(--foreground);

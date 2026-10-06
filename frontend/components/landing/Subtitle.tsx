@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight } from "@phosphor-icons/react";
 import Link from "next/link";
-import { reducedMotion } from "@/lib/motion";
 
 /* 긴 자막은 영화처럼 문장마다 줄을 나눈다 ("- 첫 문장" / "- 다음 문장"). "땡." 같은 짧은 조각은 다음 문장에 붙인다 */
 export function subtitleLines(text: string) {
@@ -50,61 +49,8 @@ const OUTLINE = [
 export default function Subtitle({ timeline, link, linkDelay }: { timeline: [string, number][]; link?: { href: string; label: string }; linkDelay: number }) {
   const [count, setCount] = useState(() => timeline.filter(([, d]) => d <= 0).length); // 지금까지 나온 줄 수
   const [linked, setLinked] = useState(false);
-  const boil = `boil${useId().replace(/:/g, "")}`; // 자글자글 필터 id — 자막이 여러 개 떠도 안 겹치게
   const [gone, setGone] = useState(false); // 대사가 끝나고 HOLD_S 초 — 자막 줄만 사라진다(버튼은 남는다)
   const sig = timeline.map(([l, d]) => `${l}@${d}`).join("|"); // 내용이 같으면 타이머를 다시 걸지 않는다
-  const noise = useRef<SVGFETurbulenceElement>(null);
-  const box = useRef<HTMLDivElement>(null);
-  /* 효과 세기를 글자 크기에 맞춘다 — 값은 32px 글자 기준. 폰(18px)에 PC 값 그대로 비틀고 입자를 박으니 지저분했다(10/6 사용자: 화질이 안 좋아 보인다).
-     비틀림은 글자에 비례해 줄이고, 입자는 촘촘하게(작게) */
-  const em = useRef(1);
-  useEffect(() => {
-    const fit = () => {
-      if (!box.current) return;
-      em.current = parseFloat(getComputedStyle(box.current).fontSize) / 32;
-      grain.current?.setAttribute("baseFrequency", (0.65 / em.current).toFixed(3));
-    };
-    fit();
-    addEventListener("resize", fit);
-    return () => removeEventListener("resize", fit);
-  }, []);
-  const warp = useRef<SVGFEDisplacementMapElement>(null);
-  const grain = useRef<SVGFETurbulenceElement>(null);
-
-  /* 자글자글을 불규칙하게 — 10/4 사용자: 정해진 주기(1.3·2.3초)로 되풀이돼 규칙적으로 꿀렁였다.
-     다음에 바뀔 때까지의 간격·씨앗·세기를 매번 새로 뽑는다. 대개 짧게 자글대다가 가끔 멈칫하고, 가끔 세게 튄다 */
-  useEffect(() => {
-    if (reducedMotion()) return;
-    let id: ReturnType<typeof setTimeout>;
-    const tick = () => {
-      noise.current?.setAttribute("seed", String(1 + Math.floor(Math.random() * 999)));
-      const spike = Math.random() < 0.12;
-      warp.current?.setAttribute("scale", ((spike ? 3 + Math.random() * 0.6 : 1.8 + Math.random() * 0.8) * em.current).toFixed(2));
-      const pause = Math.random() < 0.15;
-      id = setTimeout(tick, pause ? 600 + Math.random() * 800 : 60 + Math.random() ** 2 * 500);
-    };
-    tick();
-    return () => clearTimeout(id);
-  }, []);
-
-  /* 입자는 따로 — 가장자리와 같은 박자면 대부분 짧은 간격이라 일정하게 깜빡이는 것처럼 보였다(10/4 사용자).
-     몇 번(2~7) 빠르게 몰아서 바뀌다가 0.3~2초 멈춘다. 몰아치는 길이·멈춤 길이가 매번 달라 박자가 안 잡힌다 */
-  useEffect(() => {
-    if (reducedMotion()) return;
-    let id: ReturnType<typeof setTimeout>;
-    let left = 0;
-    const tick = () => {
-      grain.current?.setAttribute("seed", String(1 + Math.floor(Math.random() * 999)));
-      if (left-- > 0) id = setTimeout(tick, 40 + Math.random() * 90);
-      else {
-        left = 1 + Math.floor(Math.random() * 6);
-        id = setTimeout(tick, 300 + Math.random() ** 1.5 * 1700);
-      }
-    };
-    tick();
-    return () => clearTimeout(id);
-  }, []);
-
   useEffect(() => {
     const ids = timeline.map(([, d], i) => setTimeout(() => setCount((c) => Math.max(c, i + 1)), d * 1000));
     const link = setTimeout(() => setLinked(true), linkDelay * 1000);
@@ -118,33 +64,12 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
   const lines = timeline.slice(0, count).map(([l]) => l).reverse().slice(0, 2);
 
   return (
-    <div ref={box} className="flex flex-col items-center font-subtitle text-[clamp(18px,calc(1.1vw+10px),40px)] tracking-wide text-subtitle">
-      {/* 자글자글 — 옛 필름 자막처럼 글자·테두리가 아주 살짝 끓는다(잘게 낀 노이즈로 2~3px 비튼다).
-          10/2 사용자: 더 작은 입자로(노이즈 0.22). 씨앗·세기는 위 useEffect 가 불규칙하게 바꾼다(10/4). 가장자리만 끓는다(10/2 사용자) — 글자를 1px 깎은 속은 원래 그대로, 그 바깥만 비튼 그림으로.
-          움직임 줄이기를 켠 사람에겐 끈다 */}
-      <svg aria-hidden className="absolute size-0">
-        <filter id={boil}>
-          <feTurbulence ref={noise} type="fractalNoise" baseFrequency="0.22" numOctaves="2" seed="1" result="noise" />
-          <feDisplacementMap ref={warp} in="SourceGraphic" in2="noise" scale="2.2" result="boiled" />
-          <feMorphology in="SourceAlpha" operator="erode" radius="1" result="core" />
-          <feComposite in="SourceGraphic" in2="core" operator="in" result="inner" />
-          <feComposite in="boiled" in2="core" operator="out" result="rim" />
-          {/* 필름 입자 — 글자 안에 잘게 박힌 검은 점(10/4 사용자: 노이즈, 거의 안 보여 촘촘히). 몰아서 자글대다 멈추는 불규칙한 박자로 바뀐다(위 useEffect). 노이즈 밝은 쪽 절반쯤을 점으로, 글자 모양 안에만 */}
-          <feTurbulence ref={grain} type="fractalNoise" baseFrequency="0.65" numOctaves="1" seed="2" result="grain" />
-          <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  4 0 0 0 -1.8" result="specks" />
-          <feComposite in="specks" in2="core" operator="in" result="grained" />
-          <feMerge>
-            <feMergeNode in="rim" />
-            <feMergeNode in="inner" />
-            <feMergeNode in="grained" />
-          </feMerge>
-        </filter>
-      </svg>
+    <div className="flex flex-col items-center font-subtitle text-[clamp(18px,calc(1.1vw+10px),40px)] tracking-wide text-subtitle">
       {/* 색 번짐 — 유리를 지난 빛처럼 주황·노랑은 왼쪽, 파랑·시안은 오른쪽으로 흐릿하게 갈라진다(10/4 사용자 레퍼런스: Ion Lucin 'Forget me not', 가로 유리선은 빼고).
-          가까운 번짐(살짝 흐림) + 먼 번짐(많이 흐림) 두 겹. em 이라 글자 크기를 따라간다. 깜빡이지 않게 고정 */}
+          10/6 사용자: 지저분하다 — 글자를 비틀던 자글자글·필름 입자는 빼고 이 번짐(글리치)만 남겼다. 가까운 번짐(살짝 흐림) + 먼 번짐(많이 흐림) 두 겹. em 이라 글자 크기를 따라간다. 깜빡이지 않게 고정 */}
       <div
-        className="flex flex-col items-center motion-reduce:![filter:none]"
-        style={{ filter: `url(#${boil})`, textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6),-.08em 0 .05em rgba(255,150,0,.9),.08em 0 .05em rgba(30,140,255,.9),-.2em .03em .3em rgba(255,190,40,.7),.2em -.03em .3em rgba(0,170,255,.7)` }}
+        className="flex flex-col items-center"
+        style={{ textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6),-.08em 0 .05em rgba(255,150,0,.9),.08em 0 .05em rgba(30,140,255,.9),-.2em .03em .3em rgba(255,190,40,.7),.2em -.03em .3em rgba(0,170,255,.7)` }}
       >
         {lines.map((l) => (
           // 위에서 살짝 내려오며 나타난다(높이는 애니메이션하지 않는다 — 디자인 규칙)

@@ -23,7 +23,7 @@
   --font-mono-concept: var(--font-fragment), "Courier New", ui-monospace, monospace;
 
   /* 자막(신의 대사) 노랑 — 영화 자막 색 */
-  --subtitle: #e2cd5a;
+  --subtitle: #f3df5f;
 
   --background: var(--void-bg);
   --foreground: var(--ink-light);

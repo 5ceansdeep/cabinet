@@ -44,6 +44,7 @@ const SHOW = 10; // 한 번에 꺼내는 곡 수 — 6곡은 너무 적었다(10
 const KIN_FEW = 5; // 편지에 쓴 가수 곡이 이보다 적으면 비슷한 가수 곡으로 채운다(10/2 박효신)
 const KIN_BONUS = 0.08; // 비슷한 가수 곡에 더하는 점수(1단계 0~1) — 뜻이 맞는 곡 중에서 그 가수들을 앞으로
 const KIN_MS = 2500; // Last.fm 비슷한 가수·곡이 이보다 늦으면 없이 간다
+const AGAIN_DAYS = 3; // 같은 편지를 이 안에 또 부치면 그때 보여 준 곡을 뒤로 — 같은 편지에 늘 같은 10곡이 나왔다(10/6 사용자)
 const LOST_LEAD = 2; // 꼽은 곡이 서류함에 없을 때 그 가수 곡을 맨 앞에 몇 곡 — 가산만으론 재정렬이 걸러 냈다
 const LIKE_BONUS = 0.1; // 꼽은 곡과 Last.fm 이 비슷하다고 한 곡에 더하는 점수 — 실제 청취 기록 기반이라 가수보다 조금 더
 const VOCAL_TAGS = ['female vocalists', 'male vocalists']; // 해석이 보컬 성별을 명시했을 때만(interpret.ts tags) — "아이유 같은" 처럼 가수 본인 곡은 아니어도 성별은 맞춘다
@@ -129,7 +130,14 @@ export class RecommendService {
 
   async recommend(query: string, opts: { seen?: string[]; thrown?: string[]; genres?: string[]; limit?: number } = {}) {
     const { seen = [], thrown = [], genres = [], limit = SHOW } = opts;
-    const [said, pool, thrownBy] = await Promise.all([this.interpreter.interpret(query), this.loadPool(), this.throwRows()]); // 서로 필요 없다 — 같이
+    const first = !seen.length && !thrown.length && !!query.trim();
+    const letter = normalize(query);
+    const [said, pool, thrownBy, before] = await Promise.all([
+      this.interpreter.interpret(query),
+      this.loadPool(),
+      this.throwRows(),
+      first ? this.shownBefore(letter) : new Set<string>(),
+    ]); // 서로 필요 없다 — 같이
     const throws = throwPenalties(thrownBy, said.vector); // 이 편지와 비슷한 편지에서 던져진 곡일수록 깎는다
     // 편지에 꼽은 곡(10/2) — 곡 풀에 있으면 그 곡 벡터를 요청 벡터에 반반 섞어 결이 비슷한 곡을 찾고, 그 곡은 맨 앞에
     const songs = said.songs ?? [];
@@ -163,13 +171,11 @@ export class RecommendService {
     ].filter(Boolean);
     const want = [readings(asked), ...notes].join("\n\n");
     // 처음 부친 편지면 예전에 한 대사를 그대로(LetterLine) — 재정렬과 같이 묻는다
-    const first = !seen.length && !thrown.length && !!query.trim();
-    const letter = normalize(query);
     const [rr, kept] = await Promise.all([
       cands.length ? within(this.reranker.rerank(query, want, cands), RERANK_MS) : null,
       first ? this.prisma.letterLine.findUnique({ where: { query: letter }, select: { ko: true, en: true } }).catch(() => null) : null,
     ]);
-    const ordered = pinTitled(pick(rr ? finalOrder(cands, rr.order, asked.artists) : ranked), asked);
+    const ordered = pinTitled(later(pick(rr ? finalOrder(cands, rr.order, asked.artists) : ranked), before, asked.artists), asked);
     // 맨 앞 — 꼽은 곡 그 자체, 꼽은 곡이 없으면 그 곡을 부른 가수 곡 중 가장 맞는 LOST_LEAD 곡(본·던진 곡은 ranked 에 없다)
     const lead = [
       ...ranked.filter((t) => seeds.some((x) => x.id === t.id)),
@@ -208,6 +214,15 @@ export class RecommendService {
     const missing = songs.find((g) => !seeds.some((t) => same(t.artist, g.artist) && sameTitle(t.title, g.title)));
     const missingSong = missing ? `${missing.artist} - ${missing.title}` : null; // 꼽은 곡이 서류함에 없다 — 화면이 알린다
     return { interpretation: shownKeywords(asked), description: readings(asked), tracks, line, missingArtist, kinArtists: kinShown, kinFor: kinShown.length && asked.artists?.length ? asked.artists[0] : null, missingSong };
+  }
+
+  /** 같은 편지로 최근 AGAIN_DAYS 일 안에 보여 준 곡("가수 - 제목") — 검색 기록에서. 실패하면 빈 칸(평소대로) */
+  private async shownBefore(letter: string) {
+    const since = new Date(Date.now() - AGAIN_DAYS * 86_400_000);
+    const logs = await this.prisma.searchLog
+      .findMany({ where: { createdAt: { gte: since } }, orderBy: { createdAt: 'desc' }, take: 300, select: { query: true, tracks: true } })
+      .catch(() => []);
+    return new Set(logs.filter((l) => normalize(l.query) === letter).flatMap((l) => JSON.parse(l.tracks) as string[]));
   }
 
   /* 비슷한 가수 — 편지에 쓴 가수(한글·원래 표기 둘 다)의 Last.fm 비슷한 가수 중 곡 풀에 있는 가수(곡 풀 표기로). 가수마다 기억해 둔다(실패·빈 목록은 안 기억 — 다음에 다시) */
@@ -316,6 +331,13 @@ export function stage1<T extends Candidate & { tags: string }>(
   const side = new Map(both.map((t) => [t.id, at(main, t) <= at(second, t) ? 0 : 1] as const)); // 더 높이 둔 읽기 쪽
   const pick = <U extends { id: string }>(xs: U[]) => alternate(xs.filter((t) => side.get(t.id) !== 1), xs.filter((t) => side.get(t.id) === 1));
   return { ranked: both, cands: both.slice(0, CANDIDATES), pick };
+}
+
+/** 전에 보여 준 곡(before, "가수 - 제목")은 뒤로 — 순서는 그대로 두고 안 본 곡이 먼저. 편지에 쓴 가수 곡은 그대로(맨 앞 고정) */
+export function later<T extends { artist: string; title?: string }>(xs: T[], before: Set<string>, artists: string[] = []) {
+  if (!before.size) return xs;
+  const again = (t: T) => before.has(`${t.artist} - ${t.title}`) && !artists.some((a) => same(t.artist, a));
+  return [...xs.filter((t) => !again(t)), ...xs.filter(again)];
 }
 
 /** 두 줄에서 번갈아 — 겹치는 곡은 한 번만 */

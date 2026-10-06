@@ -38,8 +38,9 @@ export default function TrackSheet({ track, query, shelfId, onClose }: { track: 
         </button>
 
         {/* 플로피 — 결과 화면 디스크와 같은 생김새를 크게 */}
-        <div className="flex w-full shrink-0 flex-col items-center rounded-ui bg-[#1c2230] px-6 pt-4 pb-6 sm:w-[260px]">
-          <div className="h-[56px] w-[120px] rounded-sm bg-[#aab1bb]" />
+        {/* 좁은 화면(폰)은 위아래로 쌓인다 — 플로피를 작게 해야 설명·재생이 화면 안에 남는다 */}
+        <div className="mx-auto flex w-[min(100%,52cqw)] shrink-0 flex-col items-center rounded-ui bg-[#1c2230] px-4 pt-3 pb-4 sm:mx-0 sm:w-[260px] sm:px-6 sm:pt-4 sm:pb-6">
+          <div className="h-[32px] w-[80px] rounded-sm bg-[#aab1bb] sm:h-[56px] sm:w-[120px]" />
           <div className="mt-3 w-full overflow-hidden rounded-sm bg-[#ece8dc]">
             {track.artwork ? (
               // eslint-disable-next-line @next/next/no-img-element -- iTunes 표지
@@ -51,7 +52,7 @@ export default function TrackSheet({ track, query, shelfId, onClose }: { track: 
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-4 text-sm">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 text-sm">
           <div>
             <h2 id="track-sheet-title" className="font-letter text-2xl text-foreground">{track.title}</h2>
             <p className="mt-1 text-accent/85">{track.artist}</p>

@@ -65,14 +65,14 @@ export default function PlayerBar({ track, onEject, from }: { track: Track | nul
         onLoadedMetadata={(e) => setLength(e.currentTarget.duration || 30)}
       />
       {track && (
-        <div className="border-t border-accent/15 pt-[1em]">
+        <div className="border-t border-accent/15 pt-[1em] portrait:pt-[.7em] portrait:pb-[.3em]">
           <div className="flex items-center gap-[.8em]">
             <button
               type="button"
               onClick={toggle}
               disabled={!track.previewUrl}
               aria-label={paused ? "재생" : "멈춤"}
-              className="grid size-[2.4em] shrink-0 place-items-center rounded-full border border-accent/50 text-accent transition hover:bg-accent/10 disabled:opacity-30"
+              className="grid size-[2.4em] shrink-0 place-items-center rounded-full border border-accent/50 text-accent transition hover:bg-accent/10 disabled:opacity-30 pointer-coarse:size-11"
             >
               {paused ? <Play aria-hidden weight="fill" className="ml-0.5 size-3.5" /> : <Pause aria-hidden weight="fill" className="size-3.5" />}
             </button>
@@ -80,7 +80,7 @@ export default function PlayerBar({ track, onEject, from }: { track: Track | nul
               <p className="truncate text-foreground/90">{track.title}</p>
               <p className="truncate text-[.85em] text-accent/75">{track.artist}</p>
             </div>
-            <button type="button" onClick={onEject} aria-label="꺼내기" className="grid size-8 shrink-0 place-items-center rounded-full text-accent/75 transition-colors hover:text-accent">
+            <button type="button" onClick={onEject} aria-label="꺼내기" className="grid size-8 shrink-0 place-items-center rounded-full text-accent/75 transition-colors hover:text-accent pointer-coarse:size-11">
               <Eject aria-hidden weight="fill" className="size-4" />
             </button>
           </div>
@@ -103,7 +103,7 @@ export default function PlayerBar({ track, onEject, from }: { track: Track | nul
                   seek(e);
                 }}
                 onPointerMove={(e) => e.currentTarget.hasPointerCapture(e.pointerId) && seek(e)}
-                className="group relative mt-[.9em] h-3 cursor-pointer"
+                className="group relative mt-[.9em] h-3 cursor-pointer touch-none pointer-coarse:mt-[.4em] pointer-coarse:h-6" // 터치는 잡을 높이를 넉넉히, 끌 때 화면이 따라 움직이지 않게
               >
                 <div className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 bg-accent/15" />
                 <div className="absolute inset-x-0 top-1/2 h-[2px] origin-left -translate-y-1/2 bg-accent" style={{ transform: `translateY(-50%) scaleX(${at / length})` }} />

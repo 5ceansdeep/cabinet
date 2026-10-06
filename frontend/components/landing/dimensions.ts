@@ -26,18 +26,30 @@ export const LOOK = new Vector3(0, 0.2, 2);
 // 파일이 떠오르는 자리 — 카메라 앞 5.5 유닛, 서류함이 보이게 살짝 위
 export const PRESENT = CAMERA.clone().add(LOOK.clone().sub(CAMERA).normalize().multiplyScalar(5.5)).add(new Vector3(0, 0.45, 0));
 
-// 떠오른 파일의 화면 세로 위치(% from top). 카메라가 고정이고 파일이 시선 위에 있어 화면비와 무관하다
-const probe = new PerspectiveCamera(30, 1);
-probe.position.copy(CAMERA);
-probe.lookAt(LOOK);
-probe.updateMatrixWorld();
-const screenTop = (p: Vector3) => ((1 - p.clone().project(probe).y) / 2) * 100;
-export const PRESENT_TOP = screenTop(PRESENT);
-
-// 서류함 중심의 화면 세로 위치(%) — 로딩 후광이 여기서 번진다
-export const CABINET_TOP = screenTop(new Vector3());
-
-// 떠오른 파일의 확대 배율과, 그때 파일 폭이 화면 높이의 몇 vh 인지 — 입력칸 크기를 여기에 맞춘다
+// 떠오른 파일의 확대 배율
 export const PRESENT_SCALE = 1.5;
 const folderW = CABINET.W - 0.3;
-export const CARD_VH = ((folderW * PRESENT_SCALE) / (2 * PRESENT.distanceTo(CAMERA) * Math.tan((15 * Math.PI) / 180))) * 100;
+const CARD_SPAN = (folderW * PRESENT_SCALE) / (2 * PRESENT.distanceTo(CAMERA)); // 파일 폭 / (2 × 거리)
+
+/* 카메라 화각(세로 기준, 도). 넓은 화면은 30. 세로 화면(폰)은 좌우가 잘려 떠오른 파일이 화면 밖으로 나가니,
+   파일 폭이 화면 폭의 CARD_FIT 을 넘지 않을 만큼 화각을 넓힌다(카메라를 뒤로 뺀 것과 같은 구도) */
+export const FOV = 30;
+const CARD_FIT = 0.8;
+export const fovFor = (aspect: number) => Math.max(FOV, (2 * Math.atan(CARD_SPAN / (CARD_FIT * aspect)) * 180) / Math.PI);
+
+// 화면 세로 위치(% from top) — 카메라가 고정이고 시선 위의 점이라 화면비와 무관하고 화각만 탄다
+const probe = new PerspectiveCamera(FOV, 1);
+probe.position.copy(CAMERA);
+probe.lookAt(LOOK);
+function screenTop(p: Vector3, fov: number) {
+  probe.fov = fov;
+  probe.updateProjectionMatrix();
+  probe.updateMatrixWorld();
+  return ((1 - p.clone().project(probe).y) / 2) * 100;
+}
+/** 떠오른 파일의 화면 세로 위치(%) — 입력칸이 여기 뜬다 */
+export const presentTop = (fov: number) => screenTop(PRESENT, fov);
+/** 서류함 중심의 화면 세로 위치(%) — 로딩 후광이 여기서 번진다 */
+export const cabinetTop = (fov: number) => screenTop(new Vector3(), fov);
+/** 떠오른 파일의 폭이 화면 높이의 몇 % 인지 — 입력칸 크기를 여기에 맞춘다 */
+export const cardVh = (fov: number) => (CARD_SPAN / Math.tan((fov * Math.PI) / 360)) * 100;

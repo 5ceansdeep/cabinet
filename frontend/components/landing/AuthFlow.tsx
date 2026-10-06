@@ -7,7 +7,7 @@ import { checkSession, clearSession, emailTaken, getSession, login, requestReset
 import { startChoir } from "@/lib/choir";
 import { whenQuiet } from "@/lib/voice";
 import { thud } from "@/lib/thud";
-import CabinetScene, { type Field, type Phase } from "./CabinetScene";
+import CabinetScene, { useFov, type Field, type Phase } from "./CabinetScene";
 import { FIELDS, LINES, NAV, type Line } from "./lines";
 import { Halo } from "./LoadingOverlay";
 
@@ -129,11 +129,12 @@ export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: str
   }
 
   const glow = progress / 100;
+  const fov = useFov();
   const link = "underline-offset-4 hover:text-black/90 hover:underline";
 
   return (
     <main className="relative h-full overflow-hidden bg-background">
-      {phase === "loading" && <Halo behind p={glow} />}
+      {phase === "loading" && <Halo behind p={glow} fov={fov} />}
       <CabinetScene
         fields={fields}
         drawer={DRAWER[mode]}
@@ -145,7 +146,7 @@ export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: str
         onCheck={mode === "login" ? check : undefined}
         onDone={done}
       />
-      {phase === "loading" && <Halo p={glow} />}
+      {phase === "loading" && <Halo p={glow} fov={fov} />}
 
       {phase === "auth" && (
         <nav className="absolute top-8 right-8 flex flex-col items-end gap-2 font-letter text-xs tracking-wide text-black/65">

@@ -10,15 +10,20 @@ import { loadArt, type Track } from "./tracks";
    라벨의 점수 줄은 타자기처럼 한 글자씩 찍히므로 글자 수(typed)에 따라 다시 그린다 */
 
 export const DISK = 0.95; // 한 변 (월드 단위)
+/* 라벨 그림 배율 — 좌표는 512 기준으로 쓰고 이만큼 크게 그린다. 폰 가운데 디스크 라벨은 화면에서 1300px 넘게 커져
+   512 로는 제목·일치도가 뭉개졌다(10/6 사용자). ponytail: 디스크당 1024² 텍스처 ≈ 5MB(밉맵 포함) — 10장이면 50MB, 폰이 버거우면 768 로 */
+const RES = 2;
 
 export function useLabel(track: Track, onArt?: () => void) {
   return useMemo(() => {
     const [a, b] = coverColors(track.cover);
     const c = document.createElement("canvas");
-    c.width = c.height = 512;
+    c.width = c.height = 512 * RES;
     const ctx = c.getContext("2d")!;
+    ctx.scale(RES, RES);
     const tex = new CanvasTexture(c);
     tex.colorSpace = SRGBColorSpace;
+    tex.anisotropy = 8; // 비스듬한 옆 디스크 라벨도 덜 뭉개지게(렌더러가 기기 최대치로 자른다)
     // 점수를 모르면(보관소에 꽂힌 곡) 가수 이름을 찍는다
     const score = track.semantic ? `[일치도: ${track.semantic}%]` : track.artist;
     // 앨범 커버 — 받아지기 전엔 그라디언트, 받으면 그 위에 다시 그린다 (iTunes 커버는 CORS 를 열어 둬 캔버스에 써도 된다)

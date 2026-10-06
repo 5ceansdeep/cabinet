@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { parse, plainLine, promptFor } from './rerank.js';
+import { firstSentence, parse, plainLine, promptFor } from './rerank.js';
 
 const cands = ['a', 'b', 'c', 'd'].map((id) => ({ id, title: `곡${id}`, artist: `가수${id}`, description: `설명${id}` }));
 
 describe('영어 대사 지문', () => {
+  it('첫 문장만 남긴다', () => {
+    expect(firstSentence('Look who is back. Door is open.')).toBe('Look who is back.');
+    expect(firstSentence('무시가 아니라 심사 중이네. 수습이거든.')).toBe('무시가 아니라 심사 중이네.');
+    expect(firstSentence('한 문장뿐')).toBe('한 문장뿐');
+  });
   it('대괄호 지문은 전부 뗀다', () => {
     expect(plainLine("[dryly] Moods don't switch. [chuckles] Nice.")).toBe("Moods don't switch. Nice.");
   });

@@ -10,7 +10,8 @@ export default function SearchPage() {
   const { canvasRef, scatter } = useParticles();
 
   return (
-    <main className="relative flex min-h-full flex-1 items-center justify-center bg-white px-4 text-foreground">
+    // 세로 화면(폰)은 편지지를 위쪽에 — 가운데 두면 올라온 키보드에 아래 절반(부치기 버튼)이 가린다
+    <main className="relative flex min-h-full flex-1 items-center justify-center bg-white px-4 text-foreground portrait:items-start portrait:pt-[12cqh]">
       <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 h-full w-full" />
       <RequestForm
         onType={scatter}

@@ -15,7 +15,7 @@ import Playlist from "./Playlist";
 import CardReveal from "@/components/share/CardReveal";
 import { findTracks, logThrow, type Track } from "./tracks";
 import { apiUrl } from "@/lib/api";
-import { KeyReturn } from "@phosphor-icons/react";
+import { ArrowUp, KeyReturn } from "@phosphor-icons/react";
 
 const SEARCH_MS = 1200; // 서랍을 뒤지는 최소 시간 — 곡 찾기는 그동안 같이 한다(보통 이보다 오래 걸린다)
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -36,7 +36,7 @@ function useSaying(line: Line | null) {
 // 자막 아래 버튼 — 일반 UI 버튼(.btn), 3D 위에 뜨니 바탕을 깐다
 const choice = "btn pointer-events-auto bg-background/85";
 // 위 글자 버튼(서랍에 넣기·MY CABINET·NEW REQUEST) — 터치는 손가락이 닿게 위아래를 넓힌다
-const action = "pointer-events-auto pointer-coarse:-my-2 pointer-coarse:py-2";
+const action = "pointer-events-auto whitespace-nowrap pointer-coarse:-my-2 pointer-coarse:py-2";
 // 조작 안내 — 마우스면 클릭·휠, 터치면 탭·밀기
 const hint = (
   <>
@@ -120,14 +120,19 @@ export default function Results({ query }: { query: string }) {
     }, 3000);
     return () => clearTimeout(t);
   }, [playing]);
+  useEffect(() => {
+    if (!keepHint) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setKeepHint(false);
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, [keepHint]);
 
-  const row = kept.filter((t) => t !== playing); // 꽂힌 디스크는 줄에서 빠진다
+  const row = kept; // 재생해도 줄에 남는다 — 드라이브엔 복사본이 들어간다(Deck)
   const move = useCallback((d: number) => setIndex((i) => Math.max(0, Math.min(row.length - 1, i + d))), [row.length]);
 
   function insert(track: Track) {
     thud(160); // 드라이브에 "탁"
     setPlaying(track);
-    setIndex((i) => Math.max(0, Math.min(row.length - 2, i)));
   }
   const eject = () => {
     thud(90);
@@ -201,6 +206,7 @@ export default function Results({ query }: { query: string }) {
     setThrown((ts) => [...ts, track.id]);
     logThrow(track.id, query);
     setKept((ts) => ts.filter((t) => t.id !== track.id));
+    if (playing?.id === track.id) setPlaying(null); // 재생 중인 곡을 던지면 드라이브의 복사본도 빠진다
     setIndex((i) => Math.max(0, Math.min(row.length - 2, i)));
   }
 
@@ -230,8 +236,19 @@ export default function Results({ query }: { query: string }) {
           />
 
           {/* 세로 화면(폰)은 옆으로 나란히 둘 폭이 없다 — 버튼 줄을 위에, 편지·해석을 그 아래에 */}
-          <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65 portrait:flex-col-reverse portrait:gap-2 portrait:px-4 portrait:pt-[max(.75rem,env(safe-area-inset-top))]">
-            <div className="max-w-xl space-y-1 portrait:max-w-full">
+          {/* 영수증 안내 — 화면을 어둡게 깔고 "서랍에 넣기"만 밝게. 어디든 누르면 닫힌다(10/6 사용자: 말풍선이 구리다) */}
+          {keepHint && (
+            <div
+              aria-hidden
+              onClick={() => setKeepHint(false)}
+              className="pointer-events-auto absolute inset-0 z-40 bg-black/65 backdrop-blur-[2px] animate-[appear_.3s_both]"
+            />
+          )}
+          {/* 세로 화면(폰)은 옆으로 나란히 둘 폭이 없다 — 버튼 줄을 위에, 편지·해석을 그 아래에. 폰은 자간을 줄여 한 줄에 */}
+          <header
+            className={`pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65 portrait:flex-col-reverse portrait:gap-2 portrait:px-4 portrait:pt-[max(.75rem,env(safe-area-inset-top))] portrait:tracking-[.06em] ${keepHint ? "z-50" : ""}`}
+          >
+            <div className={`max-w-xl space-y-1 transition-opacity portrait:max-w-full ${keepHint ? "opacity-0" : ""}`}>
               <p className="portrait:line-clamp-2">
                 QUERY <span className="ml-2 normal-case tracking-normal text-foreground/85">{query || "(empty)"}</span>
               </p>
@@ -252,21 +269,27 @@ export default function Results({ query }: { query: string }) {
             <span className="flex shrink-0 gap-4 portrait:w-full portrait:flex-row-reverse portrait:justify-between">
               {phase === "discs" && kept.length > 0 && (
                 <span className="relative">
-                  <button type="button" onClick={store} className={`${action} text-accent/85 hover:text-accent`}>
+                  <button
+                    type="button"
+                    onClick={store}
+                    className={`${action} ${keepHint ? "text-accent [text-shadow:0_0_12px_rgba(0,229,255,.8)]" : "text-accent/85 hover:text-accent"}`}
+                  >
                     서랍에 넣기
                   </button>
                   {keepHint && (
                     <span
                       role="status"
-                      className="pointer-events-none absolute top-full right-0 z-10 mt-3 w-max max-w-[14em] origin-top-right rounded-ui bg-foreground px-3.5 py-2 text-sm leading-snug font-sans tracking-normal text-background normal-case shadow-[0_8px_24px_rgba(0,0,0,.45)] animate-[bubble_.4s_cubic-bezier(.2,.8,.2,1)_both] before:absolute before:-top-[5px] before:right-5 before:border-x-[6px] before:border-b-[6px] before:border-x-transparent before:border-b-foreground"
+                      className="pointer-events-none absolute top-full right-0 mt-4 flex w-max flex-col items-end gap-1 text-right font-sans tracking-normal normal-case animate-[bubble_.4s_cubic-bezier(.2,.8,.2,1)_both]"
                     >
-                      {RESULT_DIALOGUE.KEEP_HINT}
+                      <ArrowUp aria-hidden size={18} weight="bold" className="mr-3 text-accent" />
+                      <span className="text-base text-foreground">{RESULT_DIALOGUE.KEEP_HINT}</span>
+                      <span className="text-xs text-foreground/65">{RESULT_DIALOGUE.KEEP_HINT_CLOSE}</span>
                     </span>
                   )}
                 </span>
               )}
-              <Link href="/archive" className={`${action} text-accent/85 hover:text-accent`}>MY CABINET</Link>
-              <Link href="/search" className={`${action} text-accent/85 hover:text-accent`}>NEW REQUEST</Link>
+              <Link href="/archive" className={`${action} text-accent/85 transition-opacity hover:text-accent ${keepHint ? "opacity-0" : ""}`}>MY CABINET</Link>
+              <Link href="/search" className={`${action} text-accent/85 transition-opacity hover:text-accent ${keepHint ? "opacity-0" : ""}`}>NEW REQUEST</Link>
             </span>
           </header>
 

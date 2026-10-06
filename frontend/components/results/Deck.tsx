@@ -89,6 +89,7 @@ function Disk({
   perPx,
   swallow,
   rise,
+  copy = false,
   onInsert,
   onEject,
   onDiscard,
@@ -99,6 +100,7 @@ function Disk({
   perPx: number; // 화면 1px 이 이 깊이에서 몇 월드인가
   swallow: number; // 0 이상이면 서랍으로 빨려 든다 — 값은 순서대로 늦어지는 지연(초)
   rise: number; // 생기고 이만큼(초) 뒤 결과 서랍에서 솟아오른다 — 그전엔 서랍 속에 숨어 있다
+  copy?: boolean; // 드라이브로 들어가는 복사본 — 줄의 제 자리에서 다 큰 채로 시작한다(원본은 줄에 남는다)
   onInsert: () => void;
   onEject: () => void;
   onDiscard: () => void;
@@ -144,7 +146,13 @@ function Disk({
     if (thrown) return;
     const o = g.current;
     // 결과 서랍이 빠질 때까지 서랍 속에 숨어 있다가, 차례가 되면 작게 나타나 커지며 줄로 날아간다
-    if (born.current < 0) born.current = clock.elapsedTime;
+    if (born.current < 0) {
+      born.current = clock.elapsedTime;
+      if (copy) {
+        o.position.set(X0 + offset * GAP, 0, DEPTH - Math.abs(offset) * 0.35 + 0.02); // 원본 바로 앞 — 겹쳐 깜빡이지 않게
+        o.scale.setScalar(1);
+      }
+    }
     const hidden = clock.elapsedTime - born.current < rise;
     o.visible = !hidden;
     if (hidden) return invalidate();
@@ -374,7 +382,7 @@ export default function Deck({
   onEject,
   onDiscard,
 }: {
-  tracks: Track[]; // 늘어선 디스크 (꽂힌 디스크는 빼고)
+  tracks: Track[]; // 늘어선 디스크 (재생 중인 곡도 줄에 남는다)
   index: number;
   playing: Track | null; // 드라이브에 꽂힌 디스크
   saving?: boolean; // 서랍에 넣는 중
@@ -386,17 +394,33 @@ export default function Deck({
   // 이 깊이에서 화면 1px 이 몇 월드인지 — 던지는 손놀림(px/ms)을 월드 속도로 바꿀 때 쓴다
   const h = 2 * Math.abs(DEPTH) * Math.tan(((camera as unknown as { fov: number }).fov * Math.PI) / 360);
   const perPx = h / size.height;
-  // 꽂힌 디스크도 같은 목록에 둔다 — key 가 같아 줄에서 슬롯으로 스르륵 옮겨 간다
-  const all = playing ? [...tracks, playing] : tracks;
+  /* 재생해도 줄은 그대로 — 드라이브로는 복사본이 줄의 제 자리에서 들어간다(10/6 사용자: 열에서 사라지지 않게, 들어가는 모션만).
+     빼면 복사본만 사라진다. 곡을 바꾸면 key 가 바뀌어 새 복사본이 들어간다 */
+  const at = playing ? tracks.findIndex((t) => t.id === playing.id) : -1;
 
   return (
     <>
-      {all.map((t, i) => (
+      {playing && at >= 0 && (
+        <Disk
+          key={`drive-${playing.id}`}
+          track={playing}
+          offset={at - index}
+          slot
+          copy
+          perPx={perPx}
+          swallow={saving ? 0 : -1}
+          rise={0}
+          onInsert={() => undefined}
+          onEject={onEject}
+          onDiscard={onEject}
+        />
+      )}
+      {tracks.map((t, i) => (
         <Disk
           key={t.id}
           track={t}
           offset={i - index}
-          slot={t === playing}
+          slot={false}
           perPx={perPx}
           swallow={saving ? i * 0.12 : -1}
           rise={REVEAL_LEAD + i * 0.07}

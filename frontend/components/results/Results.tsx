@@ -16,7 +16,7 @@ import Tour, { tourOff } from "./Tour";
 import CardReveal from "@/components/share/CardReveal";
 import { findTracks, logThrow, type Track } from "./tracks";
 import { apiUrl } from "@/lib/api";
-import { Archive, KeyReturn, NotePencil } from "@phosphor-icons/react";
+import { Archive, ArrowsClockwise, KeyReturn, NotePencil } from "@phosphor-icons/react";
 
 const SEARCH_MS = 1200; // 서랍을 뒤지는 최소 시간 — 곡 찾기는 그동안 같이 한다(보통 이보다 오래 걸린다)
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -192,6 +192,15 @@ export default function Results({ query }: { query: string }) {
     later(() => type(1), 90);
   }
 
+  /* 다른 곡으로 다시 찾기 — 다 던지지 않아도 같은 편지로 다시. 지금 줄의 곡을 전부 던진 것으로 치고 던진 기록(ThrowLog)도 남긴다(10/6 사용자) */
+  function redig() {
+    const ids = kept.map((t) => t.id);
+    ids.forEach((id) => logThrow(id, query));
+    const all = [...thrown, ...ids];
+    setThrown(all);
+    dig({ thrown: all });
+  }
+
   function discard(track: Track) {
     setThrown((ts) => [...ts, track.id]);
     logThrow(track.id, query);
@@ -250,7 +259,16 @@ export default function Results({ query }: { query: string }) {
             </div>
             <span className="flex shrink-0 items-center gap-6 portrait:w-full portrait:flex-row-reverse portrait:gap-1">
               {phase === "discs" && kept.length > 0 && (
-                <span className="relative portrait:ml-auto">
+                <span className="flex items-center gap-4 portrait:ml-auto portrait:gap-1">
+                  <button
+                    type="button"
+                    onClick={redig}
+                    aria-label={RESULT_DIALOGUE.REDIG}
+                    className={`${action} ${icon} font-sans text-sm tracking-normal text-accent/85 hover:text-accent`}
+                  >
+                    <span className="portrait:hidden">{RESULT_DIALOGUE.REDIG}</span>
+                    <ArrowsClockwise aria-hidden className="hidden size-[22px] portrait:block" />
+                  </button>
                   <button
                     type="button"
                     onClick={store}

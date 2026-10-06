@@ -64,17 +64,17 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
   const lines = timeline.slice(0, count).map(([l]) => l).reverse().slice(0, 2);
 
   return (
-    <div className="flex flex-col items-center font-subtitle text-[clamp(18px,calc(1.1vw+10px),40px)] tracking-wide text-subtitle">
+    <div className="flex w-full min-w-0 flex-col items-center font-subtitle text-[clamp(18px,calc(1.1vw+10px),40px)] tracking-wide text-subtitle">
       {/* 색 번짐 — 유리를 지난 빛처럼 주황·노랑은 왼쪽, 파랑·시안은 오른쪽으로 흐릿하게 갈라진다(10/4 사용자 레퍼런스: Ion Lucin 'Forget me not', 가로 유리선은 빼고).
           10/6 사용자: 지저분하다 — 글자를 비틀던 자글자글·필름 입자는 빼고 이 번짐(글리치)만 남겼다. 가까운 번짐(살짝 흐림) + 먼 번짐(많이 흐림) 두 겹. em 이라 글자 크기를 따라간다. 깜빡이지 않게 고정 */}
       <div
-        className="flex flex-col items-center"
+        className="flex w-full flex-col items-center"
         style={{ textShadow: `${OUTLINE},0 0 4px rgba(0,0,0,.6),-.08em 0 .05em rgba(255,150,0,.9),.08em 0 .05em rgba(30,140,255,.9),-.2em .03em .3em rgba(255,190,40,.7),.2em -.03em .3em rgba(0,170,255,.7)` }}
       >
         {lines.map((l) => (
           // 위에서 살짝 내려오며 나타난다(높이는 애니메이션하지 않는다 — 디자인 규칙)
-          <div key={l} className="animate-[subline_.3s_cubic-bezier(.16,1,.3,1)_both]">
-            <p className={`mb-1 px-3 leading-tight transition-opacity duration-300 ${gone ? "opacity-0" : ""}`}>- {l}</p>
+          <div key={l} className="max-w-full animate-[subline_.3s_cubic-bezier(.16,1,.3,1)_both]">
+            <p className={`mb-1 max-w-full px-3 text-center leading-tight break-keep [text-wrap:balance] transition-opacity duration-300 ${gone ? "opacity-0" : ""}`}>- {l}</p>
           </div>
         ))}
       </div>

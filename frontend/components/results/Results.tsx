@@ -12,10 +12,11 @@ import { thud } from "@/lib/thud";
 import { speak } from "@/lib/voice";
 import CabinetWall from "./CabinetWall";
 import Playlist from "./Playlist";
+import Tour, { tourOff } from "./Tour";
 import CardReveal from "@/components/share/CardReveal";
 import { findTracks, logThrow, type Track } from "./tracks";
 import { apiUrl } from "@/lib/api";
-import { Archive, ArrowUp, KeyReturn, NotePencil } from "@phosphor-icons/react";
+import { Archive, KeyReturn, NotePencil } from "@phosphor-icons/react";
 
 const SEARCH_MS = 1200; // 서랍을 뒤지는 최소 시간 — 곡 찾기는 그동안 같이 한다(보통 이보다 오래 걸린다)
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -39,13 +40,6 @@ const choice = "btn pointer-events-auto bg-background/85";
 const action = "pointer-events-auto whitespace-nowrap pointer-coarse:-my-2 pointer-coarse:py-2";
 // 폰의 아이콘 링크 — 손가락 크기(44px) 칸, 맨 왼쪽 아이콘(줄을 뒤집어 DOM 마지막)이 여백에 맞게 안쪽 여백만큼 당긴다
 const icon = "portrait:my-0 portrait:grid portrait:size-11 portrait:place-items-center portrait:py-0 portrait:last:-ml-2.5";
-// 조작 안내 — 마우스면 클릭·휠, 터치면 탭·밀기
-const hint = (
-  <>
-    <span className="pointer-coarse:hidden">{RESULT_DIALOGUE.HINT}</span>
-    <span className="hidden pointer-coarse:inline">{RESULT_DIALOGUE.HINT_TOUCH}</span>
-  </>
-);
 
 /* 4·4-1번 페이지 — 서랍 속에서 건져 올린 플로피 디스크들. 디스크도 서류함도 전부 3D 이고,
    그 위에 얹힌 DOM 은 제목·재생바 같은 글자뿐이다 */
@@ -70,8 +64,8 @@ export default function Results({ query }: { query: string }) {
   const [index, setIndex] = useState(0); // 가운데 앞에 나온 곡 (늘어선 줄 기준)
   const [reveal, setReveal] = useState(0); // 곡이 올 때마다 하나씩 — 정면 서랍이 쭉 빠진다
   const [saved, setSaved] = useState<{ id: string; remote: boolean } | null>(null); // 서랍에 넣었다 — 공유 카드
-  const [keepHint, setKeepHint] = useState(false); // 듣기 시작하고 3초 뒤 "서랍에 넣기" 말풍선
-  const keepHintShown = useRef(false); // 한 번만
+  const [tour, setTour] = useState(false); // 처음 결과 화면 투어(조작 안내) — "다시 보지 않기" 전까지 결과 화면을 열 때마다
+  const toured = useRef(false); // 이 화면에선 한 번만(다시 뒤져도 또 안 띄운다)
 
   /* 서랍에 넣는 동안 걸어 둔 타이머들 — 도중에 다른 화면으로 가면 전부 끈다.
      안 끄면 떠난 뒤에도 이름이 마저 찍히고, 서랍이 저장되고, 보관함으로 끌려간다 */
@@ -113,21 +107,13 @@ export default function Results({ query }: { query: string }) {
     dig(); // eslint-disable-line react-hooks/set-state-in-effect -- 처음 한 번 서랍을 뒤진다
   }, [dig]);
 
-  // 노래를 듣기 시작하면 3초 뒤 "서랍에 넣기" 말풍선(한 번만, 10/4 사용자)
+  // 디스크가 처음 나오면 투어
   useEffect(() => {
-    if (!playing || keepHintShown.current) return;
-    const t = setTimeout(() => {
-      keepHintShown.current = true;
-      setKeepHint(true);
-    }, 3000);
-    return () => clearTimeout(t);
-  }, [playing]);
-  useEffect(() => {
-    if (!keepHint) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setKeepHint(false);
-    addEventListener("keydown", onKey);
-    return () => removeEventListener("keydown", onKey);
-  }, [keepHint]);
+    if (phase !== "discs" || !kept.length || toured.current) return;
+    toured.current = true;
+    if (!tourOff()) setTour(true); // eslint-disable-line react-hooks/set-state-in-effect -- 디스크가 나온 뒤 한 번
+  }, [phase, kept.length]);
+
 
   const row = kept; // 재생해도 줄에 남는다 — 드라이브엔 복사본이 들어간다(Deck)
   const move = useCallback((d: number) => setIndex((i) => Math.max(0, Math.min(row.length - 1, i + d))), [row.length]);
@@ -147,7 +133,7 @@ export default function Results({ query }: { query: string }) {
   // 좌우 화살표로 넘기고, 아래 화살표로 가운데 디스크를 꽂고, 위 화살표로 뺀다
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (phase !== "discs" || (e.target as HTMLElement).tagName === "INPUT") return;
+      if (phase !== "discs" || tour || (e.target as HTMLElement).tagName === "INPUT") return;
       if (e.key === "ArrowLeft") move(-1);
       if (e.key === "ArrowRight") move(1);
       if (e.key === "ArrowDown" && row[index]) insert(row[index]);
@@ -180,7 +166,6 @@ export default function Results({ query }: { query: string }) {
 
   /* 서랍에 넣기 — 디스크가 아래 서랍으로 빨려 들고, 다 삼키면 "탁" 닫히며 네임택을 내민다 */
   function store() {
-    setKeepHint(false);
     setPhase("saving");
     setPlaying(null);
     setTag(suggestTag(query));
@@ -240,22 +225,14 @@ export default function Results({ query }: { query: string }) {
             onDiscard={discard}
           />
 
-          {/* 세로 화면(폰)은 옆으로 나란히 둘 폭이 없다 — 버튼 줄을 위에, 편지·해석을 그 아래에 */}
-          {/* 영수증 안내 — 화면을 어둡게 깔고 "서랍에 넣기"만 밝게. 어디든 누르면 닫힌다(10/6 사용자: 말풍선이 구리다) */}
-          {keepHint && (
-            <div
-              aria-hidden
-              onClick={() => setKeepHint(false)}
-              className="pointer-events-auto absolute inset-0 z-40 bg-black/65 backdrop-blur-[2px] animate-[appear_.3s_both]"
-            />
-          )}
+          {/* 듣기 시작하면 뜨던 "영수증을 뽑을 수 있어요" 안내는 뺐다 — 투어 마지막 장(서랍에 넣기)과 겹쳤다(10/6 사용자) */}
           {/* 세로 화면(폰)은 옆으로 나란히 둘 폭이 없다 — 버튼 줄을 위에, 편지·해석을 그 아래에. 폰은 자간을 줄여 한 줄에 */}
           <header
-            className={`pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65 portrait:flex-col-reverse portrait:gap-3 portrait:px-4 portrait:pt-[calc(env(safe-area-inset-top)+1rem)] portrait:text-[11px] portrait:tracking-[.1em] ${keepHint ? "z-50" : ""}`}
+            className={`pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65 portrait:flex-col-reverse portrait:gap-3 portrait:px-4 portrait:pt-[calc(env(safe-area-inset-top)+1rem)] portrait:text-[11px] portrait:tracking-[.1em]`}
           >
             {/* 라벨 | 값 두 칸 — 라벨 폭이 달라도 값이 한 줄로 선다. 한글에는 자간을 주지 않는다.
                 폰은 라벨 없이 요청문을 제목처럼 크게, 해석은 그 아래 작게(10/6 사용자: 폰 UI 가 엉성하다) */}
-            <div className={`grid max-w-xl grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1.5 transition-opacity portrait:flex portrait:max-w-full portrait:flex-col portrait:gap-1 ${keepHint ? "opacity-0" : ""}`}>
+            <div className={`grid max-w-xl grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1.5 transition-opacity portrait:flex portrait:max-w-full portrait:flex-col portrait:gap-1`}>
               <span className="text-foreground/45 portrait:hidden">QUERY</span>
               <span className="font-sans text-sm tracking-normal text-foreground/90 portrait:line-clamp-1 portrait:text-[17px] portrait:font-medium portrait:text-foreground">{query || "(empty)"}</span>
               {interpretation.length > 0 && (
@@ -270,8 +247,6 @@ export default function Results({ query }: { query: string }) {
                 </p>
               )}
               {missingSong && <p className="col-span-2 font-sans tracking-normal text-subtitle">{RESULT_DIALOGUE.MISSING_SONG(missingSong)}</p>}
-              {/* 조작 안내 — 세로 화면은 아래가 드라이브·자막 자리라 여기에 */}
-              {phase === "discs" && kept.length > 0 && <p className="col-span-2 mt-1 hidden text-[10px] text-foreground/40 portrait:block">{hint}</p>}
             </div>
             <span className="flex shrink-0 items-center gap-6 portrait:w-full portrait:flex-row-reverse portrait:gap-1">
               {phase === "discs" && kept.length > 0 && (
@@ -279,27 +254,18 @@ export default function Results({ query }: { query: string }) {
                   <button
                     type="button"
                     onClick={store}
-                    className={`pointer-events-auto whitespace-nowrap rounded-ui border border-accent/40 px-3 py-1.5 font-sans text-sm tracking-normal portrait:py-2 portrait:text-[13px] ${keepHint ? "border-accent text-accent [text-shadow:0_0_12px_rgba(0,229,255,.8)]" : "text-accent/85 hover:text-accent"}`}
+                    data-tour="store"
+                    className={`pointer-events-auto whitespace-nowrap rounded-ui border border-accent/40 px-3 py-1.5 font-sans text-sm tracking-normal portrait:py-2 portrait:text-[13px] text-accent/85 hover:text-accent`}
                   >
                     서랍에 넣기
                   </button>
-                  {keepHint && (
-                    <span
-                      role="status"
-                      className="pointer-events-none absolute top-full right-0 mt-4 flex w-max flex-col items-end gap-1 text-right font-sans tracking-normal normal-case animate-[bubble_.4s_cubic-bezier(.2,.8,.2,1)_both]"
-                    >
-                      <ArrowUp aria-hidden size={18} weight="bold" className="mr-3 text-accent" />
-                      <span className="text-base text-foreground">{RESULT_DIALOGUE.KEEP_HINT}</span>
-                      <span className="text-xs text-foreground/65">{RESULT_DIALOGUE.KEEP_HINT_CLOSE}</span>
-                    </span>
-                  )}
                 </span>
               )}
-              <Link href="/archive" aria-label="MY CABINET" className={`${action} ${icon} text-accent/85 transition-opacity hover:text-accent ${keepHint ? "opacity-0" : ""}`}>
+              <Link href="/archive" aria-label="MY CABINET" className={`${action} ${icon} text-accent/85 hover:text-accent`}>
                 <span className="portrait:hidden">MY CABINET</span>
                 <Archive aria-hidden className="hidden size-[22px] portrait:block" />
               </Link>
-              <Link href="/search" aria-label="NEW REQUEST" className={`${action} ${icon} text-accent/85 transition-opacity hover:text-accent ${keepHint ? "opacity-0" : ""}`}>
+              <Link href="/search" aria-label="NEW REQUEST" className={`${action} ${icon} text-accent/85 hover:text-accent`}>
                 <span className="portrait:hidden">NEW REQUEST</span>
                 <NotePencil aria-hidden className="hidden size-[22px] portrait:block" />
               </Link>
@@ -376,10 +342,8 @@ export default function Results({ query }: { query: string }) {
             </form>
           )}
 
-          {/* 아래 가운데는 드라이브 자리 — 안내는 왼쪽 아래로 */}
-          <footer className="pointer-events-none absolute bottom-[3cqh] left-6 font-mono text-xs tracking-[.15em] text-foreground/60 portrait:hidden">
-            {hint}
-          </footer>
+          {/* 조작 안내 — 구석 영어 한 줄 대신 처음 한 번 투어로(10/6 사용자) */}
+          {tour && phase === "discs" && kept.length > 0 && <Tour onDone={() => setTour(false)} />}
         </>
       {saved && (
         <CardReveal

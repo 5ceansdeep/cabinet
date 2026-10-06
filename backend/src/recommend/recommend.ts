@@ -8,7 +8,7 @@ import { similarArtists, similarTracks } from '../catalog/lastfm.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VoiceModule, VoiceService } from '../voice/voice.js';
 import { type Asked, Interpreter, normalize } from './interpret.js';
-import { plainLine, Reranker } from './rerank.js';
+import { firstSentence, plainLine, Reranker } from './rerank.js';
 import { BONUS, type Candidate, display, lexical, rank, throwPenalties } from './score.js';
 
 class ThrowDto {
@@ -184,7 +184,9 @@ export class RecommendService {
     const picked = [...lead, ...ordered.filter((t) => !lead.includes(t))].slice(0, limit);
     const pct = picked.map((t) => shown(t, ranked).semantic).sort((a, b) => b - a);
     const tracks = picked.map((t, i) => ({ ...shown(t, ranked), semantic: pct[i], reason: rr?.reasons[t.id] ?? null }));
-    const spoken = kept ?? rr?.line ?? null;
+    // 예전에 저장한 편지 대사(두 문장일 수 있다)도 첫 문장만 — 10/6 사용자: 한마디가 길다
+    const said1 = kept ?? rr?.line ?? null;
+    const spoken = said1 && { ko: firstSentence(said1.ko), en: firstSentence(said1.en) };
     if (first && !kept && rr?.line)
       void this.prisma.letterLine
         .upsert({ where: { query: letter }, create: { query: letter, ...rr.line }, update: {} })

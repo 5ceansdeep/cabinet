@@ -3,7 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CatalogService } from './catalog.service.js';
 import { DescribeService } from './describe.js';
-import { CollectDto, GrowDto, TrackDto } from './dto.js';
+import { CollectDto, DescribeDto, GrowDto, TrackDto } from './dto.js';
 import { PoolService } from './pool.js';
 import { SoundService } from './sound.js';
 
@@ -93,9 +93,9 @@ export class CatalogController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '곡 설명·임베딩 채우기 시작 (관리자) — 가사(LRCLIB)와 소리 숫자로 Gemini 가 설명을 쓴다. 뒤에서 돌고 바로 상태를 돌려준다 [Gemini]' })
   @ApiResponse({ status: 403, description: 'ADMIN_EMAILS 에 없는 계정' })
-  describeTracks(@Req() req: { user: { email: string } }) {
+  describeTracks(@Body() dto: DescribeDto, @Req() req: { user: { email: string } }) {
     if (!isAdmin(req.user.email)) throw new ForbiddenException('곡 설명은 관리자만 쓸 수 있네');
-    return this.describe.start();
+    return this.describe.start(dto?.limit); // 본문 없이 눌러도 된다(전부)
   }
 
   @Get('describe')

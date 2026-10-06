@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeText, promptFor } from './describe.js';
+import { describeText, outOfCredit, promptFor } from './describe.js';
 import { retryAfter, unit } from './gemini.js';
 import { pickLyrics } from './lyrics.js';
 
@@ -27,6 +27,14 @@ describe('곡 설명', () => {
 
   it('설명은 네 줄 틀', () => {
     expect(describeText({ emotion: 'a', situation: 'b', lyrics: 'c', sound: 'd' })).toBe('감정: a\n상황: b\n가사: c\n소리: d');
+  });
+});
+
+describe('크레딧 바닥', () => {
+  it('402 만 바닥으로 본다 — 한도(429)·서버 오류는 아니다', () => {
+    expect(outOfCredit(new Error('Gemini 실패 — gemini-3.8-flash 402 Your prepayment credits are depleted'))).toBe(true);
+    expect(outOfCredit(new Error('Gemini 실패 — gemini-3.8-flash 429 retry in 54s'))).toBe(false);
+    expect(outOfCredit(new Error('Gemini 실패 — gemini-3.8-flash 503 4020'))).toBe(false);
   });
 });
 

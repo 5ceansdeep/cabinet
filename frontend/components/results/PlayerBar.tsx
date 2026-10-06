@@ -13,7 +13,18 @@ const time = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).
 
 
 /* from = 어떤 편지로 꺼낸 곡인가(요청문, 공개 서랍이면 서랍 id) — 재생 기록에 같이 남긴다 */
-export default function PlayerBar({ track, onEject, from }: { track: Track | null; onEject: () => void; from?: { query?: string; shelfId?: string } }) {
+/* compact = 폰의 미니 플레이어 — 한 줄(재생·곡·꺼내기), 진행선은 줄 위 테두리에 얇게. 부모 줄이 relative 여야 한다 */
+export default function PlayerBar({
+  track,
+  onEject,
+  from,
+  compact,
+}: {
+  track: Track | null;
+  onEject: () => void;
+  from?: { query?: string; shelfId?: string };
+  compact?: boolean;
+}) {
   const audio = useRef<HTMLAudioElement>(null);
   const [paused, setPaused] = useState(true);
   const [at, setAt] = useState(0);
@@ -47,25 +58,59 @@ export default function PlayerBar({ track, onEject, from }: { track: Track | nul
     if (audio.current) audio.current.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * length;
   };
 
+  const player = (
+    <audio
+      ref={audio}
+      preload="none"
+      onPlay={() => {
+        setPaused(false);
+        if (track && played.current !== track.id) logEvent("play", { trackId: (played.current = track.id), ...from });
+      }}
+      onPause={() => setPaused(true)}
+      onEnded={() => {
+        setPaused(true);
+        if (track) logEvent("finish", { trackId: track.id, ...from });
+      }}
+      onTimeUpdate={(e) => setAt(e.currentTarget.currentTime)}
+      onLoadedMetadata={(e) => setLength(e.currentTarget.duration || 30)}
+    />
+  );
+
+  if (compact)
+    return (
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        {player}
+        {track && (
+          <>
+            <div aria-hidden className="absolute inset-x-0 top-0 h-[2px] bg-accent/10">
+              <div className="h-full origin-left bg-accent" style={{ transform: `scaleX(${at / length})` }} />
+            </div>
+            <button
+              type="button"
+              onClick={toggle}
+              disabled={!track.previewUrl}
+              aria-label={paused ? "재생" : "멈춤"}
+              className="grid size-10 shrink-0 place-items-center rounded-full bg-accent text-background disabled:opacity-30"
+            >
+              {paused ? <Play aria-hidden weight="fill" className="ml-0.5 size-4" /> : <Pause aria-hidden weight="fill" className="size-4" />}
+            </button>
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="truncate text-[14px] text-foreground">{track.title}</p>
+              <p className="truncate text-[12px] text-foreground/50">{track.previewUrl ? track.artist : `${track.artist} · 미리듣기 없음`}</p>
+            </div>
+            <button type="button" onClick={onEject} aria-label="꺼내기" className="grid size-11 shrink-0 place-items-center text-foreground/60">
+              <Eject aria-hidden weight="fill" className="size-[18px]" />
+            </button>
+          </>
+        )}
+      </div>
+    );
+
   return (
     <div className={`transition duration-300 ${track ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={!track}>
-      <audio
-        ref={audio}
-        preload="none"
-        onPlay={() => {
-          setPaused(false);
-          if (track && played.current !== track.id) logEvent("play", { trackId: (played.current = track.id), ...from });
-        }}
-        onPause={() => setPaused(true)}
-        onEnded={() => {
-          setPaused(true);
-          if (track) logEvent("finish", { trackId: track.id, ...from });
-        }}
-        onTimeUpdate={(e) => setAt(e.currentTarget.currentTime)}
-        onLoadedMetadata={(e) => setLength(e.currentTarget.duration || 30)}
-      />
+      {player}
       {track && (
-        <div className="border-t border-accent/15 pt-[1em] portrait:pt-[.7em] portrait:pb-[.3em]">
+        <div className="border-t border-accent/15 pt-[1em]">
           <div className="flex items-center gap-[.8em]">
             <button
               type="button"

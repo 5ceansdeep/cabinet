@@ -15,7 +15,7 @@ import Playlist from "./Playlist";
 import CardReveal from "@/components/share/CardReveal";
 import { findTracks, logThrow, type Track } from "./tracks";
 import { apiUrl } from "@/lib/api";
-import { ArrowUp, KeyReturn } from "@phosphor-icons/react";
+import { Archive, ArrowUp, KeyReturn, NotePencil } from "@phosphor-icons/react";
 
 const SEARCH_MS = 1200; // 서랍을 뒤지는 최소 시간 — 곡 찾기는 그동안 같이 한다(보통 이보다 오래 걸린다)
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -37,6 +37,8 @@ function useSaying(line: Line | null) {
 const choice = "btn pointer-events-auto bg-background/85";
 // 위 글자 버튼(서랍에 넣기·MY CABINET·NEW REQUEST) — 터치는 손가락이 닿게 위아래를 넓힌다
 const action = "pointer-events-auto whitespace-nowrap pointer-coarse:-my-2 pointer-coarse:py-2";
+// 폰의 아이콘 링크 — 손가락 크기(44px) 칸, 맨 왼쪽 아이콘(줄을 뒤집어 DOM 마지막)이 여백에 맞게 안쪽 여백만큼 당긴다
+const icon = "portrait:my-0 portrait:grid portrait:size-11 portrait:place-items-center portrait:py-0 portrait:last:-ml-2.5";
 // 조작 안내 — 마우스면 클릭·휠, 터치면 탭·밀기
 const hint = (
   <>
@@ -246,16 +248,17 @@ export default function Results({ query }: { query: string }) {
           )}
           {/* 세로 화면(폰)은 옆으로 나란히 둘 폭이 없다 — 버튼 줄을 위에, 편지·해석을 그 아래에. 폰은 자간을 줄여 한 줄에 */}
           <header
-            className={`pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65 portrait:flex-col-reverse portrait:gap-2 portrait:px-4 portrait:pt-[max(.75rem,env(safe-area-inset-top))] portrait:tracking-[.06em] ${keepHint ? "z-50" : ""}`}
+            className={`pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65 portrait:flex-col-reverse portrait:gap-3 portrait:px-4 portrait:pt-[max(.75rem,env(safe-area-inset-top))] portrait:text-[11px] portrait:tracking-[.1em] ${keepHint ? "z-50" : ""}`}
           >
-            {/* 라벨 | 값 두 칸 — 라벨 폭이 달라도 값이 한 줄로 선다. 한글에는 자간을 주지 않는다 */}
-            <div className={`grid max-w-xl grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1.5 transition-opacity portrait:max-w-full ${keepHint ? "opacity-0" : ""}`}>
-              <span className="text-foreground/45">QUERY</span>
-              <span className="font-sans text-sm tracking-normal text-foreground/90 portrait:line-clamp-2">{query || "(empty)"}</span>
+            {/* 라벨 | 값 두 칸 — 라벨 폭이 달라도 값이 한 줄로 선다. 한글에는 자간을 주지 않는다.
+                폰은 라벨 없이 요청문을 제목처럼 크게, 해석은 그 아래 작게(10/6 사용자: 폰 UI 가 엉성하다) */}
+            <div className={`grid max-w-xl grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1.5 transition-opacity portrait:flex portrait:max-w-full portrait:flex-col portrait:gap-1 ${keepHint ? "opacity-0" : ""}`}>
+              <span className="text-foreground/45 portrait:hidden">QUERY</span>
+              <span className="font-sans text-sm tracking-normal text-foreground/90 portrait:line-clamp-1 portrait:text-[17px] portrait:font-medium portrait:text-foreground">{query || "(empty)"}</span>
               {interpretation.length > 0 && (
                 <>
-                  <span className="text-foreground/45">READ AS</span>
-                  <span className="font-sans text-sm tracking-normal text-accent/85">{interpretation.slice(0, 5).join(" · ")}</span>
+                  <span className="text-foreground/45 portrait:hidden">READ AS</span>
+                  <span className="font-sans text-sm tracking-normal text-accent/85 portrait:text-xs">{interpretation.slice(0, 5).join(" · ")}</span>
                 </>
               )}
               {(missingArtist || (kinFor && kinArtists.length > 0)) && (
@@ -265,15 +268,15 @@ export default function Results({ query }: { query: string }) {
               )}
               {missingSong && <p className="col-span-2 font-sans tracking-normal text-subtitle">{RESULT_DIALOGUE.MISSING_SONG(missingSong)}</p>}
               {/* 조작 안내 — 세로 화면은 아래가 드라이브·자막 자리라 여기에 */}
-              {phase === "discs" && kept.length > 0 && <p className="col-span-2 hidden text-foreground/60 portrait:block">{hint}</p>}
+              {phase === "discs" && kept.length > 0 && <p className="col-span-2 mt-1 hidden text-[10px] text-foreground/40 portrait:block">{hint}</p>}
             </div>
-            <span className="flex shrink-0 items-center gap-6 portrait:w-full portrait:flex-row-reverse portrait:justify-between">
+            <span className="flex shrink-0 items-center gap-6 portrait:w-full portrait:flex-row-reverse portrait:gap-1">
               {phase === "discs" && kept.length > 0 && (
-                <span className="relative">
+                <span className="relative portrait:ml-auto">
                   <button
                     type="button"
                     onClick={store}
-                    className={`${action} rounded-ui border border-accent/40 px-3 py-1 font-sans text-sm tracking-normal ${keepHint ? "border-accent text-accent [text-shadow:0_0_12px_rgba(0,229,255,.8)]" : "text-accent/85 hover:text-accent"}`}
+                    className={`pointer-events-auto whitespace-nowrap rounded-ui border border-accent/40 px-3 py-1.5 font-sans text-sm tracking-normal portrait:py-2 portrait:text-[13px] ${keepHint ? "border-accent text-accent [text-shadow:0_0_12px_rgba(0,229,255,.8)]" : "text-accent/85 hover:text-accent"}`}
                   >
                     서랍에 넣기
                   </button>
@@ -289,8 +292,14 @@ export default function Results({ query }: { query: string }) {
                   )}
                 </span>
               )}
-              <Link href="/archive" className={`${action} text-accent/85 transition-opacity hover:text-accent ${keepHint ? "opacity-0" : ""}`}>MY CABINET</Link>
-              <Link href="/search" className={`${action} text-accent/85 transition-opacity hover:text-accent ${keepHint ? "opacity-0" : ""}`}>NEW REQUEST</Link>
+              <Link href="/archive" aria-label="MY CABINET" className={`${action} ${icon} text-accent/85 transition-opacity hover:text-accent ${keepHint ? "opacity-0" : ""}`}>
+                <span className="portrait:hidden">MY CABINET</span>
+                <Archive aria-hidden className="hidden size-[22px] portrait:block" />
+              </Link>
+              <Link href="/search" aria-label="NEW REQUEST" className={`${action} ${icon} text-accent/85 transition-opacity hover:text-accent ${keepHint ? "opacity-0" : ""}`}>
+                <span className="portrait:hidden">NEW REQUEST</span>
+                <NotePencil aria-hidden className="hidden size-[22px] portrait:block" />
+              </Link>
             </span>
           </header>
 
@@ -300,7 +309,7 @@ export default function Results({ query }: { query: string }) {
           {greeted &&
             subtitleBar &&
             createPortal(
-              <div key={greeted.line.text} aria-live="polite" className="text-center">
+              <div key={greeted.line.text} aria-live="polite" className="w-full min-w-0 text-center">
                 <Subtitle timeline={greeted.timeline} linkDelay={0} />
               </div>,
               subtitleBar,

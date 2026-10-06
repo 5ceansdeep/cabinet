@@ -10,6 +10,13 @@
 - **음성은 다 꺼 둠**(`frontend/lib/voice.ts` `VOICE=false` — 자막만). 버튼·안내 글은 평범한 말투, 자막만 신(정체를 숨긴 관리인) 말투
 - 남은 일은 [docs/next.md](docs/next.md) 에 급한 순
 
+## 10/6 한 일
+- **모바일 화면 — `feat/mobile` 브랜치(커밋 5개 + 문서, main 에 안 합침·푸시 안 함)**. 랜딩(탭으로 서랍 열기·세로 화면 화각)·편지(편지지 위쪽)·
+  결과(밀어 넘기기·접는 곡 목록)·보관함(화각·밀어 넘기기·곡 카드). 헤드리스 크롬 터치 흉내로만 확인 — **실제 폰 확인이 남았다**([docs/next.md](docs/next.md) 3번).
+  세로 화면 규칙은 [docs/ui-ux-spec.md](docs/ui-ux-spec.md) "폰", 공용 훅은 `frontend/lib/screen.ts`
+- 졸업작품 발표 슬라이드 13장(웹 슬라이드, 사용자 계정의 claude.ai 아티팩트 "CABINET 졸업작품 발표"). 표지 이름·학과, 11번 베타 설문 결과 칸이 비어 있다
+- 이 PC `frontend` 에 `@phosphor-icons/react` 가 안 깔려 있어 `npm install` 함(다른 PC 에서 pull 한 뒤엔 `npm install` 먼저)
+
 ## 다른 PC 에서 이어 하기 (10/2 밤)
 - **작업은 `main`**(배포와 같음, 열린 브랜치 없음). `git pull`, `backend`·`frontend` 에서 `npm install`, `cd backend && npx prisma generate`
 - 루트 `npm run dev` = 프론트 3000 + 백엔드 4000 + Prisma Studio 5555. **끌 때 세 포트가 다 비었는지 확인**(10/2 옛 백엔드가 4000 에 남아 옛 코드가 응답했다)

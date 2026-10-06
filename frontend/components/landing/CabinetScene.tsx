@@ -4,13 +4,13 @@ import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, typ
 import { createPortal } from "react-dom";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { damp, useReducedMotion } from "@/lib/motion";
-import { ContactShadows, Environment, Lightformer, RoundedBox } from "@react-three/drei";
+import { ContactShadows, Environment, Lightformer, PerspectiveCamera, RoundedBox } from "@react-three/drei";
 import { Color, type AmbientLight, type DirectionalLight, type Fog, type SpotLight } from "three";
 import { bark } from "@/lib/bark";
 import { keepContext } from "@/lib/gl";
 import { thud } from "@/lib/thud";
 import { cut, isMuted, speak, subscribeMuted, warm } from "@/lib/voice";
-import { CABINET, CAMERA, FULL_OPEN, INNER_HALF, LOOK, CARD_VH, PRESENT_TOP, drawerY } from "./dimensions";
+import { CABINET, CAMERA, FOV, FULL_OPEN, INNER_HALF, LOOK, cardVh, drawerY, fovFor, presentTop } from "./dimensions";
 import Drawer from "./Drawer";
 import FileCard from "./FileCard";
 import Subtitle, { LINE_PACE, subtitleDelays, subtitleLines } from "./Subtitle";
@@ -81,6 +81,14 @@ function Lights({ dim }: { dim: boolean }) {
 
 
 const noop = () => () => {}; // 바뀌지 않는 값 구독용
+
+/* 지금 화면의 카메라 화각 — 세로 화면(폰)이면 넓어진다(dimensions.ts fovFor). 세로일 땐 영화 프레임이 창 전체라 창 비율이 곧 프레임 비율.
+   캔버스 밖의 DOM(입력칸·후광)도 같은 값으로 자리를 잡는다 */
+const onResize = (cb: () => void) => {
+  addEventListener("resize", cb);
+  return () => removeEventListener("resize", cb);
+};
+export const useFov = () => useSyncExternalStore(onResize, () => fovFor(innerWidth / innerHeight), () => FOV);
 
 /* 카메라는 서랍 정면에 고정 — 한 번만 맞춘다(매 프레임 lookAt 할 필요 없다) */
 function Rig() {
@@ -231,13 +239,16 @@ export default function CabinetScene({
 
   function keys(e: KeyboardEvent<HTMLInputElement>) {
     if (e.getModifierState("CapsLock") !== caps) setCaps(!caps);
-    // ESC — 앞 서류로 돌아가 고쳐 쓴다
-    if (e.key === "Escape" && step > 0) {
-      setError((p) => ({ line: null, n: p.n }));
-      onClearFlow();
-      touch();
-      setStep(step - 1);
-    }
+    if (e.key === "Escape") back();
+  }
+
+  // 앞 서류로 돌아가 고쳐 쓴다 — ESC, 또는 입력칸 아래 글을 누른다(폰)
+  function back() {
+    if (step === 0) return;
+    setError((p) => ({ line: null, n: p.n }));
+    onClearFlow();
+    touch();
+    setStep(step - 1);
   }
 
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -290,6 +301,7 @@ export default function CabinetScene({
   // 로딩이 시작되면 서랍이 쾅 닫히고, 그다음 후광이 비친다
   // 후광이 비치는 동안(로딩)엔 서랍이 닫혀 있고 아무 반응도 하지 않는다 — 들썩임·파일·호버·커서 전부 잠금
   const slide = phase === "auth" && open ? FULL_OPEN : 0;
+  const fov = useFov();
   const inputCls =
     "border-b-2 border-black/20 bg-transparent py-1 text-center font-mono text-black/85 outline-none placeholder:text-black/60 focus:border-black/70";
 
@@ -298,7 +310,6 @@ export default function CabinetScene({
       <Canvas
         // "percentage" — 지금 three 버전엔 PCFSoft 가 없어 어차피 이걸로 떨어진다. 기본값(soft)으로 두면 렌더마다 경고가 찍힌다
         shadows="percentage"
-        camera={{ position: CAMERA.toArray(), fov: 30 }}
         dpr={[1, 1.5]}
         frameloop="demand" // 움직일 때만 그린다 — 서랍·카드·조명이 멎으면 장면이 쉰다(디자인 규칙)
         className="absolute! inset-0"
@@ -312,6 +323,8 @@ export default function CabinetScene({
           <Lightformer intensity={1} position={[-6, 1, 3]} scale={[3, 8, 1]} />
           <Lightformer intensity={1.2} position={[0, -1, 10]} scale={[8, 4, 1]} />
         </Environment>
+        {/* 화각이 화면 비율을 따라 바뀐다(세로 화면) — Canvas 의 camera 는 처음 한 번만 먹어서 따로 둔다 */}
+        <PerspectiveCamera makeDefault position={CAMERA.toArray()} fov={fov} />
         <Rig />
 
         <group
@@ -322,6 +335,8 @@ export default function CabinetScene({
             setOpen(true);
           }}
           onPointerOut={() => (document.body.style.cursor = "")}
+          // 터치엔 호버가 없다 — 누르면 열린다
+          onPointerDown={() => phase === "auth" && !locked && setOpen(true)}
         >
           <Carcass />
           {["A-F", "G-M", "N-Z"].map((label, i) =>
@@ -348,7 +363,7 @@ export default function CabinetScene({
           noValidate
           onSubmit={submit}
           className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 animate-[appear_.3s_both]"
-          style={{ top: `${PRESENT_TOP}%` }}
+          style={{ top: `${presentTop(fov)}%` }}
         >
           <input
             name={field.name}
@@ -366,17 +381,21 @@ export default function CabinetScene({
             aria-label={field.label}
             placeholder={field.label.toLowerCase()}
             className={inputCls}
-            style={{ width: `${CARD_VH * 0.62}cqh`, fontSize: `${CARD_VH * 0.038}cqh` }}
+            // 세로 화면은 파일이 작게 뜬다 — 글자가 16px 아래면 아이폰이 입력칸으로 화면을 확대해 버린다
+            style={{ width: `${cardVh(fov) * 0.62}cqh`, fontSize: `max(${fov > FOV ? 16 : 0}px, ${cardVh(fov) * 0.038}cqh)` }}
           />
           {step > 0 && (
-            <p className="absolute inset-x-0 top-full mt-3 text-center font-mono text-xs tracking-[.15em] text-black/60">{LINES.escHint}</p>
+            <button type="button" onClick={back} className="absolute inset-x-0 top-full mt-1 py-2 text-center font-mono text-xs tracking-[.15em] text-black/60">
+              <span className="pointer-coarse:hidden">{LINES.escKey} </span>
+              {LINES.escHint}
+            </button>
           )}
         </form>
       )}
 
       {/* 소리가 막혀 있으면 — 클릭 한 번이면 풀린다는 안내 */}
       {muted && phase === "auth" && (
-        <p className="pointer-events-none absolute inset-x-0 top-8 z-50 text-center font-letter text-sm tracking-wide text-black/65 animate-[appear_.3s_both]">
+        <p className="pointer-events-none absolute inset-x-0 top-8 z-50 px-6 text-center portrait:top-16 font-letter text-sm tracking-wide text-black/65 animate-[appear_.3s_both]">
           {LINES.soundHint}
         </p>
       )}

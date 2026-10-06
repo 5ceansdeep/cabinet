@@ -119,8 +119,9 @@ export const LINES = {
   },
   stale: { text: D.COOLDOWN, voiceKey: "COOLDOWN" },
   capsLock: { text: D.CAPS_LOCK, voiceKey: "CAPS_LOCK" },
-  escHint: "ESC: 앞 서류로", // 조작 안내라 페르소나 밖, 읽지 않음
-  soundHint: "화면 아무 곳이나 클릭하면 음성이 나옵니다.", // 브라우저가 소리를 막고 있을 때 — 조작 안내라 페르소나 밖, 읽지 않음
+  escKey: "ESC:", // 키보드가 있는 화면에서만 앞에 붙는다
+  escHint: "앞 서류로", // 조작 안내라 페르소나 밖, 읽지 않음. 누르는 버튼이기도 하다(폰엔 ESC 가 없다)
+  soundHint: "화면 아무 곳이나 누르면 음성이 나옵니다.", // 브라우저가 소리를 막고 있을 때 — 조작 안내라 페르소나 밖, 읽지 않음
   checking: { text: D.SUBMITTING, voiceKey: "SUBMITTING" },
   wrong: { text: D.PASSWORD_LOGIN.incorrect, voiceKey: "PASSWORD_LOGIN.incorrect" },
   noAccount: { text: D.NO_ACCOUNT, voiceKey: "NO_ACCOUNT", link: { href: "/", label: D.NO_ACCOUNT_ACTION } }, // 이메일 확인과 로그인 사이에 계정이 지워졌을 때뿐 — 처음부터 다시

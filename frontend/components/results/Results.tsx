@@ -135,6 +135,9 @@ export default function Results({ query }: { query: string }) {
   function insert(track: Track) {
     thud(160); // 드라이브에 "탁"
     setPlaying(track);
+    // 듣는 곡은 줄 가운데로 — 목록·이전·다음으로 골라도 그 디스크가 앞에 온다(10/6 사용자)
+    const at = row.findIndex((t) => t.id === track.id);
+    if (at >= 0) setIndex(at);
   }
   const eject = () => {
     thud(90);

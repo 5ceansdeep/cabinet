@@ -51,11 +51,11 @@ export default function Playlist({
                     setOpen(false);
                   }}
                   aria-current={on}
-                  className={`flex w-full items-baseline gap-[.8em] py-[.35em] text-left transition-colors portrait:py-[.65em] ${on ? "text-accent" : "text-accent/75 hover:text-accent"}`}
+                  className={`flex w-full items-baseline gap-[.8em] py-[.35em] text-left transition-colors portrait:py-[.65em] ${on ? "text-accent" : "text-foreground/85 hover:text-foreground"}`}
                 >
-                  <span className="w-[1.6em] shrink-0 font-mono text-[.8em] tabular-nums opacity-80">{String(i + 1).padStart(2, "0")}</span>
+                  <span className={`w-[1.6em] shrink-0 font-mono text-[.8em] tabular-nums ${on ? "" : "text-foreground/35"}`}>{String(i + 1).padStart(2, "0")}</span>
                   <span className="min-w-0 flex-1 truncate">
-                    {t.title} <span className="text-[.85em] opacity-75">· {t.artist}</span>
+                    {t.title} <span className={`ml-[.3em] text-[.85em] ${on ? "text-accent/70" : "text-foreground/45"}`}>{t.artist}</span>
                   </span>
                   {on && <Play aria-hidden weight="fill" className="size-[.8em] shrink-0" />}
                 </button>

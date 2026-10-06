@@ -31,7 +31,7 @@ export default function Playlist({
 
   const list = (
     <ol className="mx-[-0.4em] portrait:mx-0 portrait:max-h-[38cqh] portrait:overflow-y-auto portrait:px-[.4em] portrait:pb-[.4em]">
-      {tracks.map((t) => {
+      {tracks.map((t, i) => {
         const on = t.id === playing?.id;
         return (
           <li key={t.id}>
@@ -44,6 +44,8 @@ export default function Playlist({
               aria-current={on}
               className={`flex w-full items-center gap-[.75em] rounded-[.6em] px-[.4em] py-[.35em] text-left transition-colors ${on ? "bg-accent/10" : "hover:bg-white/5"}`}
             >
+              {/* 순위 — 추천 순서(10/6 사용자) */}
+              <span className={`w-[1.4em] shrink-0 text-center font-mono text-[.8em] tabular-nums ${on ? "text-accent" : "text-foreground/35"}`}>{i + 1}</span>
               <span className="relative size-[2.4em] shrink-0 overflow-hidden rounded-[.35em] bg-white/5">
                 {/* eslint-disable-next-line @next/next/no-img-element -- iTunes 표지 */}
                 {t.artwork && <img src={t.artwork} alt="" loading="lazy" className="size-full object-cover" />}

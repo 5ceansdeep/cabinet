@@ -1,4 +1,4 @@
-# cabinet 작업 컨텍스트 (2026-10-02 밤)
+# cabinet 작업 컨텍스트 (2026-10-06 밤)
 
 ## 지금 어디까지
 - **베타 진행 중**(10/2 첫 테스터 피드백 받음). 백엔드(Railway)·프론트(Vercel) 배포, `main` 푸시마다 자동 배포.
@@ -7,8 +7,10 @@
   → 재정렬(Gemini) → 제목 일치·꼽은 곡 맨 앞 고정 → 10곡. 가수 곡이 적으면 Last.fm 비슷한 가수, 곡을 꼽으면 Last.fm 비슷한 곡을 가산
 - **곡 풀 604곡**(설명 있는 곡 기준). 평가(45개, 상위 5곡): 304곡 46% → 394곡 41% → 604곡 **33%** — 곡이 늘수록 떨어진다. 정답표가 곡 풀을 못 따라가는 탓이 큼
   (다음 할 일: Gemini 심사 채점)
-- **음성은 다 꺼 둠**(`frontend/lib/voice.ts` `VOICE=false` — 자막만). 버튼·안내 글은 평범한 말투, 자막만 신(정체를 숨긴 관리인) 말투
-- 남은 일은 [docs/next.md](docs/next.md) 에 급한 순
+- **음성 켜짐(10/4~)** — ElevenLabs Starter 결제, `frontend/lib/voice.ts` `VOICE=true`(볼륨 1.3배 GainNode+리미터). 신의 한마디는 **eleven_v3**(지문 `[dryly]` 등 0~2개),
+  고정 대사 31개는 예전 v2 녹음 그대로(사용자: 다시 녹음 안 함). 설정 `backend/voice-settings.json`(v3 는 speed 를 무시함 — 0.7 이 안 먹는다).
+  버튼·안내 글은 평범한 말투, 자막만 신(정체를 숨긴 관리인) 말투
+- 남은 일은 아래 "10/3~10/6 디자인·목소리 — 남은 것" 과 [docs/next.md](docs/next.md)
 
 ## 10/6 한 일
 - **신의 한마디 프롬프트**(`backend/src/recommend/rerank.ts`) — 위로·훈수·지어낸 아는 척 금지, 가끔 밈 아는 척(사용자: 재미없고 고리타분하다). main·배포. 순위 영향은 안 쟀다
@@ -18,6 +20,28 @@
 - 졸업작품 발표 슬라이드 13장(웹 슬라이드, 사용자 계정의 claude.ai 아티팩트 "CABINET 졸업작품 발표"). 표지 이름·학과, 11번 베타 설문 결과 칸이 비어 있다
 - 이 PC `frontend` 에 `@phosphor-icons/react` 가 안 깔려 있어 `npm install` 함(다른 PC 에서 pull 한 뒤엔 `npm install` 먼저)
 
+## 10/3~10/6 디자인·목소리 (이 PC 세션, `feat/design-cleanup` → main 합침 `e2347ce`, 이후 main 직접)
+**완료(배포됨)**
+- 디자인 정리: 버튼 `.btn`/`.btn-solid`·8px 모서리(알약 금지)·Phosphor 아이콘·포커스·대비, 감속 모드(`lib/motion.ts`), 쉬는 동안 렌더 안 함(`frameloop="demand"`, `damp` 에 MAX_DT — 후광 때 서류함이 검게 변하던 원인),
+  대화상자 `lib/dialog.ts`, 404·오류 화면. 규칙은 `.claude/skills/design-rules`·`.claude/rules/ui.md`·`docs/ui-ux-spec.md`
+- 보관함: 서랍이 열려 안을 보여 준 뒤(PEEK) 디스크 한 줄로 펼침·닫기·휠·좌우, 곡 카드(`TrackSheet`) 스크롤 없이·우상단 X. 서랍 이름 기본값 = 편지 글
+- 결과: 드라이브 넣고 빼기 시간 정한 트윈(`Deck.tsx`), 드라이브 화면 가운데, 공유 카드 Cache Storage 로 재사용, 편지지 안내는 placeholder, "— 서류함 앞에서" 줄표는 서명이라 유지
+- 자막(`landing/Subtitle.tsx`): 크게(clamp 18~40px), 가장자리 자글거림·필름 입자 **불규칙**(JS 타이머, 입자는 몰아쳤다 멈춤), 색 번짐은 흐린 주황·파랑 두 겹(레퍼런스 Ion Lucin 'Forget me not', 가로 유리선 뺌)
+- 추천: "○○ 같은" 은 그 가수 곡을 끼우지 않음(`interpret.ts` artists 규칙), 보컬 성별은 Last.fm 태그 female/male vocalists 가산(`recommend.ts` VOCAL_BONUS)
+- 던진 곡 감점 = **비슷한 편지에서 던진 것만**(`ThrowLog.vector`, `score.ts` throwWeight: 코사인 0.80→0 ~ 0.95→1, 편지 7개로 잰 경계). 태그로 넓히는 건 안 함(한 사람 취향이 분위기 전체를 끌어내림)
+- DB 새 표: `VoiceClip`(신의 한마디 mp3 — Railway 디스크는 배포마다 비워져서), `LetterLine`(같은 편지면 같은 대사 — 재정렬 캐시는 후보·재시작에 따라 바뀌었다)
+- 고정 대사 녹음 스크립트 `backend` 에서 `npm run voice`(CSV 에 mp3 없는 줄만, v3 면 `<break>` → 말줄임표)
+- **운영 목소리 고침(10/6)**: Railway `ELEVENLABS_MODEL` 에 엉뚱한 값(`9moF7…`)이 들어가 v3 호출이 전부 400 → 변수 지움. 지금 운영 `/voice` 200·VoiceClip 쌓임 확인
+- 운영 DB 의 내 시험 편지 37줄(SearchLog)·테스트 줄 지움
+**커밋만 하고 안 올린 것(푸시 대기, 사용자 확인)** — 폰 테스트 피드백 `3e0d501` 디스크 라벨 2배 해상도 · `1fe80d9` 폰 자막 비틀림·입자를 글자 크기에 비례 ·
+  `7ae7e23` 랜딩 입력칸 화살표 버튼 + 재생해도 줄에 남고 복사본이 드라이브로 + 영수증 안내는 화면 어둡게(누르면 닫힘) + 폰 결과 머리 글자 한 줄
+**남은 것**
+- 위 커밋 3개 푸시 여부
+- PC 에서 자막 두 줄일 때 왼쪽 아래 조작 안내(CLICK TO PLAY…)와 겹침 — 손볼지 물어봄
+- v3 빠르기: 브라우저 재생 0.8배(음높이 유지) 또는 대본 쉼표로 — 물어봄, 답 없음
+- 첫 화면 소리: 브라우저 자동재생 규칙이라 한 번 눌러야 남. "들어가는 문" 제안 → **사용자 거절(10/6)**
+- 실제 폰 확인(헤드리스 폰 흉내로만 봄), 라벨 1024² 텍스처가 폰에 무거우면 768
+
 ## 다른 PC 에서 이어 하기 (10/2 밤)
 - **작업은 `main`**(배포와 같음, 열린 브랜치 없음). `git pull`, `backend`·`frontend` 에서 `npm install`, `cd backend && npx prisma generate`
 - 루트 `npm run dev` = 프론트 3000 + 백엔드 4000 + Prisma Studio 5555. **끌 때 세 포트가 다 비었는지 확인**(10/2 옛 백엔드가 4000 에 남아 옛 코드가 응답했다)
@@ -25,8 +49,9 @@
   (`delete from "SearchLog" where query = '...'`). 마이그레이션은 `npx prisma migrate deploy` 로 바로 적용해도 되고 `main` 푸시 때 Railway 도 돌린다
 - **강한 규칙**(CLAUDE.md): DB 전체를 다시 쓰는 배치는 표본으로 먼저 재고 숫자를 보여 준 뒤 확인받고 돌린다
 - `backend/.env`: `DATABASE_URL`(Neon direct), **`GEMINI_API_KEY`(유료 1 등급, AI Studio 월 한도 ₩4,000 — 10/2 기준 ₩2,881 씀)**, `ADMIN_EMAILS`, `WEB_ORIGIN`,
-  `LASTFM_API_KEY`, `YOUTUBE_API_KEY`, ElevenLabs(ENABLED false), `GMAIL_USER`·`GMAIL_APP_PASSWORD`, **`DESCRIBE_NIGHTLY`(비우면 새벽 곡 설명 안 돎)**
-- Railway Variables: `GMAIL_*`·`WEB_ORIGIN` 필요, `DESCRIBE_NIGHTLY` 는 없음(= 새벽 곡 설명 꺼짐). 체험 크레딧 10/2 기준 29일·$4.94 남음
+  `LASTFM_API_KEY`, `YOUTUBE_API_KEY`, ElevenLabs(`ENABLED=true`·`API_KEY`·`VOICE_ID=zNsotODqUhvbJ5wMG7Ei`, MODEL 은 안 넣음 = v3), `GMAIL_USER`·`GMAIL_APP_PASSWORD`, **`DESCRIBE_NIGHTLY`(비우면 새벽 곡 설명 안 돎)**
+- Railway Variables: `GMAIL_*`·`WEB_ORIGIN`·`ELEVENLABS_ENABLED/API_KEY/VOICE_ID` 필요, **`ELEVENLABS_MODEL` 은 넣지 않는다**(10/6 엉뚱한 값으로 음성 전부 400), `DESCRIBE_NIGHTLY` 는 없음(= 새벽 곡 설명 꺼짐). 체험 크레딧 10/2 기준 29일·$4.94 남음
+- 헤드리스 확인은 `npm install -D puppeteer-core --no-save`(package.json 안 건드림) → 끝나면 `npm uninstall puppeteer-core`
 - 회사 PC 망: IPv6 막힘(`setDefaultResultOrder('ipv4first')`), bash curl 로 한글 보내면 깨짐(node 로), PowerShell 5.1 은 `&&` 대신 `;`,
   LRCLIB·Google·Neon·Last.fm 이 가끔 끊긴다(재시도), **한국 iTunes 스토어 검색 0건**
 - **서버 기록 보는 법**: Neon SQL Editor —

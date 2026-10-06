@@ -54,6 +54,20 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
   const [gone, setGone] = useState(false); // 대사가 끝나고 HOLD_S 초 — 자막 줄만 사라진다(버튼은 남는다)
   const sig = timeline.map(([l, d]) => `${l}@${d}`).join("|"); // 내용이 같으면 타이머를 다시 걸지 않는다
   const noise = useRef<SVGFETurbulenceElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  /* 효과 세기를 글자 크기에 맞춘다 — 값은 32px 글자 기준. 폰(18px)에 PC 값 그대로 비틀고 입자를 박으니 지저분했다(10/6 사용자: 화질이 안 좋아 보인다).
+     비틀림은 글자에 비례해 줄이고, 입자는 촘촘하게(작게) */
+  const em = useRef(1);
+  useEffect(() => {
+    const fit = () => {
+      if (!box.current) return;
+      em.current = parseFloat(getComputedStyle(box.current).fontSize) / 32;
+      grain.current?.setAttribute("baseFrequency", (0.65 / em.current).toFixed(3));
+    };
+    fit();
+    addEventListener("resize", fit);
+    return () => removeEventListener("resize", fit);
+  }, []);
   const warp = useRef<SVGFEDisplacementMapElement>(null);
   const grain = useRef<SVGFETurbulenceElement>(null);
 
@@ -65,7 +79,7 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
     const tick = () => {
       noise.current?.setAttribute("seed", String(1 + Math.floor(Math.random() * 999)));
       const spike = Math.random() < 0.12;
-      warp.current?.setAttribute("scale", (spike ? 3 + Math.random() * 0.6 : 1.8 + Math.random() * 0.8).toFixed(2));
+      warp.current?.setAttribute("scale", ((spike ? 3 + Math.random() * 0.6 : 1.8 + Math.random() * 0.8) * em.current).toFixed(2));
       const pause = Math.random() < 0.15;
       id = setTimeout(tick, pause ? 600 + Math.random() * 800 : 60 + Math.random() ** 2 * 500);
     };
@@ -104,7 +118,7 @@ export default function Subtitle({ timeline, link, linkDelay }: { timeline: [str
   const lines = timeline.slice(0, count).map(([l]) => l).reverse().slice(0, 2);
 
   return (
-    <div className="flex flex-col items-center font-subtitle text-[clamp(18px,calc(1.1vw+10px),40px)] tracking-wide text-subtitle">
+    <div ref={box} className="flex flex-col items-center font-subtitle text-[clamp(18px,calc(1.1vw+10px),40px)] tracking-wide text-subtitle">
       {/* 자글자글 — 옛 필름 자막처럼 글자·테두리가 아주 살짝 끓는다(잘게 낀 노이즈로 2~3px 비튼다).
           10/2 사용자: 더 작은 입자로(노이즈 0.22). 씨앗·세기는 위 useEffect 가 불규칙하게 바꾼다(10/4). 가장자리만 끓는다(10/2 사용자) — 글자를 1px 깎은 속은 원래 그대로, 그 바깥만 비튼 그림으로.
           움직임 줄이기를 켠 사람에겐 끈다 */}

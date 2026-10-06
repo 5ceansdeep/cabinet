@@ -71,8 +71,9 @@ export type Ref = { title: string; artist: string };
 
 type TrackList = { name: string; artist: { name: string } }[];
 
-export async function tagTopTracks(tag: string, limit = 30): Promise<Ref[]> {
-  const r = await call<{ tracks?: { track?: TrackList } }>({ method: 'tag.getTopTracks', tag, limit: String(limit) });
+/** page = 몇 번째 쪽(1 부터) — limit 20 에 page 3 이면 41~60위 */
+export async function tagTopTracks(tag: string, limit = 30, page = 1): Promise<Ref[]> {
+  const r = await call<{ tracks?: { track?: TrackList } }>({ method: 'tag.getTopTracks', tag, limit: String(limit), page: String(page) });
   return (r?.tracks?.track ?? []).map((t) => ({ title: t.name, artist: t.artist.name }));
 }
 

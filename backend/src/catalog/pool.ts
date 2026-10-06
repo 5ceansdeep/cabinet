@@ -16,7 +16,12 @@ const DEFAULT_ADD = 30; // 한 번에 새로 담을 곡 수
 const NIGHT_HOUR = 4; // 매일 새벽 4시(서버 시간)
 // 장르를 섞어 둔다 — 한 장르로 몰리지 않게. 추천 점수엔 장르를 쓰지 않고, 곡을 찾는 데만 쓴다
 const SEED_TAGS = ['k-indie', 'korean ballad', 'indie', 'dream pop', 'house', 'r&b', 'rock', 'jazz', 'city pop'];
-const CHARTS = ['kr', 'us'].map((c) => `https://rss.marketingtools.apple.com/api/v2/${c}/music/most-played/50/songs.json`);
+/* 태그 인기곡은 날마다 다음 쪽을 본다(쪽당 20곡, TAG_PAGES 일이면 태그당 200위까지 보고 처음으로).
+   10/6: 늘 1쪽(상위 20곡)만 봐서 후보가 430곡 남짓에서 안 늘었고, 사나흘이면 다 본 곡뿐이었다(32 → 86 → 124 → 144곡을 뒤져야 30곡).
+   ponytail: 쪽 번호를 날짜로 정한다(저장할 게 없다) — 하루에 여러 번 돌려도 같은 쪽. 200위로 모자라면 TAG_PAGES 를 늘린다 */
+const TAG_PAGES = 10;
+export const tagPage = (now = new Date()) => (Math.floor(now.getTime() / 86_400_000) % TAG_PAGES) + 1;
+const CHARTS =['kr', 'us'].map((c) => `https://rss.marketingtools.apple.com/api/v2/${c}/music/most-played/50/songs.json`);
 
 const keyOf = (r: Ref) => `${r.artist}\u0000${r.title}`.toLowerCase();
 // 노래가 아닌 판만 거른다 — 목소리가 빠져 미리듣기로 곡을 알 수 없다. 단어별로 골라 둔다:
@@ -103,7 +108,7 @@ export class PoolService implements OnModuleInit, OnModuleDestroy {
       ...asked.map((a) => artistTopTracks(a, 8)), // 사람들이 찾은 가수 본인 곡 — 한글·원래 표기가 같이 들어오니 Last.fm 이 아는 쪽이 걸린다
       ...similar.map((a) => artistTopTracks(a, 3)),
       ...(only?.length ? [] : CHARTS.map(chart)),
-      ...tags.map((t) => tagTopTracks(t, only?.length ? 40 : 20)),
+      ...tags.map((t) => (only?.length ? tagTopTracks(t, 40) : tagTopTracks(t, 20, tagPage()))), // 장르 채우기(only)는 그 태그 상위 40곡 그대로
     ]);
     // 여기선 seen 에 넣지 않는다 — 실제로 들여다본 곡만 run 이 넣는다. 10/6 새벽: 모은 후보를 전부 seen 에 넣었더니
     // 목표(30곡)를 채우고 남은 후보까지 "본 것"이 돼, 서버를 안 껐던 다음 날 밤 후보가 0곡이었다(배포한 날만 메모리가 비어 돌았다)

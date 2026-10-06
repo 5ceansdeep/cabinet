@@ -201,6 +201,22 @@ export default function Results({ query }: { query: string }) {
     dig({ thrown: all });
   }
 
+  /* 던진 만큼 채우기 — 남긴 곡은 그대로 두고 빈자리 수만큼 새 곡을 뒤에 붙인다(본 곡·던진 곡은 빼고) */
+  const SHOW = 10;
+  const [filling, setFilling] = useState(false);
+  const gap = SHOW - kept.length;
+  async function refill() {
+    setFilling(true);
+    const found = await findTracks(query, { seen, thrown });
+    setFilling(false);
+    const more = found.tracks.filter((t) => !kept.some((k) => k.id === t.id)).slice(0, gap);
+    if (!more.length) return;
+    thud(70);
+    setKept((ts) => [...ts, ...more]);
+    setSeen((s) => [...s, ...more.map((t) => t.id)]);
+    setReveal((r) => r + 1);
+  }
+
   function discard(track: Track) {
     setThrown((ts) => [...ts, track.id]);
     logThrow(track.id, query);
@@ -260,6 +276,18 @@ export default function Results({ query }: { query: string }) {
             <span className="flex shrink-0 items-center gap-6 portrait:w-full portrait:flex-row-reverse portrait:gap-1">
               {phase === "discs" && kept.length > 0 && (
                 <span className="flex items-center gap-4 portrait:ml-auto portrait:gap-1">
+                  {gap > 0 && (
+                    <button
+                      type="button"
+                      onClick={refill}
+                      disabled={filling}
+                      aria-label={RESULT_DIALOGUE.REFILL(gap)}
+                      className={`${action} font-sans text-sm tracking-normal text-accent/85 hover:text-accent disabled:opacity-40 portrait:px-2`}
+                    >
+                      <span className="portrait:hidden">{RESULT_DIALOGUE.REFILL(gap)}</span>
+                      <span className="hidden portrait:inline">{RESULT_DIALOGUE.REFILL_SHORT(gap)}</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={redig}

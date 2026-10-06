@@ -121,6 +121,7 @@ export const LINES = {
   capsLock: { text: D.CAPS_LOCK, voiceKey: "CAPS_LOCK" },
   escKey: "ESC:", // 키보드가 있는 화면에서만 앞에 붙는다
   escHint: "앞 서류로", // 조작 안내라 페르소나 밖, 읽지 않음. 누르는 버튼이기도 하다(폰엔 ESC 가 없다)
+  nextLabel: "다음", // 입력칸 옆 화살표 버튼(읽지 않음)
   soundHint: "화면 아무 곳이나 누르면 음성이 나옵니다.", // 브라우저가 소리를 막고 있을 때 — 조작 안내라 페르소나 밖, 읽지 않음
   checking: { text: D.SUBMITTING, voiceKey: "SUBMITTING" },
   wrong: { text: D.PASSWORD_LOGIN.incorrect, voiceKey: "PASSWORD_LOGIN.incorrect" },
@@ -159,6 +160,7 @@ export const RESULT_DIALOGUE = {
   FAILED_ACTION: "다시 찾기",
   // 듣기 시작하고 3초 뒤 "서랍에 넣기" 버튼 옆 말풍선(10/4 사용자)
   KEEP_HINT: "영수증을 뽑을 수 있어요",
+  KEEP_HINT_CLOSE: "화면을 누르면 닫혀요",
   // 서랍에 넣을 때 네임택(읽지 않는 안내, 평범한 말투)
   NAME_HINT: "서랍 이름표. 고쳐 써도 돼요",
   NAME_ACTION: "이름 붙이기",
@@ -169,7 +171,7 @@ export const RESULT_DIALOGUE = {
   FEW_ARTIST: (name: string, kin: string[]) => `${name} 님 곡이 아직 적어서 결이 비슷한 ${kin.join("·")} 곡도 함께 골랐어요.`,
   // 디스크 조작 안내 — 화면 구석 한 줄. 폰(세로 화면)은 휠·끌어 돌리기 대신 밀어 넘기기
   HINT: "CLICK TO PLAY · WHEEL TO BROWSE · DRAG TO ROTATE · FLICK UP TO DISCARD",
-  HINT_TOUCH: "TAP TO PLAY · SWIPE TO BROWSE · FLICK UP TO DISCARD",
+  HINT_TOUCH: "TAP TO PLAY · SWIPE · FLICK UP", // 폰 한 줄에 들어가게 짧게(10/6) — 위로 튕기면 버린다
 } as const;
 
 export const RESULT_LINES = {

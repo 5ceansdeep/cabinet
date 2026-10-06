@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
+import { ArrowRight } from "@phosphor-icons/react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { damp, useReducedMotion } from "@/lib/motion";
 import { ContactShadows, Environment, Lightformer, PerspectiveCamera, RoundedBox } from "@react-three/drei";
@@ -379,11 +380,20 @@ export default function CabinetScene({
             onKeyUp={(e) => e.getModifierState("CapsLock") !== caps && setCaps(!caps)}
             onInput={touch}
             aria-label={field.label}
+            enterKeyHint="next" // 폰 키보드의 엔터 자리에 "다음"
             placeholder={field.label.toLowerCase()}
             className={inputCls}
             // 폰은 파일이 작게 뜬다(세워도 눕혀도) — 글자가 16px 아래면 아이폰이 입력칸으로 화면을 확대해 버린다
             style={{ width: `${cardVh(fov) * 0.62}cqh`, fontSize: `max(16px, ${cardVh(fov) * 0.038}cqh)` }}
           />
+          {/* 넘기기 — 엔터만으로는 폰에서 끝을 알기 어려웠다(10/6 사용자). 입력칸 오른쪽에 화살표, 누르면 엔터와 같다 */}
+          <button
+            type="submit"
+            aria-label={LINES.nextLabel}
+            className="absolute top-1/2 left-full ml-3 grid size-11 -translate-y-1/2 place-items-center rounded-ui border border-black/15 bg-white/80 text-black/70 transition-colors hover:bg-white hover:text-black active:scale-[.96]"
+          >
+            <ArrowRight aria-hidden size={18} weight="bold" />
+          </button>
           {step > 0 && (
             <button type="button" onClick={back} className="absolute inset-x-0 top-full mt-1 py-2 text-center font-mono text-xs tracking-[.15em] text-black/60">
               <span className="pointer-coarse:hidden">{LINES.escKey} </span>

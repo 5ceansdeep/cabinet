@@ -29,7 +29,7 @@ export default function Playlist({
   const head = "font-mono text-[.8em] tracking-[.15em] text-accent/70";
 
   return (
-    <aside className="pointer-events-auto absolute right-[2.5cqw] top-[14cqh] w-[clamp(220px,24cqw,340px)] rounded-ui border border-accent/10 bg-black/70 p-[1.2em] text-[clamp(12px,1.75cqh,15px)] shadow-[0_10px_40px_rgba(0,0,0,.5)] backdrop-blur-sm animate-[appear_.3s_both] portrait:inset-x-3 portrait:top-auto portrait:bottom-[17cqh] portrait:w-auto portrait:px-[1.2em] portrait:py-[.6em]">
+    <aside className="pointer-events-auto absolute right-[2.5cqw] top-[14cqh] w-[clamp(220px,24cqw,340px)] rounded-ui border border-accent/10 bg-black/70 p-[1.2em] text-[clamp(12px,1.75cqh,15px)] shadow-[0_10px_40px_rgba(0,0,0,.5)] backdrop-blur-sm animate-[appear_.3s_both] landscape:max-h-[84cqh] landscape:overflow-y-auto portrait:inset-x-3 portrait:top-auto portrait:bottom-[17cqh] portrait:w-auto portrait:px-[1.2em] portrait:py-[.6em]">
       {portrait ? (
         <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={`flex min-h-9 w-full items-center justify-between ${head}`}>
           {title}

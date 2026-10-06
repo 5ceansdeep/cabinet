@@ -34,6 +34,9 @@ function useSaying(line: Line | null) {
 
 // 자막 아래 버튼 — 일반 UI 버튼(.btn), 3D 위에 뜨니 바탕을 깐다
 const choice = "btn pointer-events-auto bg-background/85";
+// 위 글자 버튼(서랍에 넣기·MY CABINET·NEW REQUEST) — 터치는 손가락이 닿게 위아래를 넓힌다
+const action = "pointer-events-auto pointer-coarse:-my-2 pointer-coarse:py-2";
+const SWIPE_PX = 40; // 이만큼 옆으로 밀면 한 칸 넘긴다(폰)
 
 /* 4·4-1번 페이지 — 서랍 속에서 건져 올린 플로피 디스크들. 디스크도 서류함도 전부 3D 이고,
    그 위에 얹힌 DOM 은 제목·재생바 같은 글자뿐이다 */
@@ -152,6 +155,32 @@ export default function Results({ query }: { query: string }) {
     return () => removeEventListener("wheel", onWheel);
   }, [phase, move]);
 
+  /* 폰은 휠도 화살표도 없다 — 3D 위를 옆으로 밀어 넘긴다. 위로 던지기(디스크 버리기)와 안 겹치게 가로가 뚜렷할 때만.
+     마우스로 끄는 건 디스크 돌리기라 손가락·펜만 듣는다 */
+  useEffect(() => {
+    if (phase !== "discs") return;
+    let from: { x: number; y: number } | null = null;
+    const down = (e: PointerEvent) => {
+      from = e.pointerType !== "mouse" && (e.target as HTMLElement).tagName === "CANVAS" ? { x: e.clientX, y: e.clientY } : null;
+    };
+    const up = (e: PointerEvent) => {
+      if (!from) return;
+      const dx = e.clientX - from.x;
+      const dy = e.clientY - from.y;
+      from = null;
+      if (Math.abs(dx) > SWIPE_PX && Math.abs(dx) > 1.5 * Math.abs(dy)) move(dx < 0 ? 1 : -1);
+    };
+    const cancel = () => (from = null);
+    addEventListener("pointerdown", down);
+    addEventListener("pointerup", up);
+    addEventListener("pointercancel", cancel);
+    return () => {
+      removeEventListener("pointerdown", down);
+      removeEventListener("pointerup", up);
+      removeEventListener("pointercancel", cancel);
+    };
+  }, [phase, move]);
+
   /* 서랍에 넣기 — 디스크가 아래 서랍으로 빨려 들고, 다 삼키면 "탁" 닫히며 네임택을 내민다 */
   function store() {
     setKeepHint(false);
@@ -213,9 +242,10 @@ export default function Results({ query }: { query: string }) {
             onDiscard={discard}
           />
 
-          <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65">
-            <div className="max-w-xl space-y-1">
-              <p>
+          {/* 세로 화면(폰)은 옆으로 나란히 둘 폭이 없다 — 버튼 줄을 위에, 편지·해석을 그 아래에 */}
+          <header className="pointer-events-none relative flex items-start justify-between gap-4 px-6 pt-6 font-mono text-xs tracking-[.15em] text-foreground/65 portrait:flex-col-reverse portrait:gap-2 portrait:px-4 portrait:pt-[max(.75rem,env(safe-area-inset-top))]">
+            <div className="max-w-xl space-y-1 portrait:max-w-full">
+              <p className="portrait:line-clamp-2">
                 QUERY <span className="ml-2 normal-case tracking-normal text-foreground/85">{query || "(empty)"}</span>
               </p>
               {interpretation.length > 0 && (
@@ -229,25 +259,27 @@ export default function Results({ query }: { query: string }) {
                 </p>
               )}
               {missingSong && <p className="normal-case tracking-normal text-subtitle">{RESULT_DIALOGUE.MISSING_SONG(missingSong)}</p>}
+              {/* 조작 안내 — 세로 화면은 아래가 드라이브·자막 자리라 여기에 */}
+              {phase === "discs" && kept.length > 0 && <p className="hidden text-foreground/60 portrait:block">{RESULT_DIALOGUE.HINT_TOUCH}</p>}
             </div>
-            <span className="flex shrink-0 gap-4">
+            <span className="flex shrink-0 gap-4 portrait:w-full portrait:flex-row-reverse portrait:justify-between">
               {phase === "discs" && kept.length > 0 && (
                 <span className="relative">
-                  <button type="button" onClick={store} className="pointer-events-auto text-accent/85 hover:text-accent">
+                  <button type="button" onClick={store} className={`${action} text-accent/85 hover:text-accent`}>
                     서랍에 넣기
                   </button>
                   {keepHint && (
                     <span
                       role="status"
-                      className="pointer-events-none absolute top-full right-0 mt-3 w-max max-w-[14em] origin-top-right rounded-ui bg-foreground px-3.5 py-2 text-sm leading-snug font-sans tracking-normal text-background normal-case shadow-[0_8px_24px_rgba(0,0,0,.45)] animate-[bubble_.4s_cubic-bezier(.2,.8,.2,1)_both] before:absolute before:-top-[5px] before:right-5 before:border-x-[6px] before:border-b-[6px] before:border-x-transparent before:border-b-foreground"
+                      className="pointer-events-none absolute top-full right-0 z-10 mt-3 w-max max-w-[14em] origin-top-right rounded-ui bg-foreground px-3.5 py-2 text-sm leading-snug font-sans tracking-normal text-background normal-case shadow-[0_8px_24px_rgba(0,0,0,.45)] animate-[bubble_.4s_cubic-bezier(.2,.8,.2,1)_both] before:absolute before:-top-[5px] before:right-5 before:border-x-[6px] before:border-b-[6px] before:border-x-transparent before:border-b-foreground"
                     >
                       {RESULT_DIALOGUE.KEEP_HINT}
                     </span>
                   )}
                 </span>
               )}
-              <Link href="/archive" className="pointer-events-auto text-accent/85 hover:text-accent">MY CABINET</Link>
-              <Link href="/search" className="pointer-events-auto text-accent/85 hover:text-accent">NEW REQUEST</Link>
+              <Link href="/archive" className={`${action} text-accent/85 hover:text-accent`}>MY CABINET</Link>
+              <Link href="/search" className={`${action} text-accent/85 hover:text-accent`}>NEW REQUEST</Link>
             </span>
           </header>
 
@@ -312,7 +344,7 @@ export default function Results({ query }: { query: string }) {
                 value={tag}
                 onChange={(e) => setTag(e.target.value.slice(0, TAG_MAX))}
                 aria-label="서랍 이름"
-                className="w-64 border-b-2 border-neutral-400 bg-transparent pb-1 text-center font-mono text-xl tracking-[.15em] text-neutral-800 outline-none focus:border-neutral-800"
+                className="w-64 border-b-2 border-neutral-400 bg-transparent pb-1 text-center font-mono text-xl tracking-[.15em] text-neutral-800 outline-none focus:border-neutral-800 portrait:w-[72cqw] portrait:text-lg portrait:tracking-normal" // 폰은 폭이 좁아 긴 이름이 잘렸다
               />
               <button type="submit" className="btn-solid">
                 {RESULT_DIALOGUE.NAME_ACTION}
@@ -322,8 +354,8 @@ export default function Results({ query }: { query: string }) {
           )}
 
           {/* 아래 가운데는 드라이브 자리 — 안내는 왼쪽 아래로 */}
-          <footer className="pointer-events-none absolute bottom-[3cqh] left-6 font-mono text-xs tracking-[.15em] text-foreground/60">
-            CLICK TO PLAY · WHEEL TO BROWSE · DRAG TO ROTATE · FLICK UP TO DISCARD
+          <footer className="pointer-events-none absolute bottom-[3cqh] left-6 font-mono text-xs tracking-[.15em] text-foreground/60 portrait:hidden">
+            {RESULT_DIALOGUE.HINT}
           </footer>
         </>
       {saved && (

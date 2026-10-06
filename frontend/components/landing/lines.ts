@@ -167,6 +167,9 @@ export const RESULT_DIALOGUE = {
     kin.length ? `아직 ${name} 님 곡은 서류함에 없어요. 결이 비슷한 ${kin.join("·")} 곡으로 골랐어요. 곧 채워 둘게요.` : `아직 ${name} 님 곡은 서류함에 없어요. 비슷한 결로 골랐어요. 곧 채워 둘게요.`,
   MISSING_SONG: (song: string) => `「${song}」은 아직 서류함에 없어요. 결이 비슷한 곡으로 골랐어요. 곧 채워 둘게요.`,
   FEW_ARTIST: (name: string, kin: string[]) => `${name} 님 곡이 아직 적어서 결이 비슷한 ${kin.join("·")} 곡도 함께 골랐어요.`,
+  // 디스크 조작 안내 — 화면 구석 한 줄. 폰(세로 화면)은 휠·끌어 돌리기 대신 밀어 넘기기
+  HINT: "CLICK TO PLAY · WHEEL TO BROWSE · DRAG TO ROTATE · FLICK UP TO DISCARD",
+  HINT_TOUCH: "TAP TO PLAY · SWIPE TO BROWSE · FLICK UP TO DISCARD",
 } as const;
 
 export const RESULT_LINES = {

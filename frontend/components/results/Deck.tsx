@@ -6,6 +6,7 @@ import { RoundedBox } from "@react-three/drei";
 import { CanvasTexture, type Group, type Mesh } from "three";
 import { thud } from "@/lib/thud";
 import { damp, reducedMotion, useReducedMotion } from "@/lib/motion";
+import { useTouch } from "@/lib/screen";
 import { DISK, FloppyBody, useLabel } from "./floppy";
 import { MOUTH } from "./SaveDrawer";
 import { REVEAL_LEAD, REVEAL_MOUTH } from "./room";
@@ -122,8 +123,10 @@ function Disk({
   const born = useRef(-1); // 생긴 시각(첫 프레임)
   const { invalidate } = useThree();
   const reduce = useReducedMotion(); // 감속 모드 — 날아오기·꽂기·관성 없이 바로, 던지면 날리지 않고 바로 빠진다
+  const touch = useTouch();
+  const lit = hover || (touch && offset === 0 && !slot); // 들리며 점수가 찍힌다 — 터치엔 호버가 없으니 가운데 온 디스크가
   // 목표가 바뀌면 깨운다 — 멎은 장면은 그리지 않으니(frameloop="demand") 호버·넘기기·꽂기·빨려 들기의 시작을 알려야 한다
-  useEffect(() => invalidate(), [hover, slot, offset, swallow, invalidate]);
+  useEffect(() => invalidate(), [lit, slot, offset, swallow, invalidate]);
 
   /* 손을 떠난다 — 손놀림(vx)이 있으면 그 방향으로, 꾹 눌러 던지면 곧장 위로 */
   function launch(vx: number, vy = MIN_UP) {
@@ -212,7 +215,7 @@ function Disk({
     const s = spin.current;
     let away = 0;
     if (st === "row" && !tween.current) {
-      const target = { x: rowSlot.x, y: hover ? 0.16 : 0, z: rowSlot.z };
+      const target = { x: rowSlot.x, y: lit ? 0.16 : 0, z: rowSlot.z };
       const k = damp(7, dt, reduce);
       o.position.x += (target.x - o.position.x) * k;
       o.position.y += (target.y - o.position.y) * k;
@@ -234,7 +237,7 @@ function Disk({
       o.rotation.set(rx, s.y, 0);
     }
     // 호버하면 점수가 한 글자씩 찍힌다
-    const want = hover ? label.length : 0;
+    const want = lit ? label.length : 0;
     if (typed.current !== want) {
       typed.current += Math.sign(want - typed.current) * Math.max(1, Math.round(dt * 60));
       typed.current = Math.max(0, Math.min(label.length, typed.current));

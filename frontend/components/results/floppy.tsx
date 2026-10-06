@@ -28,6 +28,13 @@ export function useLabel(track: Track, onArt?: () => void) {
     const score = track.semantic ? `[일치도: ${track.semantic}%]` : track.artist;
     // 앨범 커버 — 받아지기 전엔 그라디언트, 받으면 그 위에 다시 그린다 (iTunes 커버는 CORS 를 열어 둬 캔버스에 써도 된다)
     const st: { art: HTMLImageElement | null; last: number } = { art: null, last: 0 };
+    // 라벨 폭(512 - 좌우 16)을 넘으면 뒤를 잘라 … 을 붙인다
+    const fit = (text: string) => {
+      if (ctx.measureText(text).width <= 480) return text;
+      let t = text;
+      while (t && ctx.measureText(t + "…").width > 480) t = t.slice(0, -1);
+      return t.trimEnd() + "…";
+    };
     const draw = (typed: number) => {
       st.last = typed;
       const art = st.art;
@@ -44,11 +51,11 @@ export function useLabel(track: Track, onArt?: () => void) {
       ctx.fillStyle = "#ece8dc";
       ctx.fillRect(0, 380, 512, 132);
       ctx.fillStyle = "#212529";
-      ctx.font = '600 40px "Courier New", monospace';
-      ctx.fillText(track.title.slice(0, 16), 16, 432);
+      ctx.font = '600 32px "Courier New", monospace';
+      ctx.fillText(fit(track.title), 16, 430);
       ctx.fillStyle = "#0a6e7a";
       ctx.font = '600 22px "Courier New", monospace';
-      ctx.fillText(score.slice(0, typed), 16, 478);
+      ctx.fillText(fit(score).slice(0, typed), 16, 478);
       tex.needsUpdate = true;
     };
     draw(0);

@@ -3,9 +3,11 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { CatalogModule } from '../catalog/catalog.module.js';
+import { DescribeService } from '../catalog/describe.js';
 import { GENRES, inGenres } from '../catalog/genres.js';
 import { same } from '../catalog/itunes.js';
 import { similarArtists, similarTracks } from '../catalog/lastfm.js';
+import { PoolService } from '../catalog/pool.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VoiceModule, VoiceService } from '../voice/voice.js';
 import { type Asked, Interpreter, normalize } from './interpret.js';
@@ -62,6 +64,31 @@ const THROW_PER_IP = 100; // 한 곳에서 하루에 세는 던진 곡 수
 const ASK_PER_MIN = 10; // 한 곳(IP)에서 Gemini 를 쓰는 요청(꺼내기·한마디·보고서 합쳐) — 분당. "다시 찾기"·"몇 곡 더"를 빨리 눌러도 넉넉
 const ASK_PER_DAY = 200; // 하루 — 한 사람이 선불 크레딧을 바닥내지 못하게
 
+const AUTO_GROW_DELAY_MS = 3.5 * 60_000; // missingArtist·missingSong → 자동 넓히기까지 기다리는 시간(10/7)
+const AUTO_GROW_COOLDOWN_MS = 86_400_000; // 같은 가수·곡은 하루 한 번만
+const AUTO_GROW_DAILY_MAX = 15; // 하루 전체 상한 — 엉뚱한 가수 이름을 몰아 쳐도 Gemini 비용이 작게
+
+/** missingArtist·missingSong 자동 넓히기를 허락할지 — 같은 키(가수·곡)는 cooldownMs 에 한 번, 하루 전체는 dailyMax 까지.
+    Limiter(아래) 와 같은 모양으로 메모리에 둔다 — 서버를 끄면 비고 여러 대면 따로 센다 */
+export class AutoGrowGate {
+  private readonly last = new Map<string, number>();
+  private today = { day: '', count: 0 };
+  constructor(
+    private readonly cooldownMs: number,
+    private readonly dailyMax: number,
+  ) {}
+
+  allow(key: string, now = Date.now()) {
+    if (now - (this.last.get(key) ?? -Infinity) < this.cooldownMs) return false;
+    const day = new Date(now).toISOString().slice(0, 10);
+    if (this.today.day !== day) this.today = { day, count: 0 };
+    if (this.today.count >= this.dailyMax) return false;
+    this.last.set(key, now);
+    this.today.count++;
+    return true;
+  }
+}
+
 /** 한 곳에서 최근 1분·하루 동안 부른 시각을 세어 넘으면 false. 같은 요청 다시(캐시라 돈 안 듦)도 센다.
     ponytail: 메모리 — 서버를 끄면 비고 여러 대면 따로 센다. 여러 IP 가 합쳐 쓰는 양은 AI Studio 비용 제한이 막는다 */
 export class Limiter {
@@ -106,7 +133,26 @@ export class RecommendService {
     private readonly interpreter: Interpreter,
     private readonly reranker: Reranker,
     private readonly voice: VoiceService,
+    private readonly poolSvc: PoolService,
+    private readonly describe: DescribeService,
   ) {}
+
+  /* missingArtist·missingSong 자동 채우기(10/7 사용자: 안내만 하고 끝나지 말고, 관련곡을 곡 풀에 담아 달라).
+     편지에 없는 가수·곡이 걸리면 AUTO_GROW_DELAY_MS 뒤 그 가수(또는 곡)와 비슷한 곡 몇 개를 몰래 담고 바로 설명까지 붙인다 —
+     다음에 같은 가수를 찾으면 나온다. 문은 AutoGrowGate(아래) 가 지킨다 — 같은 가수·곡은 하루 한 번만, 하루 전체도 상한(크레딧, Gemini 설명을 자동으로 쓰므로).
+     서버를 끄면 예약은 사라진다(다음 검색이 다시 건다) — 곡 풀 넓히기와 같은 수준의 느슨함 */
+  private readonly autoGrowGate = new AutoGrowGate(AUTO_GROW_COOLDOWN_MS, AUTO_GROW_DAILY_MAX);
+
+  private scheduleAutoGrow(key: string, job: () => Promise<string[]>) {
+    if (!this.autoGrowGate.allow(key)) return;
+    setTimeout(() => {
+      job()
+        .then((ids) => {
+          if (ids.length) return this.describe.describeIds(ids);
+        })
+        .catch((e) => this.log.warn(`자동 곡 풀 넓히기 실패(${key}): ${e}`));
+    }, AUTO_GROW_DELAY_MS);
+  }
 
   /* 곡 목록 — 임베딩이 곡당 768개 숫자라 244곡이 3.5MB, 싱가포르에서 받는 데 2초였다(9/30). 메모리에 두고,
      POOL_CHECK_MS 가 지나면 곡 수·마지막 설명·소리 분석 시각만 물어 달라졌을 때만 다시 읽는다 — 재시작 필요 없음.
@@ -225,11 +271,14 @@ export class RecommendService {
         })
         .catch((e) => this.log.warn(`검색 기록 저장 실패: ${e}`)); // 결과는 그대로 준다 — 실패는 Railway 로그에 남겨 조용히 사라지지 않게(10/2)
     }
-    // 편지에 쓴 가수 곡이 곡 풀에 하나도 없으면 — 화면이 "아직 없어요" 를 알린다(10/2 박효신 — 말없이 엉뚱한 곡을 줬다). 검색 기록 asked 로 다음 수집에 들어간다
+    // 편지에 쓴 가수 곡이 곡 풀에 하나도 없으면 — 화면이 "아직 없어요" 를 알린다(10/2 박효신 — 말없이 엉뚱한 곡을 줬다).
+    // + 3분 반 뒤 그 가수와 비슷한 곡을 몰래 담는다(10/7 사용자) — 다음에 같은 가수를 찾으면 나온다
     const missingArtist = asked.artists?.length && !named.length ? asked.artists[0] : null;
+    if (missingArtist) this.scheduleAutoGrow(`artist:${missingArtist}`, () => this.poolSvc.growFor(missingArtist));
     const kinShown = kin.filter((k) => tracks.some((t) => same(t.artist, k))).slice(0, 3); // 화면 안내에 — 실제로 나온 비슷한 가수만
     const missing = songs.find((g) => !seeds.some((t) => by(t, g.artist) && sameTitle(t.title, g.title)));
     const missingSong = missing ? `${missing.artist} - ${missing.title}` : null; // 꼽은 곡이 서류함에 없다 — 화면이 알린다
+    if (missing) this.scheduleAutoGrow(`song:${missing.artist}-${missing.title}`, () => this.poolSvc.growForSong(missing.artist, missing.title));
     const fewGenre = scarce(pool, [...new Set([...genres, ...(asked.genres ?? [])])]);
     return { interpretation: shownKeywords(asked), description: readings(asked), tracks, line, missingArtist, kinArtists: kinShown, kinFor: kinShown.length && asked.artists?.length ? asked.artists[0] : null, missingSong, fewGenre };
   }

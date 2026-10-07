@@ -137,6 +137,27 @@ export class DescribeService implements OnModuleInit, OnModuleDestroy {
       orderBy: { shelves: { _count: 'desc' } },
       take: limit,
     });
+    await this.describeRows(rows);
+  }
+
+  /** missingArtist·missingSong 으로 방금 담은 곡만 콕 집어 설명 — 밀린 설명(describedAt: null 전체)은 안 건드린다(10/7 사용자).
+      이미 큰 배치가 돌고 있으면 건너뛴다(겹쳐 돌리지 않는다) */
+  async describeIds(ids: string[]) {
+    if (!ids.length || this.status.running) return;
+    const rows = await this.prisma.track.findMany({
+      where: { id: { in: ids }, describedAt: null },
+      select: { id: true, title: true, artist: true, tags: true, energy: true, valence: true, acousticness: true, danceability: true, tempo: true },
+    });
+    if (!rows.length) return;
+    this.status = { running: true, done: 0, noLyrics: 0, failed: 0, left: rows.length };
+    try {
+      await this.describeRows(rows);
+    } finally {
+      this.status.running = false;
+    }
+  }
+
+  private async describeRows(rows: Row[]) {
     this.status.left = rows.length;
     let streak = 0; // 연달아 실패한 수
     for (const t of rows) {
@@ -166,6 +187,7 @@ export class DescribeService implements OnModuleInit, OnModuleDestroy {
     }
     this.log.log(`곡 설명 끝 — ${this.status.done}곡(가사 없이 ${this.status.noLyrics}), 실패 ${this.status.failed}, 남음 ${this.status.left}`);
   }
+
 
   // 새벽 자동 실행은 DESCRIBE_NIGHTLY=true 일 때만 — 10/2 사용자: 곡을 먼저 잔뜩 모으고 Gemini(돈 드는 설명)는 나중에 한 번에 붙인다.
   // 꺼져 있으면 설명 없는 곡은 추천에 안 나온다. 붙일 땐 POST /catalog/describe 또는 이 값을 켠다

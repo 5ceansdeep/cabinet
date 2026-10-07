@@ -10,6 +10,6 @@ import { VideoService } from './videos.js';
 @Module({
   controllers: [CatalogController],
   providers: [CatalogService, VideoService, PoolService, SoundService, Gemini, DescribeService],
-  exports: [CatalogService, VideoService, Gemini],
+  exports: [CatalogService, VideoService, Gemini, PoolService, DescribeService],
 })
 export class CatalogModule {}

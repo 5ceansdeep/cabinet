@@ -1,5 +1,16 @@
 # cabinet 작업 컨텍스트 (2026-10-06 밤)
 
+## 10/7 이어서(이 세션) — "자꾸 보이던 곡" 원인 하나 더 찾음 + missingArtist·missingSong 자동 채우기, 커밋만(푸시 전)
+- **원인**: 허브 감점(B-5, 최대 −0.05)보다 비슷한 가수·곡 가산(KIN_BONUS 0.08 · LIKE_BONUS 0.1)이 커서, missingArtist·missingSong 이 걸린 편지에선
+  감점이 못 이긴다. 실제로 최근 14일 "가수를 직접 쓴 검색" 14개 안에서 상위 곡이 29%(3~4번)로 몰림(전체 검색에선 11%). Last.fm 비슷한 가수 목록이
+  매번 같아서 생기는, 설계상 의도된 동작(대타가 아예 안 나오는 것보단 낫다) — 버그는 아니고 범위가 좁을 때 생기는 쏠림.
+- **고침(요청 그대로)**: `recommend()` 가 missingArtist·missingSong 을 알리면서, 3분 반 뒤(`AUTO_GROW_DELAY_MS`) 그 가수(비슷한 가수 포함)·그 곡과
+  비슷한 곡을 몇 곡(`AUTO_TARGET=10`) 곡 풀에 담고 바로 Gemini 설명까지 붙인다(`PoolService.growFor/growForSong` → `DescribeService.describeIds`,
+  기존 "밀린 설명 전체"는 안 건드린다). 같은 가수·곡은 하루 한 번만, 하루 전체도 15번 상한(`AutoGrowGate`, 단위 테스트 있음) — 엉뚱한 이름을 몰아 써도
+  Gemini 비용이 크게 안 나가게. 시간이 지나면 이게 위 쏠림도 자연히 줄여 준다(같은 몇 곡 대신 진짜 그 가수 곡이 생긴다).
+  tsc/lint 클린, 테스트 68개 통과(`AutoGrowGate` 2개 추가). **실제 동작은 로컬에서 missingArtist 경로를 안 돌려 봤다** — 운영에 나가야 Last.fm·iTunes·Gemini 가 실제로 불린다.
+- 다음에 더 할 만한 것(안 함, 평가 필요): KIN_BONUS·LIKE_BONUS 를 허브 감점만큼 낮추거나, 같은 "대타" 곡을 최근에 보여 줬으면 돌아가며 고르기.
+
 ## 지금 어디까지
 - **베타 진행 중**(10/2 첫 테스터 피드백 받음). 백엔드(Railway)·프론트(Vercel) 배포, `main` 푸시마다 자동 배포.
   프론트 https://cabinet-flame-zeta.vercel.app · 백엔드 https://cabinet-production-9cf8.up.railway.app · 안내문 [docs/beta-guide.md](docs/beta-guide.md)

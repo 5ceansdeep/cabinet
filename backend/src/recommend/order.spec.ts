@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alternate, arrange, blend, by, scarce, finalOrder, later, Limiter, pinTitled, sameTitle } from './recommend.js';
+import { alternate, arrange, AutoGrowGate, blend, by, scarce, finalOrder, later, Limiter, pinTitled, sameTitle } from './recommend.js';
 
 const t = (id: string, artist: string) => ({ id, artist });
 const cands = [t('a', 'Oasis'), t('b', '아이유'), t('c', 'Oasis'), t('d', '검정치마')];
@@ -37,6 +37,22 @@ describe('Gemini 요청 제한', () => {
     expect(l.hit('a', 60_001)).toBe(true); // 분당은 풀렸고 하루 3번째
     expect(l.hit('a', 200_000)).toBe(false); // 하루 3번 다 씀
     expect(l.hit('a', 86_400_002)).toBe(true); // 하루 지남
+  });
+});
+
+describe('missingArtist 자동 넓히기 — 같은 가수는 하루 한 번, 하루 전체 상한', () => {
+  it('같은 키는 쿨다운 안에 또 안 한다', () => {
+    const g = new AutoGrowGate(1000, 10);
+    expect(g.allow('artist:A', 0)).toBe(true);
+    expect(g.allow('artist:A', 500)).toBe(false); // 쿨다운 안
+    expect(g.allow('artist:A', 1001)).toBe(true); // 쿨다운 지남
+  });
+  it('하루 상한을 넘으면 다른 키도 막히고, 날이 바뀌면 풀린다', () => {
+    const g = new AutoGrowGate(0, 2);
+    expect(g.allow('a', 0)).toBe(true);
+    expect(g.allow('b', 0)).toBe(true);
+    expect(g.allow('c', 0)).toBe(false); // 하루 2번 다 씀
+    expect(g.allow('c', 86_400_000)).toBe(true); // 다음 날
   });
 });
 

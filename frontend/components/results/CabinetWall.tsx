@@ -184,7 +184,8 @@ export default function CabinetWall({
   onDiscard: (t: Track) => void;
 }) {
   return (
-    <div className="fixed inset-0">
+    // touch-none — 디스크 위 손놀림(밀기·던지기·꾹 누르기)을 브라우저가 스크롤로 가져가지 않게
+    <div className="fixed inset-0 touch-none">
       <Canvas frameloop="demand" camera={{ position: [0, 0, 0], fov: 62 }} dpr={[1, 1.5]} onCreated={keepContext}>
         {/* 검은 공간에 흰 서류함만 떠오른다 — 멀어질수록 어둠에 잠긴다 */}
         <color attach="background" args={["#000000"]} />

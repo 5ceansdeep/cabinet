@@ -51,6 +51,8 @@ const LIKE_BONUS = 0.1; // 꼽은 곡과 Last.fm 이 비슷하다고 한 곡에 
 const VOCAL_TAGS = ['female vocalists', 'male vocalists']; // 해석이 보컬 성별을 명시했을 때만(interpret.ts tags) — "아이유 같은" 처럼 가수 본인 곡은 아니어도 성별은 맞춘다
 const VOCAL_BONUS = 0.08; // Last.fm 태그 가중치 10 이상인 곡에 — 태그가 없는 곡은 그대로(걸러내지 않는다, 태그 누락이 많다)
 const VOCAL_MIN_WEIGHT = 10;
+const FEW_GENRE = 20; // 말한 장르 곡이 이보다 적으면 화면이 알린다 — 결과가 어색한 게 곡이 모자라서인지 사용자가 알게(10/7)
+const FEW_MIX = 5; // 장르를 둘 말했는데 둘 다 가진 곡이 이보다 적으면 알린다
 const MIN_GENRE = SHOW; // 고른 장르 곡이 이보다 적으면 나머지 곡으로 채운다 — 빈 서랍보다 낫다(장르 곡이 앞)
 const HUB_DAYS = 14; // 허브(어디에나 끼는 곡)를 재는 검색 기록 기간
 const HUB_CHECK_MS = 600_000; // 그 집계를 메모리에 두는 시간
@@ -228,7 +230,8 @@ export class RecommendService {
     const kinShown = kin.filter((k) => tracks.some((t) => same(t.artist, k))).slice(0, 3); // 화면 안내에 — 실제로 나온 비슷한 가수만
     const missing = songs.find((g) => !seeds.some((t) => by(t, g.artist) && sameTitle(t.title, g.title)));
     const missingSong = missing ? `${missing.artist} - ${missing.title}` : null; // 꼽은 곡이 서류함에 없다 — 화면이 알린다
-    return { interpretation: shownKeywords(asked), description: readings(asked), tracks, line, missingArtist, kinArtists: kinShown, kinFor: kinShown.length && asked.artists?.length ? asked.artists[0] : null, missingSong };
+    const fewGenre = scarce(pool, [...new Set([...genres, ...(asked.genres ?? [])])]);
+    return { interpretation: shownKeywords(asked), description: readings(asked), tracks, line, missingArtist, kinArtists: kinShown, kinFor: kinShown.length && asked.artists?.length ? asked.artists[0] : null, missingSong, fewGenre };
   }
 
   /* 편지 한 줄(LetterLine)에 — 없으면 만들고, 있으면 이번에 꺼낸 곡을 기록 뒤에 붙인다. 대사는 비어 있을 때만 채운다(같은 편지면 늘 같은 대사).
@@ -422,6 +425,14 @@ export const readings = (asked: Asked) => (asked.alt ? `${asked.description}
 ${asked.alt.description}` : asked.description);
 /** 화면 "요청 해석" — 두 번째 읽기의 말도 두 개까지 */
 const shownKeywords = (asked: Asked) => (asked.alt ? [...asked.keywords.slice(0, 3), ...asked.alt.keywords.slice(0, 2)] : asked.keywords);
+
+/** 말한 장르의 곡이 서류함에 모자란가 — 둘 넘게 말했으면 다 가진 곡 수(mix), 하나면 그 장르 곡 수. 넉넉하면 null.
+    결과가 어색할 때 추천이 틀린 건지 곡이 없는 건지 화면이 알려 주려고(10/7 사용자) */
+export function scarce(pool: { tags: string }[], want: string[]) {
+  if (!want.length) return null;
+  const count = pool.filter((t) => want.every((g) => inGenres(JSON.parse(t.tags) as Record<string, number>, [g]))).length;
+  return count < (want.length > 1 ? FEW_MIX : FEW_GENRE) ? { genres: want, count, mix: want.length > 1 } : null;
+}
 
 /** 두 벡터를 반반 — 요청 벡터와 꼽은 곡(들)의 평균, 다시 길이 1 */
 export const blend = (a: number[], bs: number[][]) => {

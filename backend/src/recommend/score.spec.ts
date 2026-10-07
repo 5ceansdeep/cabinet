@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { A, away, display, dot, lexical, rank, soundScore, TASTE_BONUS, tasteBonus, throwPenalties, throwPenalty, total } from './score.js';
+import { A, away, HUB, hubPenalties, display, dot, lexical, rank, soundScore, TASTE_BONUS, tasteBonus, throwPenalties, throwPenalty, total } from './score.js';
 
 describe('score', () => {
+  it('허브 — 고른 몫의 몇 배를 넘게 나온 곡만 깎고, 곡 풀이 커지면 같은 횟수도 더 깎인다', () => {
+    const shown = new Map([['hub', 40], ['fair', 5]]);
+    const small = hubPenalties(shown, 300, 800, 10); // 고른 몫 1.25% — hub 는 13.3%(10.7배)
+    expect(small.get('hub')).toBeCloseTo(HUB.step * Math.log2(40 / 300 / (10 / 800) / HUB.from));
+    expect(small.has('fair')).toBe(false);
+    expect(hubPenalties(shown, 300, 3200, 10).get('hub')!).toBeGreaterThan(small.get('hub')!);
+    expect(hubPenalties(new Map([['x', 30]]), 30, 800, 10).size).toBe(0); // 검색이 적으면 안 깎는다
+    expect(hubPenalties(new Map([['x', 300]]), 300, 800, 10).get('x')).toBe(HUB.max);
+  });
+
   it('좋아요한 곡과 결이 가까운 곡만 가산 — 좋아요가 없으면 빈 표', () => {
     const pool = [
       { id: 'a', vector: [1, 0] },

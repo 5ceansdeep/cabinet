@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alternate, blend, finalOrder, later, Limiter, pinTitled, sameTitle } from './recommend.js';
+import { alternate, blend, by, finalOrder, later, Limiter, pinTitled, sameTitle } from './recommend.js';
 
 const t = (id: string, artist: string) => ({ id, artist });
 const cands = [t('a', 'Oasis'), t('b', '아이유'), t('c', 'Oasis'), t('d', '검정치마')];
@@ -71,5 +71,18 @@ describe('꼽은 곡 찾기', () => {
     const v = blend([1, 0], [[0, 1]]);
     expect(v[0]).toBeCloseTo(Math.SQRT1_2);
     expect(v[1]).toBeCloseTo(Math.SQRT1_2);
+  });
+});
+
+describe('가수 다른 표기', () => {
+  it('곡 풀 표기와 다른 표기 어느 쪽으로 불러도 그 가수', () => {
+    const t = { artist: '엔시티 드림', artistAlt: 'NCT DREAM' };
+    expect(by(t, 'NCT')).toBe(true);
+    expect(by(t, '엔시티')).toBe(true);
+    expect(by({ artist: 'NewJeans', artistAlt: '뉴진스 · 엔제이지' }, '뉴진스')).toBe(true);
+    expect(by({ artist: '엔시티 드림' }, 'NCT')).toBe(false);
+    expect(by(t, 'BTS')).toBe(false);
+    expect(by({ artist: '보아', artistAlt: 'BoA' }, 'Boards of Canada')).toBe(false); // 짧은 로마자 이름이 글자만 겹치는 이름에 안 걸린다
+    expect(by({ artist: '에프엑스', artistAlt: 'f(x)' }, 'fx')).toBe(true);
   });
 });

@@ -158,7 +158,7 @@ export class PoolService implements OnModuleInit, OnModuleDestroy {
     // iTunes 표기를 곡 이름으로 쓴다 — 이미 있으면 태그만 채운다
     await this.prisma.track.upsert({
       where: { title_artist: { title: it.title, artist: it.artist } },
-      create: { title: it.title, artist: it.artist, artwork: it.artwork, previewUrl: it.previewUrl, tags: JSON.stringify(tags) },
+      create: { title: it.title, artist: it.artist, artistAlt: it.artistAlt, artwork: it.artwork, previewUrl: it.previewUrl, tags: JSON.stringify(tags) },
       update: { tags: JSON.stringify(tags) },
     });
     return { calledITunes: true, added: `${it.artist} - ${it.title}` };

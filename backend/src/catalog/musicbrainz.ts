@@ -18,11 +18,21 @@ export function pickName(artists: MbArtist[]): string | null {
   return primary?.name ?? (stage.length === 1 ? stage[0].name : a.name);
 }
 
-const cache = new Map<string, string | null>();
+/** 다른 표기 — 한글 이름이면 로마자 이름(엔시티 드림 → NCT DREAM), 로마자면 한글 예명(여럿이면 " · " 로 이어서: NewJeans → 뉴진스 · 엔제이지).
+    곡 풀의 가수 표기와 사용자가 쓴 표기가 달라도 찾게 Track.artistAlt 에 둔다(10/7). 본명은 안 쓴다. 확실한 한국 가수가 아니거나 없으면 null */
+export function pickOther(artists: MbArtist[], artist: string): string | null {
+  const a = artists.find((x) => x.score === 100 && x.country === 'KR');
+  if (!a) return null;
+  const stage = [a.name, ...(a.aliases ?? []).filter((x) => x.primary || x.type === 'Artist name').map((x) => x.name)];
+  const want = HANGUL.test(artist) ? stage.filter((n) => /^[ -~]+$/.test(n) && /[a-z]/i.test(n)).slice(0, 1) : [...new Set(stage.filter((n) => HANGUL.test(n)))].slice(0, 3);
+  return want.join(' · ') || null;
+}
+
+const cache = new Map<string, MbArtist[]>();
 let last = 0;
 
-export async function koreanName(artist: string, retry = true): Promise<string | null> {
-  if (HANGUL.test(artist)) return artist; // 이미 한글이면 그대로 — MB 이름이 영문인 가수(에일리 → Ailee)로 도로 바뀌지 않게
+/** MusicBrainz 가수 검색(이름·별칭) — 못 닿으면 null(캐시하지 않고 다음에 다시 묻는다) */
+async function search(artist: string, retry = true): Promise<MbArtist[] | null> {
   if (cache.has(artist)) return cache.get(artist)!;
   // ponytail: 초당 1회 제한을 프로세스 안에서만 지킨다 — 서버가 여러 대면 따로 센다
   const wait = last + 1100 - Date.now();
@@ -34,12 +44,23 @@ export async function koreanName(artist: string, retry = true): Promise<string |
       headers: { 'User-Agent': 'cabinet/0.1 (https://github.com/5ceansdeep/cabinet)' }, // MB 는 UA 없으면 막는다
       signal: AbortSignal.timeout(10000),
     });
-    if (res.status === 503 && retry) return koreanName(artist, false); // 속도 제한 — 한 번만 다시
-    if (!res.ok) return null; // 캐시하지 않고 다음에 다시 묻는다
-    const name = pickName(((await res.json()) as { artists?: MbArtist[] }).artists ?? []);
-    cache.set(artist, name);
-    return name;
+    if (res.status === 503 && retry) return search(artist, false); // 속도 제한 — 한 번만 다시
+    if (!res.ok) return null;
+    const list = ((await res.json()) as { artists?: MbArtist[] }).artists ?? [];
+    cache.set(artist, list);
+    return list;
   } catch {
     return null;
   }
+}
+
+export async function koreanName(artist: string): Promise<string | null> {
+  if (HANGUL.test(artist)) return artist; // 이미 한글이면 그대로 — MB 이름이 영문인 가수(에일리 → Ailee)로 도로 바뀌지 않게
+  const list = await search(artist);
+  return list && pickName(list);
+}
+
+export async function otherName(artist: string): Promise<string | null> {
+  const list = await search(artist);
+  return list && pickOther(list, artist);
 }

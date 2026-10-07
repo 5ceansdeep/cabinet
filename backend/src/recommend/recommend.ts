@@ -82,6 +82,7 @@ type Row = {
   id: string;
   title: string;
   artist: string;
+  artistAlt: string | null;
   artwork: string | null;
   previewUrl: string | null;
   videoId: string | null;
@@ -91,7 +92,7 @@ type Row = {
   energy: number | null;
   valence: number | null;
 };
-const SELECT = { id: true, title: true, artist: true, artwork: true, previewUrl: true, videoId: true, description: true, embedding: true, tags: true, energy: true, valence: true };
+const SELECT = { id: true, title: true, artist: true, artistAlt: true, artwork: true, previewUrl: true, videoId: true, description: true, embedding: true, tags: true, energy: true, valence: true };
 
 @Injectable()
 export class RecommendService {
@@ -145,14 +146,14 @@ export class RecommendService {
     const throws = throwPenalties(thrownBy, said.vector); // 이 편지와 비슷한 편지에서 던져진 곡일수록 깎는다
     // 편지에 꼽은 곡(10/2) — 곡 풀에 있으면 그 곡 벡터를 요청 벡터에 반반 섞어 결이 비슷한 곡을 찾고, 그 곡은 맨 앞에
     const songs = said.songs ?? [];
-    const seeds = songs.map((g) => pool.find((t) => same(t.artist, g.artist) && sameTitle(t.title, g.title))).filter((t): t is Pooled => !!t);
+    const seeds = songs.map((g) => pool.find((t) => by(t, g.artist) && sameTitle(t.title, g.title))).filter((t): t is Pooled => !!t);
     // 꼽은 곡의 가수는 "말한 가수 곡 맨 앞 고정"에서 뺀다 — 해석이 artists 에도 넣어 그 가수 곡만 10곡 나왔다("검정치마 Everything 같은 노래")
     const pinArtists = (said.artists ?? []).filter((a) => !songs.some((g) => same(g.artist, a)));
     const asked = { ...said, artists: pinArtists, ...(seeds.length && { vector: blend(said.vector, seeds.map((t) => t.vector)) }) };
     // 편지에 쓴 가수 곡이 적으면 Last.fm 비슷한 가수 중 곡 풀에 있는 가수, 꼽은 곡은 Last.fm 비슷한 곡 중 곡 풀에 있는 곡 — 감점표에 음수(가산)로
-    const named = asked.artists?.length ? pool.filter((t) => asked.artists!.some((a) => same(t.artist, a))) : [];
+    const named = asked.artists?.length ? pool.filter((t) => asked.artists!.some((a) => by(t, a))) : [];
     // 꼽은 곡이 서류함에 없으면 — 그 곡을 부른 가수의 다른 곡과 그 가수와 비슷한 가수 곡을 앞으로(10/2 "박효신 Shine Your Light 같은 노래" 에 제목 낱말만 보고 외국 곡이 나왔다)
-    const lostBy = songs.filter((g) => !seeds.some((t) => same(t.artist, g.artist) && sameTitle(t.title, g.title))).map((g) => g.artist);
+    const lostBy = songs.filter((g) => !seeds.some((t) => by(t, g.artist) && sameTitle(t.title, g.title))).map((g) => g.artist);
     const [kin, like] = await Promise.all([
       (asked.artists?.length && named.length < KIN_FEW) || lostBy.length
         ? within(this.kinOf([...(named.length < KIN_FEW ? (asked.artists ?? []) : []), ...lostBy], pool), KIN_MS).then((x) => x ?? [])
@@ -161,8 +162,8 @@ export class RecommendService {
     ]);
     const penalty = new Map(throws);
     const add = (id: string, v: number) => penalty.set(id, (penalty.get(id) ?? 0) - v);
-    for (const t of pool) if (kin.some((k) => same(t.artist, k))) add(t.id, KIN_BONUS);
-    for (const t of pool) if (lostBy.some((a) => same(t.artist, a))) add(t.id, LIKE_BONUS); // 그 곡을 부른 가수 본인 곡이 제일 가깝다
+    for (const t of pool) if (kin.some((k) => by(t, k))) add(t.id, KIN_BONUS);
+    for (const t of pool) if (lostBy.some((a) => by(t, a))) add(t.id, LIKE_BONUS); // 그 곡을 부른 가수 본인 곡이 제일 가깝다
     for (const id of like) add(id, LIKE_BONUS);
     for (const [id, v] of tasteBonus(pool, liked.map((l) => l.trackId))) add(id, v); // 좋아요한 곡과 결이 가까운 곡을 조금 앞으로 — 그 사람에게만
     const vocalWant = (asked.tags ?? []).find((t) => VOCAL_TAGS.includes(t));
@@ -184,7 +185,7 @@ export class RecommendService {
     // 맨 앞 — 꼽은 곡 그 자체, 꼽은 곡이 없으면 그 곡을 부른 가수 곡 중 가장 맞는 LOST_LEAD 곡(본·던진 곡은 ranked 에 없다)
     const lead = [
       ...ranked.filter((t) => seeds.some((x) => x.id === t.id)),
-      ...lostBy.flatMap((a) => ranked.filter((t) => same(t.artist, a)).slice(0, LOST_LEAD)),
+      ...lostBy.flatMap((a) => ranked.filter((t) => by(t, a)).slice(0, LOST_LEAD)),
     ];
     const picked = [...lead, ...ordered.filter((t) => !lead.includes(t))].slice(0, limit);
     const pct = picked.map((t) => shown(t, ranked).semantic).sort((a, b) => b - a);
@@ -221,7 +222,7 @@ export class RecommendService {
     // 편지에 쓴 가수 곡이 곡 풀에 하나도 없으면 — 화면이 "아직 없어요" 를 알린다(10/2 박효신 — 말없이 엉뚱한 곡을 줬다). 검색 기록 asked 로 다음 수집에 들어간다
     const missingArtist = asked.artists?.length && !named.length ? asked.artists[0] : null;
     const kinShown = kin.filter((k) => tracks.some((t) => same(t.artist, k))).slice(0, 3); // 화면 안내에 — 실제로 나온 비슷한 가수만
-    const missing = songs.find((g) => !seeds.some((t) => same(t.artist, g.artist) && sameTitle(t.title, g.title)));
+    const missing = songs.find((g) => !seeds.some((t) => by(t, g.artist) && sameTitle(t.title, g.title)));
     const missingSong = missing ? `${missing.artist} - ${missing.title}` : null; // 꼽은 곡이 서류함에 없다 — 화면이 알린다
     return { interpretation: shownKeywords(asked), description: readings(asked), tracks, line, missingArtist, kinArtists: kinShown, kinFor: kinShown.length && asked.artists?.length ? asked.artists[0] : null, missingSong };
   }
@@ -249,7 +250,7 @@ export class RecommendService {
 
   /* 비슷한 가수 — 편지에 쓴 가수(한글·원래 표기 둘 다)의 Last.fm 비슷한 가수 중 곡 풀에 있는 가수(곡 풀 표기로). 가수마다 기억해 둔다(실패·빈 목록은 안 기억 — 다음에 다시) */
   private readonly kin = new Map<string, Promise<string[]>>();
-  private async kinOf(artists: string[], pool: { artist: string }[]) {
+  private async kinOf(artists: string[], pool: Named[]) {
     const lists = await Promise.all(
       artists.map((a) => {
         const k = a.toLowerCase();
@@ -263,7 +264,7 @@ export class RecommendService {
       }),
     );
     const names = [...new Set(lists.flat())].filter((n) => !artists.some((a) => same(n, a)));
-    return [...new Set(pool.filter((t) => names.some((n) => same(t.artist, n))).map((t) => t.artist))];
+    return [...new Set(pool.filter((t) => names.some((n) => by(t, n))).map((t) => t.artist))];
   }
 
   /* 비슷한 곡 — 꼽은 곡마다 Last.fm 비슷한 곡 중 곡 풀에 있는 곡 id. 곡마다 기억해 둔다(실패·빈 목록은 안 기억) */
@@ -281,7 +282,7 @@ export class RecommendService {
         return p;
       }),
     );
-    return pool.filter((t) => lists.flat().some((r) => same(t.artist, r.artist) && sameTitle(t.title, r.title))).map((t) => t.id);
+    return pool.filter((t) => lists.flat().some((r) => by(t, r.artist) && sameTitle(t.title, r.title))).map((t) => t.id);
   }
 
   /** 최근 THROW_DAYS 일 동안 던진 기록(곡 + 던진 편지 벡터).
@@ -356,10 +357,22 @@ export function stage1<T extends Candidate & { tags: string }>(
 }
 
 /** 전에 보여 준 곡(before, "가수 - 제목")은 뒤로 — 순서는 그대로 두고 안 본 곡이 먼저. 편지에 쓴 가수 곡은 그대로(맨 앞 고정) */
-export function later<T extends { artist: string; title?: string }>(xs: T[], before: Set<string>, artists: string[] = []) {
+export function later<T extends Named & { title?: string }>(xs: T[], before: Set<string>, artists: string[] = []) {
   if (!before.size) return xs;
-  const again = (t: T) => before.has(`${t.artist} - ${t.title}`) && !artists.some((a) => same(t.artist, a));
+  const again = (t: T) => before.has(`${t.artist} - ${t.title}`) && !artists.some((a) => by(t, a));
   return [...xs.filter((t) => !again(t)), ...xs.filter(again)];
+}
+
+type Named = { artist: string; artistAlt?: string | null };
+/** 이 곡의 가수인가 — 곡 풀 표기와 다른 표기(artistAlt, 한글 ↔ 로마자) 어느 쪽으로 불러도. Gemini 가 한쪽 표기만 내도 찾는다 */
+export const by = (t: Named, name: string) => same(t.artist, name) || (t.artistAlt ?? '').split(' · ').some((alt) => sameWords(alt, name));
+/* 다른 표기는 낱말 단위로 — same() 은 글자가 들어 있기만 하면 같다고 봐서 짧은 로마자 이름(BoA·IU)이 엉뚱한 이름(Boards of Canada·Sirius)에 걸린다.
+   통째로 같거나(띄어쓰기·기호 무시), 한쪽 낱말들이 다른 쪽에 이어서 들어 있을 때만(NCT ⊂ NCT DREAM) */
+const wordsOf = (s: string) => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+const inside = (a: string[], b: string[]) => a.length > 0 && b.some((_, i) => a.every((w, j) => b[i + j] === w));
+function sameWords(a: string, b: string) {
+  const x = wordsOf(a), y = wordsOf(b);
+  return x.length > 0 && y.length > 0 && (x.join('') === y.join('') || inside(x, y) || inside(y, x));
 }
 
 /** 두 줄에서 번갈아 — 겹치는 곡은 한 번만 */
@@ -408,14 +421,14 @@ export function pinTitled<T extends { id: string; title?: string }>(xs: T[], ask
 }
 
 /** 재정렬 순서로 — 말한 가수 곡은 맨 앞에 고정(재정렬이 섞지 않게). 평가(eval.ts)도 같은 순서로 잰다 */
-export function finalOrder<T extends { id: string; artist: string }>(cands: T[], order: string[], artists: string[] = []) {
-  const named = artists.length ? cands.filter((t) => artists.some((a) => same(t.artist, a))) : [];
+export function finalOrder<T extends Named & { id: string }>(cands: T[], order: string[], artists: string[] = []) {
+  const named = artists.length ? cands.filter((t) => artists.some((a) => by(t, a))) : [];
   const byId = new Map(cands.map((t) => [t.id, t]));
   return [...named, ...order.map((id) => byId.get(id)).filter((t): t is T => !!t && !named.includes(t))];
 }
 
-export function arrange<T extends { artist: string; tags: string }>(all: T[], asked: Pick<Asked, 'artists' | 'genres'>, chips: string[] = []) {
-  const named = asked.artists?.length ? all.filter((t) => asked.artists!.some((a) => same(t.artist, a))) : [];
+export function arrange<T extends Named & { tags: string }>(all: T[], asked: Pick<Asked, 'artists' | 'genres'>, chips: string[] = []) {
+  const named = asked.artists?.length ? all.filter((t) => asked.artists!.some((a) => by(t, a))) : [];
   const want = [...new Set([...chips, ...(asked.genres ?? [])])];
   const rest = all.filter((t) => !named.includes(t));
   const inGenre = rest.filter((t) => inGenres(JSON.parse(t.tags) as Record<string, number>, want));

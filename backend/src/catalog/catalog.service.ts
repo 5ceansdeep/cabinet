@@ -28,6 +28,8 @@ export class CatalogService {
       tags,
       artwork: itunes?.artwork ?? have?.artwork ?? null,
       previewUrl: itunes?.previewUrl ?? have?.previewUrl ?? null,
+      // 다른 표기 — 저장하는 이름과 글자(한글/로마자)가 다른 쪽
+      artistAlt: have?.artistAlt ?? [itunes?.artist, itunes?.artistAlt].find((n) => !!n && /[가-힣]/.test(n) !== /[가-힣]/.test(artist)) ?? null,
     };
     this.log.log(`${artist} - ${title} → 커버 ${data.artwork ? 'O' : 'X'} 미리듣기 ${data.previewUrl ? 'O' : 'X'} 태그 ${Object.keys(JSON.parse(tags)).length}`);
 

@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Eject, Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
 import { logEvent } from "@/lib/api";
+import { vinyl } from "@/lib/vinyl";
 import type { Track } from "./tracks";
 
 /* 드라이브에 꽂힌 곡의 재생 — 오른쪽 곡 목록 아래. 동그란 재생 버튼, 곡 이름, 얇은 파란 진행선(누르거나 끌어서 옮긴다), 꺼내기.
    소리는 iTunes 30초 미리듣기. 미리듣기가 없는 곡은 진행선 없이 알려만 준다.
    10/1: 상자 + 기본 range 막대였던 걸 걷어 내고 선 하나로 단순하게 */
 
+const FADE_MS = 2200; // 이어 듣는 곡이 다 올라오기까지
 const time = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 
@@ -35,18 +37,37 @@ export default function PlayerBar({
   const [length, setLength] = useState(30);
   const played = useRef<string | null>(null); // 이 곡의 재생을 이미 기록했나 — 멈췄다 다시 틀면 안 센다
 
+  const chained = useRef(false); // 앞 곡이 끝나 저절로 넘어온 곡인가 — 판 소리를 깔고 서서히 올린다
+
   // 곡이 바뀌면 처음부터 튼다
   useEffect(() => {
     const a = audio.current;
     if (!a) return;
     setAt(0);
+    const lead = chained.current;
+    chained.current = false;
+    let fade: ReturnType<typeof setInterval> | undefined;
+    a.volume = 1;
     if (track?.previewUrl) {
       a.src = track.previewUrl;
+      if (lead) {
+        // 이어 듣기 — LP 판 도는 소리가 먼저 깔리고 곡이 그 위로 올라온다(10/7 사용자).
+        // ponytail: 아이폰은 audio.volume 을 못 바꿔(늘 1) 곡은 바로 나오고 판 소리만 깔린다 — 거기도 올리려면 Web Audio GainNode(미리듣기 CORS 필요)
+        vinyl();
+        a.volume = 0;
+        const t0 = performance.now();
+        fade = setInterval(() => {
+          const k = Math.min(1, (performance.now() - t0) / FADE_MS);
+          a.volume = k * k;
+          if (k >= 1) clearInterval(fade);
+        }, 50);
+      }
       a.play().catch(() => setPaused(true));
     } else {
       a.pause();
       a.removeAttribute("src");
     }
+    return () => clearInterval(fade);
   }, [track]);
 
   const toggle = () => {
@@ -74,6 +95,11 @@ export default function PlayerBar({
       onEnded={() => {
         setPaused(true);
         if (track) logEvent("finish", { trackId: track.id, ...from });
+        // 30초가 끝나면 다음 곡으로 이어 튼다(10/7 사용자) — 마지막 곡이면 멈춘다
+        if (onNext) {
+          chained.current = true;
+          onNext();
+        }
       }}
       onTimeUpdate={(e) => setAt(e.currentTarget.currentTime)}
       onLoadedMetadata={(e) => setLength(e.currentTarget.duration || 30)}

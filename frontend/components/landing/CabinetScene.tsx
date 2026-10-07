@@ -188,7 +188,7 @@ export default function CabinetScene({
       return;
     }
     if (line.voiceKey?.endsWith(".prompt")) prompted.current.add(line.voiceKey);
-    speak(line.voice ?? line.text, line.voiceKey, lines, (delays) => setVoiced((p) => ({ line, delays, n: (p?.n ?? 0) + 1 })));
+    speak(line.voice ?? line.text, line.voiceKey, lines, (delays) => setVoiced((p) => ({ line, delays, n: (p?.n ?? 0) + 1 })), line.voiceBackup);
   }, [shown?.text, error.n]); // eslint-disable-line react-hooks/exhaustive-deps
   // 이 페이지에서 나올 대사들을 첫 대사부터 하나씩 미리 받아 분석해 둔다 — 한꺼번에 받으면 첫 대사가 늦어진다
   useEffect(() => {

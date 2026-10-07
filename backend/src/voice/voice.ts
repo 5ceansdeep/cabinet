@@ -17,6 +17,20 @@ import { PrismaService } from '../prisma/prisma.service.js';
 const SETTINGS = readFileSync('voice-settings.json', 'utf8');
 const LINES_MAX = 500;
 
+/* 이름을 부르는 인사(랜딩) — 녹음해 둔 고정 대사(public/voice/*_VOICE.mp3)엔 이름이 없어 이름은 자막에만 나왔다.
+   10/7 사용자: 목소리도 이름을 불렀으면(랜딩에서만 — 결과 화면 한마디는 이름을 안 부른다).
+   문장은 docs/voice-script.csv 의 같은 줄에 이름만 넣은 것 — 쉼(<break>)도 그대로라 자막 줄이 같은 자리에서 넘어간다.
+   닉네임·인사마다 한 번 만들어 VoiceClip 에 남는다(같은 닉네임이면 다시 안 산다) */
+const GREETINGS = {
+  login: 'Welcome back, {name}.<break time="0.5s"/>I kept your spot right where you left it.',
+  signup: 'All set, {name}!<break time="0.5s"/>Easier than creating the universe, wasn\'t it?',
+  returning: 'Look who\'s back, {name}.<break time="0.5s"/>Door\'s open.',
+  reset: 'The new key fits perfectly, {name}.<break time="0.5s"/>Come on in.',
+};
+export type Greeting = keyof typeof GREETINGS;
+/** 인사말에 이름을 넣는다 — 밑줄은 띄어 읽게. 닉네임은 가입 때 한글·영문·숫자·밑줄만 받아(SignupDto) 쉼 태그를 깨뜨릴 글자가 없다 */
+export const greetingText = (kind: Greeting, nickname: string) => GREETINGS[kind].replace('{name}', () => nickname.replaceAll('_', ' '));
+
 @Injectable()
 export class VoiceService {
   private readonly log = new Logger('Voice');
@@ -53,6 +67,11 @@ export class VoiceService {
     this.lines.set(id, en);
     if (this.lines.size > LINES_MAX) this.lines.delete(this.lines.keys().next().value!);
     return id;
+  }
+
+  /** 이름을 부르는 인사의 음성 id — 꺼져 있으면 null(프론트는 이름 없는 녹음을 튼다). 로그인·가입 응답과 /auth/me 가 같이 내준다 */
+  greet(kind: Greeting, nickname: string) {
+    return this.register(greetingText(kind, nickname));
   }
 
   /** mp3 — DB 에 있으면 그걸, 없으면 올려 둔 대사로 만든다. 모르는 id·꺼짐·실패는 null */

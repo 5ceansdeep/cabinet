@@ -1,8 +1,10 @@
+import { apiUrl } from "@/lib/api";
 import type { Field } from "./CabinetScene";
 
 // voice — 목소리로 읽을 문장이 자막과 다를 때 (닉네임은 자막에만)
 // voiceKey — 음성 파일 이름. public/voice/{voiceKey}.mp3 (없으면 소리 없이 자막만)
-export type Line = { text: string; voice?: string; voiceKey?: string; link?: { href: string; label: string } };
+// voiceBackup — voiceKey 가 서버가 만든 음성(주소)일 때, 그걸 못 받으면 대신 틀 녹음 키
+export type Line = { text: string; voice?: string; voiceKey?: string; voiceBackup?: string; link?: { href: string; label: string } };
 
 /* 자막·목소리 문구 — 서류함의 주인. 속은 브루스 올마이티의 신이지만 정체는 드러내지 않는 관리인 (docs/voice-persona.md).
    문구는 여기 AUTH_DIALOGUE 한 곳만 고치면 된다. 아래 FIELDS·LINES 는 이걸 화면 구조에 맞게 엮을 뿐 */
@@ -107,6 +109,11 @@ export const FIELDS = {
   reset: [{ ...NEW_PASSWORD, prompt: D.PASSWORD_RESET.newPrompt, promptKey: "PASSWORD_RESET.newPrompt" }, PASSWORD_CONFIRM],
 } satisfies Record<string, Field[]>;
 
+/* 이름을 부르는 인사 — 목소리도 이름을 부른다(10/7 사용자, 랜딩에서만). 녹음(_VOICE.mp3)엔 이름이 없으니, 서버가 닉네임을 넣어 만든
+   음성의 id(greet — 로그인·가입 응답과 /auth/me 가 준다)가 있으면 그걸 튼다. 없거나(음성 꺼짐) 못 받으면 이름 없는 녹음으로 */
+const named = (text: string, voice: string, key: string, greet?: string | null): Line =>
+  greet ? { text, voice, voiceKey: apiUrl(`/voice/${greet}`), voiceBackup: key } : { text, voice, voiceKey: key };
+
 /* ─ 흐름 자막: 필드와 상관없이 흘러가는 말. voiceKey 가 곧 음성 파일 이름 ─ */
 
 export const LINES = {
@@ -128,14 +135,14 @@ export const LINES = {
   noAccount: { text: D.NO_ACCOUNT, voiceKey: "NO_ACCOUNT", link: { href: "/", label: D.NO_ACCOUNT_ACTION } }, // 이메일 확인과 로그인 사이에 계정이 지워졌을 때뿐 — 처음부터 다시
   emailTaken: { text: D.EMAIL.alreadyExists, voiceKey: "EMAIL.alreadyExists", link: { href: "/", label: D.EMAIL.alreadyExistsAction } },
   server: { text: D.ERROR, voiceKey: "ERROR" },
-  welcomeBack: (nickname: string): Line => ({ text: D.LOGIN_SUCCESS(nickname), voice: D.LOGIN_SUCCESS_VOICE, voiceKey: "LOGIN_SUCCESS_VOICE" }),
-  welcomeNew: (nickname: string): Line => ({ text: D.SIGNUP_SUCCESS(nickname), voice: D.SIGNUP_SUCCESS_VOICE, voiceKey: "SIGNUP_SUCCESS_VOICE" }),
-  returning: (nickname: string): Line => ({ text: D.WELCOME_BACK(nickname), voice: D.WELCOME_BACK_VOICE, voiceKey: "WELCOME_BACK_VOICE" }),
+  welcomeBack: (nickname: string, greet?: string | null): Line => named(D.LOGIN_SUCCESS(nickname), D.LOGIN_SUCCESS_VOICE, "LOGIN_SUCCESS_VOICE", greet),
+  welcomeNew: (nickname: string, greet?: string | null): Line => named(D.SIGNUP_SUCCESS(nickname), D.SIGNUP_SUCCESS_VOICE, "SIGNUP_SUCCESS_VOICE", greet),
+  returning: (nickname: string, greet?: string | null): Line => named(D.WELCOME_BACK(nickname), D.WELCOME_BACK_VOICE, "WELCOME_BACK_VOICE", greet),
   loading: { text: D.LOADING, voiceKey: "LOADING" },
   // 계정이 있든 없든 같은 말 — 누가 가입했는지 새어 나가지 않게
   resetSent: { text: D.PASSWORD_RESET.sent, voiceKey: "PASSWORD_RESET.sent", link: { href: "/", label: D.PASSWORD_RESET.action } },
   resetExpired: { text: D.PASSWORD_RESET.expired, voiceKey: "PASSWORD_RESET.expired", link: { href: "/forgot", label: D.PASSWORD_RESET.expiredAction } },
-  resetDone: (nickname: string): Line => ({ text: D.RESET_SUCCESS(nickname), voice: D.RESET_SUCCESS_VOICE, voiceKey: "RESET_SUCCESS_VOICE" }),
+  resetDone: (nickname: string, greet?: string | null): Line => named(D.RESET_SUCCESS(nickname), D.RESET_SUCCESS_VOICE, "RESET_SUCCESS_VOICE", greet),
 } satisfies Record<string, Line | string | ((nickname: string) => Line) | Record<keyof typeof FIELDS, Line>>;
 
 /* ─ 화면 구석 링크 — 버튼·링크·안내 글은 평범한 말투(10/2 사용자). 신의 말투는 자막(목소리로 나오는 대사)에만 ─ */

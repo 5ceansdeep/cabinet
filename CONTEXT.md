@@ -27,6 +27,9 @@
 - 투어·`docs/beta-guide.md`·`docs/ui-ux-spec.md` 에 반영
 - **D-9 한글 제목**: 이 PC 망은 여전히 한국 스토어 0건 — 못 함. **다른 PC 에서 [docs/other-pc.md](docs/other-pc.md) 대로**(`backend/scripts/titles.mjs find` → 후보 확인 → `apply`)
 - **B-2 영어 가수명**: 해석 스키마 artists 예시에 `"nct" → ["엔시티", "NCT"]` 한 줄. 확인: "nct 노래 틀어줘" → [엔시티, NCT], "bts 신나는 노래" → [방탄소년단, BTS]. 평가(45개)는 토큰 아끼려 안 돌렸다(사용자)
+- **가수 다른 표기(B-2 보강)**: `Track.artistAlt`(한글 ↔ 로마자, 여럿이면 " · ") — 추천이 가수를 찾을 때 둘 다 본다(`recommend.ts by()`, 다른 표기는 낱말 단위로 맞춘다). Gemini 가 한쪽 표기만 내도 찾는다.
+  새 곡은 수집 때 채워지고(`itunes.ts`), 기존 곡은 `node scripts/artists.mjs find|apply`(MusicBrainz, 초당 1회 — 506명 9분, Gemini 0)로 10/7 채움: 103명 찾아 3명 빼고(본명·이상한 표기·"Woo") 231곡.
+  확인(곡 풀): NCT → 엔시티 드림, BTS → 방탄소년단 6곡, 아이브 → IVE, 카더가든 → Car, the Garden. **옛 약점 그대로**: 원래 표기끼리는 글자 포함만 봐서 "IU" 가 Kali Uchis 에도 걸린다(`itunes.ts same`)
 - **남은 B(추천 정확도) — 하나씩, 사용자와**: B-3·4·5·6 은 손 안 댐. 엔시티 곡은 3곡뿐(설명 있는 건 1곡 — B-6)
 - 발표 슬라이드 설문 칸: 데이터가 덜 쌓여 아직 안 넣는다(사용자)
 

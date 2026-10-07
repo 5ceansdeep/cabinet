@@ -52,6 +52,7 @@ model Track {
   id           String       @id @default(cuid())
   title        String
   artist       String
+  artistAlt    String? // 가수의 다른 표기(한글 ↔ 로마자, 여럿이면 " · ") — 추천이 가수를 찾을 때 둘 다 본다. 화면엔 안 쓴다
   artwork      String? // iTunes 앨범 커버 URL
   previewUrl   String? // iTunes 30초 미리듣기
   videoId      String? // 유튜브 영상 ID — 재생목록에 담을 때 쓴다

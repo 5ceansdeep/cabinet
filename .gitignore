@@ -41,6 +41,7 @@ CLAUDE.local.md
 # 유튜브 검색 하루 사용량 (서버가 적어 둔다)
 .yt-budget.json
 .titles.json
+.artists.json
 .voice-cache/
 
 # 세션 체크포인트(전역 자동 복원·/checkpoint 가 쓰는 PC 별 요약) — 원본은 루트 CONTEXT.md

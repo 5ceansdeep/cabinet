@@ -3,7 +3,7 @@
 
 import { koreanName } from './musicbrainz.js';
 
-export type ITunesInfo = { artwork: string; previewUrl: string | null; title: string; artist: string; genre: string | null };
+export type ITunesInfo = { artwork: string; previewUrl: string | null; title: string; artist: string; artistAlt: string | null; genre: string | null };
 
 const HANGUL = /[가-힣]/;
 
@@ -68,13 +68,16 @@ export async function findOnITunes(title: string, artist: string): Promise<ITune
   const kr = await inStore(title, artist, 'kr');
   const hit = kr?.previewUrl ? kr : ((await inStore(title, artist, 'us')) ?? kr);
   if (!hit?.artworkUrl100) return null;
+  const name = (await koreanName(artist)) ?? (await koreanName(hit.artistName)) ?? hit.artistName;
   return {
     // 100x100 주소를 600x600 으로 바꿔 쓴다 — 디스크 라벨에 인쇄할 만한 크기
     artwork: hit.artworkUrl100.replace('100x100bb', '600x600bb'),
     previewUrl: hit.previewUrl ?? null,
     // 제목은 한글을 먼저 — 미국 스토어는 번역 제목을 준다(잔나비 "가을밤에 든 생각" → "A Thought on an Autumn Night")
     title: [kr?.trackName, hit.trackName, title].find((s) => s && HANGUL.test(s)) ?? hit.trackName,
-    artist: (await koreanName(artist)) ?? (await koreanName(hit.artistName)) ?? hit.artistName,
+    artist: name,
+    // 다른 표기 — 찾던 이름·스토어 이름 중 글자(한글/로마자)가 다른 것. 사용자가 어느 쪽으로 써도 찾게(10/7 "NCT" 를 못 찾았다)
+    artistAlt: [hit.artistName, kr?.artistName, artist].find((n) => !!n && HANGUL.test(n) !== HANGUL.test(name) && !same(n, name)) ?? null,
     genre: hit.primaryGenreName ?? null, // Last.fm 태그가 없을 때 대신 쓴다 (genres.ts)
   };
 }

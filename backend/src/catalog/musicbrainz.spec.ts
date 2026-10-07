@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pickName } from './musicbrainz.js';
+import { pickName, pickOther } from './musicbrainz.js';
 
 const kr = (name: string, aliases: { name: string; locale?: string; type?: string; primary?: boolean }[] = []) => ({ name, score: 100, country: 'KR', aliases });
 
@@ -16,4 +16,16 @@ describe('pickName', () => {
   });
   it('확실한 한국 가수가 아니면 null — 동명이인에 안 끌려간다', () =>
     expect(pickName([{ name: 'George Frideric Handel', score: 100, country: 'GB' }, { ...kr('george'), score: 90 }])).toBeNull());
+});
+
+describe('pickOther', () => {
+  it('한글 이름이면 로마자 이름, 로마자면 한글 예명(여럿이면 이어서) — 본명은 뺀다', () => {
+    expect(pickOther([kr('엔시티 드림', [{ name: 'NCT DREAM', type: 'Artist name' }])], '엔시티 드림')).toBe('NCT DREAM');
+    expect(pickOther([kr('IU', [{ name: '이지은', locale: 'ko', type: 'Legal name' }, { name: '아이유', locale: 'ko', primary: true }])], 'IU')).toBe('아이유');
+    expect(pickOther([kr('NewJeans', [{ name: '뉴진스', type: 'Artist name' }, { name: '엔제이지', type: 'Artist name' }])], 'NewJeans')).toBe('뉴진스 · 엔제이지');
+  });
+  it('한국 가수가 아니거나 다른 표기가 없으면 null', () => {
+    expect(pickOther([{ name: 'Oasis', score: 100, country: 'GB' }], 'Oasis')).toBeNull();
+    expect(pickOther([kr('검정치마')], '검정치마')).toBeNull();
+  });
 });

@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service.js';
 import { genreTags } from './genres.js';
 import { findOnITunes } from './itunes.js';
-import { artistTopTracks, fetchTags, similarArtists, tagTopTracks, type Ref, type Tags } from './lastfm.js';
+import { artistTopTracks, fetchTags, similarArtists, similarTracks, tagTopTracks, type Ref, type Tags } from './lastfm.js';
 
 /* 곡 풀 넓히기 — 관리자 배치(POST /catalog/grow)와 매일 새벽 자동 실행. 사용자 요청 중엔 외부 API 를 부르지 않는다.
    씨앗: 최근 검색 기록(SearchLog)의 결과 가수 + 장르를 섞은 태그 + 애플 뮤직 한국·미국 차트.
@@ -13,6 +13,7 @@ import { artistTopTracks, fetchTags, similarArtists, tagTopTracks, type Ref, typ
 
 export const GAP_MS = 3100; // iTunes 는 분당 20회 남짓 — iTunes 를 부른 곡마다 쉰다
 const DEFAULT_ADD = 30; // 한 번에 새로 담을 곡 수
+const AUTO_TARGET = 10; // missingArtist·missingSong 자동 넓히기 — 한 번에 이만큼만(10/7 사용자: 비용을 작게)
 const NIGHT_HOUR = 4; // 매일 새벽 4시(서버 시간)
 // 장르를 섞어 둔다 — 한 장르로 몰리지 않게. 추천 점수엔 장르를 쓰지 않고, 곡을 찾는 데만 쓴다
 const SEED_TAGS = ['k-indie', 'korean ballad', 'indie', 'dream pop', 'house', 'r&b', 'rock', 'jazz', 'city pop'];
@@ -143,25 +144,57 @@ export class PoolService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** 곡 하나 — 담았으면 "가수 - 제목" */
-  private async add(r: Ref): Promise<{ calledITunes: boolean; added: string | null }> {
-    if (await this.prisma.track.findFirst({ where: { title: r.title, artist: r.artist } })) return { calledITunes: false, added: null };
+  /** 곡 하나 — 담았으면 "가수 - 제목" + id(바로 설명을 붙일 때 쓴다) */
+  private async add(r: Ref): Promise<{ calledITunes: boolean; added: string | null; id: string | null }> {
+    if (await this.prisma.track.findFirst({ where: { title: r.title, artist: r.artist } })) return { calledITunes: false, added: null, id: null };
     let tags = await fetchTags(r.title, r.artist);
     const it = await findOnITunes(r.title, r.artist);
-    if (!it?.previewUrl || !it.artwork) return { calledITunes: true, added: null };
+    if (!it?.previewUrl || !it.artwork) return { calledITunes: true, added: null, id: null };
     // iTunes 가 반주 판을 줄 때도 있다(Last.fm 제목은 멀쩡해도 "비밀번호 486 (Instrumental)") — 받은 제목도 거른다
-    if (ALT_VERSION.test(it.title)) return { calledITunes: true, added: null };
+    if (ALT_VERSION.test(it.title)) return { calledITunes: true, added: null, id: null };
     // 태그는 곡 설명을 쓸 때 참고로만 — 없어도 담는다
     if (!Object.keys(tags).length) tags = genreTags(it.genre);
     // 같은 곡이 다른 표기로(JANNABI / 잔나비) 이미 있으면 — 미리듣기 주소가 같다
-    if (await this.prisma.track.findFirst({ where: { previewUrl: it.previewUrl } })) return { calledITunes: true, added: null };
+    const dupe = await this.prisma.track.findFirst({ where: { previewUrl: it.previewUrl } });
+    if (dupe) return { calledITunes: true, added: null, id: null };
     // iTunes 표기를 곡 이름으로 쓴다 — 이미 있으면 태그만 채운다
-    await this.prisma.track.upsert({
+    const row = await this.prisma.track.upsert({
       where: { title_artist: { title: it.title, artist: it.artist } },
       create: { title: it.title, artist: it.artist, artistAlt: it.artistAlt, artwork: it.artwork, previewUrl: it.previewUrl, tags: JSON.stringify(tags) },
       update: { tags: JSON.stringify(tags) },
     });
-    return { calledITunes: true, added: `${it.artist} - ${it.title}` };
+    return { calledITunes: true, added: `${it.artist} - ${it.title}`, id: row.id };
+  }
+
+  /** 한 가수(또는 비슷한 가수) 곡만 몇 곡 — missingArtist 가 나왔을 때 백그라운드로(10/7 사용자).
+      이미 밤 배치·관리자 넓히기가 돌고 있으면 iTunes 호출이 겹치지 않게 건너뛴다(다음에 다시 걸린다) */
+  async growFor(artist: string, target = AUTO_TARGET): Promise<string[]> {
+    if (this.status.running) return [];
+    const similar = await similarArtists(artist, 4);
+    const lists = await Promise.all([artistTopTracks(artist, 8), ...similar.map((a) => artistTopTracks(a, 3))]);
+    return this.fill(interleave(lists), target);
+  }
+
+  /** 꼽은 곡 하나가 서류함에 없을 때 — 그 곡과 비슷한 곡 + 가수 본인 곡을 몇 곡(10/7 사용자) */
+  async growForSong(artist: string, title: string, target = AUTO_TARGET): Promise<string[]> {
+    if (this.status.running) return [];
+    const [near, own] = await Promise.all([similarTracks(title, artist, 30), artistTopTracks(artist, 6)]);
+    return this.fill(interleave([near, own]), target);
+  }
+
+  /** candidates(only) 와 같은 거르기·seen 체크로 target 곡까지 담고, 새로 담은 곡의 id 를 돌려준다 */
+  private async fill(refs: Ref[], target: number): Promise<string[]> {
+    const ids: string[] = [];
+    for (const r of refs) {
+      if (ids.length >= target) break;
+      const k = keyOf(r);
+      if (this.seen.has(k) || ALT_VERSION.test(r.title)) continue;
+      this.seen.add(k);
+      const { calledITunes, added, id } = await this.add(r);
+      if (added && id) ids.push(id);
+      if (calledITunes) await new Promise((ok) => setTimeout(ok, GAP_MS));
+    }
+    return ids;
   }
 
   // 매일 새벽 NIGHT_HOUR 시에 기본 목표만큼

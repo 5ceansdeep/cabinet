@@ -148,7 +148,7 @@ export class RecommendService {
     const songs = said.songs ?? [];
     const seeds = songs.map((g) => pool.find((t) => by(t, g.artist) && sameTitle(t.title, g.title))).filter((t): t is Pooled => !!t);
     // 꼽은 곡의 가수는 "말한 가수 곡 맨 앞 고정"에서 뺀다 — 해석이 artists 에도 넣어 그 가수 곡만 10곡 나왔다("검정치마 Everything 같은 노래")
-    const pinArtists = (said.artists ?? []).filter((a) => !songs.some((g) => same(g.artist, a)));
+    const pinArtists = (said.artists ?? []).filter((a) => !songs.some((g) => sameName(g.artist, a)));
     const asked = { ...said, artists: pinArtists, ...(seeds.length && { vector: blend(said.vector, seeds.map((t) => t.vector)) }) };
     // 편지에 쓴 가수 곡이 적으면 Last.fm 비슷한 가수 중 곡 풀에 있는 가수, 꼽은 곡은 Last.fm 비슷한 곡 중 곡 풀에 있는 곡 — 감점표에 음수(가산)로
     const named = asked.artists?.length ? pool.filter((t) => asked.artists!.some((a) => by(t, a))) : [];
@@ -263,7 +263,7 @@ export class RecommendService {
         return p;
       }),
     );
-    const names = [...new Set(lists.flat())].filter((n) => !artists.some((a) => same(n, a)));
+    const names = [...new Set(lists.flat())].filter((n) => !artists.some((a) => sameName(n, a)));
     return [...new Set(pool.filter((t) => names.some((n) => by(t, n))).map((t) => t.artist))];
   }
 
@@ -365,10 +365,13 @@ export function later<T extends Named & { title?: string }>(xs: T[], before: Set
 
 type Named = { artist: string; artistAlt?: string | null };
 /** 이 곡의 가수인가 — 곡 풀 표기와 다른 표기(artistAlt, 한글 ↔ 로마자) 어느 쪽으로 불러도. Gemini 가 한쪽 표기만 내도 찾는다 */
-export const by = (t: Named, name: string) => same(t.artist, name) || (t.artistAlt ?? '').split(' · ').some((alt) => sameWords(alt, name));
-/* 다른 표기는 낱말 단위로 — same() 은 글자가 들어 있기만 하면 같다고 봐서 짧은 로마자 이름(BoA·IU)이 엉뚱한 이름(Boards of Canada·Sirius)에 걸린다.
-   통째로 같거나(띄어쓰기·기호 무시), 한쪽 낱말들이 다른 쪽에 이어서 들어 있을 때만(NCT ⊂ NCT DREAM) */
-const wordsOf = (s: string) => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+export const by = (t: Named, name: string) => sameName(t.artist, name) || (t.artistAlt ?? '').split(' · ').some((alt) => sameWords(alt, name));
+/* 가수 이름은 낱말 단위로 맞춘다 — same() 은 글자가 들어 있기만 하면 같다고 봐서 짧은 로마자 이름(IU·BoA)이 엉뚱한 이름(Kali Uchis·Boards of Canada)에 걸렸다(10/7).
+   통째로 같거나(띄어쓰기·기호·악센트 무시), 한쪽 낱말들이 다른 쪽에 이어서 들어 있을 때만(NCT ⊂ NCT DREAM, Beenzino ⊂ BoA & Beenzino).
+   한글끼리는 예전처럼 글자 포함도 본다 — 띄어쓰기가 제각각이고("방탄" ⊂ "방탄소년단") 엉뚱하게 걸릴 일이 드물다 */
+const HANGUL = /[가-힣]/;
+export const sameName = (a: string, b: string) => sameWords(a, b) || (HANGUL.test(a) && HANGUL.test(b) && same(a, b));
+const wordsOf = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 const inside = (a: string[], b: string[]) => a.length > 0 && b.some((_, i) => a.every((w, j) => b[i + j] === w));
 function sameWords(a: string, b: string) {
   const x = wordsOf(a), y = wordsOf(b);

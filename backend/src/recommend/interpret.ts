@@ -54,7 +54,7 @@ const SCHEMA = {
     artists: {
       type: 'ARRAY',
       items: { type: 'STRING' },
-      description: '사용자가 그 가수 본인 곡을 듣고 싶다고 말했을 때만, 한글·원래 표기 둘 다 (예: "오아시스" → ["오아시스", "Oasis"]). "○○ 같은/느낌/풍"처럼 결만 빌린 거면 비워 둔다. 말하지 않았으면 빈 배열',
+      description: '사용자가 그 가수 본인 곡을 듣고 싶다고 말했을 때만, 한글·원래 표기 둘 다 (예: "오아시스" → ["오아시스", "Oasis"], "nct" → ["엔시티", "NCT"]). "○○ 같은/느낌/풍"처럼 결만 빌린 거면 비워 둔다. 말하지 않았으면 빈 배열',
     },
     genres: { type: 'ARRAY', items: { type: 'STRING', enum: Object.keys(GENRES) }, description: '사용자가 직접 말한 장르만. 말하지 않았으면 빈 배열' },
     songs: {

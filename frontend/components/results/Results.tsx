@@ -18,6 +18,7 @@ import { findTracks, logThrow, type Track } from "./tracks";
 import { apiUrl } from "@/lib/api";
 import { Archive, ArrowsClockwise, KeyReturn, NotePencil } from "@phosphor-icons/react";
 
+const AUTO_MS = 350; // 넘기다 이만큼 멈추면 가운데 디스크가 저절로 드라이브로 — 휠·밀기로 여러 칸 지나갈 땐 지나친 곡마다 꽂지 않게
 const SEARCH_MS = 1200; // 서랍을 뒤지는 최소 시간 — 곡 찾기는 그동안 같이 한다(보통 이보다 오래 걸린다)
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const noop = () => () => {};
@@ -116,7 +117,14 @@ export default function Results({ query }: { query: string }) {
 
 
   const row = kept; // 재생해도 줄에 남는다 — 드라이브엔 복사본이 들어간다(Deck)
-  const move = useCallback((d: number) => setIndex((i) => Math.max(0, Math.min(row.length - 1, i + d))), [row.length]);
+  const [browsed, setBrowsed] = useState(0); // 줄을 넘긴 횟수 — 넘겨서 가운데 온 디스크만 저절로 꽂는다(처음 나온 줄은 눌러야 듣는다)
+  const move = useCallback(
+    (d: number) => {
+      setIndex((i) => Math.max(0, Math.min(row.length - 1, i + d)));
+      setBrowsed((n) => n + 1);
+    },
+    [row.length],
+  );
 
   function insert(track: Track) {
     thud(160); // 드라이브에 "탁"
@@ -129,6 +137,14 @@ export default function Results({ query }: { query: string }) {
     thud(90);
     setPlaying(null);
   };
+
+  // 넘기면 바로 듣는다 — 10/7 베타: 넘기고 또 눌러야 해서 터치가 한 번 더 든다. 가운데 온 디스크가 드라이브로 들어가 재생된다
+  useEffect(() => {
+    const t = row[index];
+    if (!browsed || phase !== "discs" || tour || !t || t.id === playing?.id) return;
+    const id = setTimeout(() => insert(t), AUTO_MS);
+    return () => clearTimeout(id);
+  }, [browsed]); // eslint-disable-line react-hooks/exhaustive-deps -- 넘겼을 때만(던지거나 목록에서 골라 가운데가 바뀐 건 아니다)
 
   // 좌우 화살표로 넘기고, 아래 화살표로 가운데 디스크를 꽂고, 위 화살표로 뺀다
   useEffect(() => {
@@ -303,7 +319,7 @@ export default function Results({ query }: { query: string }) {
                     data-tour="store"
                     className={`pointer-events-auto whitespace-nowrap rounded-ui border border-accent/40 px-3 py-1.5 font-sans text-sm tracking-normal portrait:py-2 portrait:text-[13px] text-accent/85 hover:text-accent`}
                   >
-                    서랍에 넣기
+                    {RESULT_DIALOGUE.STORE(kept.length)}
                   </button>
                 </span>
               )}

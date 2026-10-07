@@ -18,6 +18,19 @@ model User {
   resetUntil DateTime? @db.Timestamptz(3) // 이때까지만 유효(30분)
   createdAt  DateTime  @default(now()) @db.Timestamptz(3)
   shelves    Shelf[]
+  likes      Like[]
+}
+
+/// 좋아요 — 하트를 누른 곡(10/7 베타 요청). 그 사람 추천을 좋아한 곡 결 쪽으로 조금 기울인다(recommend/score.ts tasteBonus).
+/// 어떤 편지에서 눌렀는지는 여기 안 남긴다 — 사용자 없이 EventLog(like)에만
+model Like {
+  userId    String
+  trackId   String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  track     Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  @@id([userId, trackId])
 }
 
 /// 서랍 하나 = 저장한 플레이리스트. 네임택(tag)과 그때의 요청문을 같이 남긴다
@@ -59,6 +72,7 @@ model Track {
   describedAt  DateTime?    @db.Timestamptz(3)
   shelves      ShelfTrack[]
   throws       ThrowLog[]
+  likes        Like[]
 
   @@unique([title, artist])
 }
@@ -106,10 +120,10 @@ model ThrowLog {
 /// 재생·끝까지 들음엔 그 곡을 꺼낸 요청문을 같이 남긴다(어떤 편지 → 어떤 곡). 사용자·IP 는 남기지 않는다. 모르는 id 도 그대로 — 가짜 곡·브라우저 서랍이면 그냥 안 맞는다
 model EventLog {
   id        String   @id @default(cuid())
-  type      String // play | finish | save | share | youtube
+  type      String // play | finish | like | save | share | youtube
   trackId   String?
   shelfId   String?
-  query     String? // 요청문 — play·finish
+  query     String? // 요청문 — play·finish·like
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([createdAt])

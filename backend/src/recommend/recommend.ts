@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, Injectable, Ip, Logger, Module, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, Injectable, Ip, Logger, Module, NotFoundException, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { CatalogModule } from '../catalog/catalog.module.js';
@@ -9,7 +10,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { VoiceModule, VoiceService } from '../voice/voice.js';
 import { type Asked, Interpreter, normalize } from './interpret.js';
 import { firstSentence, plainLine, Reranker } from './rerank.js';
-import { BONUS, type Candidate, display, lexical, rank, throwPenalties } from './score.js';
+import { BONUS, type Candidate, display, lexical, rank, tasteBonus, throwPenalties } from './score.js';
 
 class ThrowDto {
   @ApiProperty({ description: '던진 곡 id' })
@@ -51,6 +52,7 @@ const VOCAL_TAGS = ['female vocalists', 'male vocalists']; // 해석이 보컬 �
 const VOCAL_BONUS = 0.08; // Last.fm 태그 가중치 10 이상인 곡에 — 태그가 없는 곡은 그대로(걸러내지 않는다, 태그 누락이 많다)
 const VOCAL_MIN_WEIGHT = 10;
 const MIN_GENRE = SHOW; // 고른 장르 곡이 이보다 적으면 나머지 곡으로 채운다 — 빈 서랍보다 낫다(장르 곡이 앞)
+const LIKES_USED = 50; // 취향 가산에 쓰는 좋아요 수(최근 것부터) — 요청마다 곡 풀 전체와 대 본다
 const THROW_DAYS = 30; // 이만큼 지난 던진 기록은 순위에 안 쓴다 — 곡 설명을 고치면 다시 기회를
 const THROW_PER_IP = 100; // 한 곳에서 하루에 세는 던진 곡 수
 const ASK_PER_MIN = 10; // 한 곳(IP)에서 Gemini 를 쓰는 요청(꺼내기·한마디·보고서 합쳐) — 분당. "다시 찾기"·"몇 곡 더"를 빨리 눌러도 넉넉
@@ -128,15 +130,17 @@ export class RecommendService {
     return rows;
   }
 
-  async recommend(query: string, opts: { seen?: string[]; thrown?: string[]; genres?: string[]; limit?: number } = {}) {
-    const { seen = [], thrown = [], genres = [], limit = SHOW } = opts;
+  async recommend(query: string, opts: { seen?: string[]; thrown?: string[]; genres?: string[]; limit?: number; userId?: string } = {}) {
+    const { seen = [], thrown = [], genres = [], limit = SHOW, userId } = opts;
     const first = !seen.length && !thrown.length && !!query.trim();
     const letter = normalize(query);
-    const [said, pool, thrownBy, before] = await Promise.all([
+    const [said, pool, thrownBy, before, liked] = await Promise.all([
       this.interpreter.interpret(query),
       this.loadPool(),
       this.throwRows(),
       first ? this.shownBefore(letter) : new Set<string>(),
+      // 로그인한 사람의 좋아요 — 못 읽으면 없이(표가 아직 없는 DB 에서도 추천은 나간다)
+      userId ? this.prisma.like.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: LIKES_USED, select: { trackId: true } }).catch(() => []) : [],
     ]); // 서로 필요 없다 — 같이
     const throws = throwPenalties(thrownBy, said.vector); // 이 편지와 비슷한 편지에서 던져진 곡일수록 깎는다
     // 편지에 꼽은 곡(10/2) — 곡 풀에 있으면 그 곡 벡터를 요청 벡터에 반반 섞어 결이 비슷한 곡을 찾고, 그 곡은 맨 앞에
@@ -160,6 +164,7 @@ export class RecommendService {
     for (const t of pool) if (kin.some((k) => same(t.artist, k))) add(t.id, KIN_BONUS);
     for (const t of pool) if (lostBy.some((a) => same(t.artist, a))) add(t.id, LIKE_BONUS); // 그 곡을 부른 가수 본인 곡이 제일 가깝다
     for (const id of like) add(id, LIKE_BONUS);
+    for (const [id, v] of tasteBonus(pool, liked.map((l) => l.trackId))) add(id, v); // 좋아요한 곡과 결이 가까운 곡을 조금 앞으로 — 그 사람에게만
     const vocalWant = (asked.tags ?? []).find((t) => VOCAL_TAGS.includes(t));
     if (vocalWant) for (const t of pool) if (((JSON.parse(t.tags) as Record<string, number>)[vocalWant] ?? 0) >= VOCAL_MIN_WEIGHT) add(t.id, VOCAL_BONUS);
     const { ranked, cands, pick } = stage1(pool, asked, { seen, thrown, penalty, genres });
@@ -433,6 +438,14 @@ function shown(t: Ranked, ranked: Ranked[]) {
   };
 }
 
+/** 출입증이 있으면 누구인지 알아 두고, 없거나 낡았으면 그냥 지나간다 — 추천은 로그인 없이도 나간다(좋아요 취향만 빠진다) */
+class OptionalJwt extends AuthGuard('jwt') {
+  handleRequest<T>(_err: unknown, user: T | false) {
+    return (user || null) as T;
+  }
+}
+const optionalJwt = new OptionalJwt(); // 만들어서 건다 — 클래스로 걸면 Nest 가 생성자 인자(AuthModuleOptions)를 못 찾아 서버가 안 켜졌다
+
 @ApiTags('recommend')
 @Controller('recommend')
 export class RecommendController {
@@ -449,10 +462,11 @@ export class RecommendController {
   @ApiQuery({ name: 'seen', required: false, description: '이미 보여 준 곡 id(쉼표) — "몇 곡 더"' })
   @ApiQuery({ name: 'thrown', required: false, description: '던져 버린 곡 id(쉼표) — 빼고, 그 곡들 쪽에서 멀어진다' })
   @ApiQuery({ name: 'g', required: false, description: `장르 키(쉼표) — ${Object.keys(GENRES).join(', ')}. 모르는 키는 버린다` })
-  get(@Ip() ip: string, @Query('q') q = '', @Query('seen') seen?: string, @Query('thrown') thrown?: string, @Query('g') g?: string) {
+  @UseGuards(optionalJwt)
+  get(@Ip() ip: string, @Req() req: { user?: { id: string } | null }, @Query('q') q = '', @Query('seen') seen?: string, @Query('thrown') thrown?: string, @Query('g') g?: string) {
     this.guard(ip);
     const genres = ids(g).filter((k) => k in GENRES);
-    return this.svc.recommend(q.slice(0, Q_MAX), { seen: ids(seen), thrown: ids(thrown), genres });
+    return this.svc.recommend(q.slice(0, Q_MAX), { seen: ids(seen), thrown: ids(thrown), genres, userId: req.user?.id });
   }
 
   @Get('line')

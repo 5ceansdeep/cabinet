@@ -82,6 +82,17 @@ export function throwPenalties(rows: { trackId: string; vector: number[] | null 
   return new Map([...n].filter(([, c]) => c > 0).map(([id, c]) => [id, throwPenalty(c)]));
 }
 
+/* 취향 가산 — 그 사람이 좋아요한 곡과 결이 가까운 곡일수록(평균 뺀 벡터 코사인, 가장 가까운 좋아요 곡 기준) 조금 앞으로(10/7).
+   좋아요가 여러 결이어도 평균으로 뭉개지 않게 가장 가까운 한 곡과 잰다.
+   ponytail: TASTE_BONUS 는 감으로 정한 값([핵심어] 일치와 같은 크기) — 좋아요 기록이 쌓이면 평가로 다시. 요청마다 곡 수 × 좋아요 수만큼 내적 — 좋아요는 최근 것만 넘긴다 */
+export const TASTE_BONUS = 0.04;
+export function tasteBonus(pool: { id: string; vector: number[] }[], likedIds: string[]) {
+  const fix = centerer(pool.map((t) => t.vector));
+  const liked = pool.filter((t) => likedIds.includes(t.id)).map((t) => fix(t.vector));
+  if (!liked.length) return new Map<string, number>();
+  return new Map(pool.map((t) => [t.id, TASTE_BONUS * Math.max(0, ...liked.map((l) => dot(fix(t.vector), l)))]));
+}
+
 /** 곡 풀 전체 순위 — seen·thrown 은 빼고, 가수당 PER_ARTIST 곡까지 먼저(한 가수로 몰리지 않게), 모자라면 나머지.
     penalty = 곡 id → 깎을 점수(사람들이 자주 던진 곡) */
 export function rank<T extends Candidate>(

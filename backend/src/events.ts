@@ -9,13 +9,13 @@ import { Limiter } from './recommend/recommend.js';
    한 곳(IP)에서 분당 30·하루 1000건까지만 — 넘치면 조용히 버린다(DB 를 못 채우게) */
 
 const logger = new Logger('Events');
-const TYPES = ['play', 'finish', 'save', 'share', 'youtube'] as const;
+const TYPES = ['play', 'finish', 'like', 'save', 'share', 'youtube'] as const;
 
 class EventDto {
   @ApiProperty({ enum: TYPES }) @IsIn(TYPES) type!: (typeof TYPES)[number];
-  @ApiProperty({ required: false, description: '곡 id — play·finish' }) @IsOptional() @IsString() @MaxLength(40) trackId?: string;
+  @ApiProperty({ required: false, description: '곡 id — play·finish·like' }) @IsOptional() @IsString() @MaxLength(40) trackId?: string;
   @ApiProperty({ required: false, description: '서랍 id — save·share·youtube, 공개 서랍에서 튼 곡' }) @IsOptional() @IsString() @MaxLength(40) shelfId?: string;
-  @ApiProperty({ required: false, description: '그 곡을 꺼낸 요청문 — play·finish' }) @IsOptional() @IsString() @MaxLength(Q_MAX) query?: string;
+  @ApiProperty({ required: false, description: '그 곡을 꺼낸 요청문 — play·finish·like' }) @IsOptional() @IsString() @MaxLength(Q_MAX) query?: string;
 }
 
 @ApiTags('events')

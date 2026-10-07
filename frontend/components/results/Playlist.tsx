@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CaretUp, Waveform } from "@phosphor-icons/react";
 import { usePortrait } from "@/lib/screen";
+import LikeButton from "./LikeButton";
 import PlayerBar from "./PlayerBar";
 import type { Track } from "./tracks";
 
@@ -34,7 +35,7 @@ export default function Playlist({
       {tracks.map((t, i) => {
         const on = t.id === playing?.id;
         return (
-          <li key={t.id}>
+          <li key={t.id} className="flex items-center">
             <button
               type="button"
               onClick={() => {
@@ -42,7 +43,7 @@ export default function Playlist({
                 setOpen(false);
               }}
               aria-current={on}
-              className={`flex w-full items-center gap-[.75em] rounded-[.6em] px-[.4em] py-[.35em] text-left transition-colors ${on ? "bg-accent/10" : "hover:bg-white/5"}`}
+              className={`flex min-w-0 flex-1 items-center gap-[.75em] rounded-[.6em] px-[.4em] py-[.35em] text-left transition-colors ${on ? "bg-accent/10" : "hover:bg-white/5"}`}
             >
               {/* 순위 — 추천 순서(10/6 사용자) */}
               <span className={`w-[1.4em] shrink-0 text-center font-mono text-[.8em] tabular-nums ${on ? "text-accent" : "text-foreground/35"}`}>{i + 1}</span>
@@ -60,6 +61,7 @@ export default function Playlist({
                 <span className={`mt-[.15em] block truncate text-[.8em] ${on ? "text-accent/60" : "text-foreground/45"}`}>{t.artist}</span>
               </span>
             </button>
+            <LikeButton trackId={t.id} query={query} />
           </li>
         );
       })}

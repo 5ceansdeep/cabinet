@@ -39,6 +39,6 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   }
 }
 
-/** 행동 기록(재생·끝까지 들음·서랍 저장·공유·유튜브 이동) — 기다리지 않고, 실패해도 그만. 무엇을 남기나는 backend/src/events.ts */
-export const logEvent = (type: "play" | "finish" | "save" | "share" | "youtube", ids: { trackId?: string; shelfId?: string; query?: string }) =>
+/** 행동 기록(재생·끝까지 들음·좋아요·서랍 저장·공유·유튜브 이동) — 기다리지 않고, 실패해도 그만. 무엇을 남기나는 backend/src/events.ts */
+export const logEvent = (type: "play" | "finish" | "like" | "save" | "share" | "youtube", ids: { trackId?: string; shelfId?: string; query?: string }) =>
   void api("/events", { method: "POST", body: { type, ...ids, query: ids.query?.slice(0, 300) } }); // 300 = 서버 요청문 상한(Q_MAX)

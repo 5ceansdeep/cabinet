@@ -10,7 +10,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { VoiceModule, VoiceService } from '../voice/voice.js';
 import { type Asked, Interpreter, normalize } from './interpret.js';
 import { firstSentence, plainLine, Reranker } from './rerank.js';
-import { BONUS, type Candidate, display, lexical, rank, tasteBonus, throwPenalties } from './score.js';
+import { BONUS, type Candidate, display, hubPenalties, lexical, rank, tasteBonus, throwPenalties } from './score.js';
 
 class ThrowDto {
   @ApiProperty({ description: '던진 곡 id' })
@@ -52,6 +52,8 @@ const VOCAL_TAGS = ['female vocalists', 'male vocalists']; // 해석이 보컬 �
 const VOCAL_BONUS = 0.08; // Last.fm 태그 가중치 10 이상인 곡에 — 태그가 없는 곡은 그대로(걸러내지 않는다, 태그 누락이 많다)
 const VOCAL_MIN_WEIGHT = 10;
 const MIN_GENRE = SHOW; // 고른 장르 곡이 이보다 적으면 나머지 곡으로 채운다 — 빈 서랍보다 낫다(장르 곡이 앞)
+const HUB_DAYS = 14; // 허브(어디에나 끼는 곡)를 재는 검색 기록 기간
+const HUB_CHECK_MS = 600_000; // 그 집계를 메모리에 두는 시간
 const LIKES_USED = 50; // 취향 가산에 쓰는 좋아요 수(최근 것부터) — 요청마다 곡 풀 전체와 대 본다
 const THROW_DAYS = 30; // 이만큼 지난 던진 기록은 순위에 안 쓴다 — 곡 설명을 고치면 다시 기회를
 const THROW_PER_IP = 100; // 한 곳에서 하루에 세는 던진 곡 수
@@ -135,13 +137,14 @@ export class RecommendService {
     const { seen = [], thrown = [], genres = [], limit = SHOW, userId } = opts;
     const first = !seen.length && !thrown.length && !!query.trim();
     const letter = normalize(query);
-    const [said, pool, thrownBy, before, liked] = await Promise.all([
+    const [said, pool, thrownBy, before, liked, hubs] = await Promise.all([
       this.interpreter.interpret(query),
       this.loadPool(),
       this.throwRows(),
       first ? this.shownBefore(letter) : new Set<string>(),
       // 로그인한 사람의 좋아요 — 못 읽으면 없이(표가 아직 없는 DB 에서도 추천은 나간다)
       userId ? this.prisma.like.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: LIKES_USED, select: { trackId: true } }).catch(() => []) : [],
+      this.hubs(),
     ]); // 서로 필요 없다 — 같이
     const throws = throwPenalties(thrownBy, said.vector); // 이 편지와 비슷한 편지에서 던져진 곡일수록 깎는다
     // 편지에 꼽은 곡(10/2) — 곡 풀에 있으면 그 곡 벡터를 요청 벡터에 반반 섞어 결이 비슷한 곡을 찾고, 그 곡은 맨 앞에
@@ -165,6 +168,7 @@ export class RecommendService {
     for (const t of pool) if (kin.some((k) => by(t, k))) add(t.id, KIN_BONUS);
     for (const t of pool) if (lostBy.some((a) => by(t, a))) add(t.id, LIKE_BONUS); // 그 곡을 부른 가수 본인 곡이 제일 가깝다
     for (const id of like) add(id, LIKE_BONUS);
+    for (const t of pool) penalty.set(t.id, (penalty.get(t.id) ?? 0) + (hubs.get(`${t.artist} - ${t.title}`) ?? 0)); // 어느 편지에나 끼는 곡은 조금 뒤로
     for (const [id, v] of tasteBonus(pool, liked.map((l) => l.trackId))) add(id, v); // 좋아요한 곡과 결이 가까운 곡을 조금 앞으로 — 그 사람에게만
     const vocalWant = (asked.tags ?? []).find((t) => VOCAL_TAGS.includes(t));
     if (vocalWant) for (const t of pool) if (((JSON.parse(t.tags) as Record<string, number>)[vocalWant] ?? 0) >= VOCAL_MIN_WEIGHT) add(t.id, VOCAL_BONUS);
@@ -237,6 +241,23 @@ export class RecommendService {
         tracks = ("LetterLine".tracks::jsonb || ${entry}::jsonb)::text,
         ko = case when "LetterLine".ko = '' then excluded.ko else "LetterLine".ko end,
         en = case when "LetterLine".en = '' then excluded.en else "LetterLine".en end`.catch((e) => this.log.warn(`편지 기록 저장 실패: ${e}`));
+  }
+
+  /* 허브 감점표("가수 - 제목" → 깎을 점수) — 최근 HUB_DAYS 일 검색 기록에서 곡마다 나온 횟수를 세어 score.ts hubPenalties 로. HUB_CHECK_MS 동안 기억한다.
+     실패하면 빈 표(평소대로). ponytail: 서버가 여러 대면 각자 센다 */
+  private hubCache?: { at: number; map: Promise<Map<string, number>> };
+  private hubs() {
+    if (this.hubCache && Date.now() - this.hubCache.at < HUB_CHECK_MS) return this.hubCache.map;
+    const since = new Date(Date.now() - HUB_DAYS * 86_400_000);
+    const map = Promise.all([this.prisma.searchLog.findMany({ where: { createdAt: { gte: since }, query: { not: '' } }, select: { tracks: true } }), this.loadPool()])
+      .then(([logs, pool]) => {
+        const shown = new Map<string, number>();
+        for (const l of logs) for (const name of JSON.parse(l.tracks) as string[]) shown.set(name, (shown.get(name) ?? 0) + 1);
+        return hubPenalties(shown, logs.length, pool.length, SHOW);
+      })
+      .catch(() => new Map<string, number>());
+    this.hubCache = { at: Date.now(), map };
+    return map;
   }
 
   /** 같은 편지로 최근 AGAIN_DAYS 일 안에 보여 준 곡("가수 - 제목") — 검색 기록에서. 실패하면 빈 칸(평소대로) */

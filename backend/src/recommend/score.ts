@@ -82,6 +82,23 @@ export function throwPenalties(rows: { trackId: string; vector: number[] | null 
   return new Map([...n].filter(([, c]) => c > 0).map(([id, c]) => [id, throwPenalty(c)]));
 }
 
+/* 허브 누르기 — 어느 편지에나 끼는 곡을 조금 내린다(10/7 베타: 요청과 따로 노는 곡이 섞인다. 8일 299번 검색 중 한 곡이 40번).
+   기준은 곡 풀 크기를 따라 저절로 움직인다: 고르게 나온다면 한 곡이 검색 한 번에 나올 몫은 (한 번에 보여 주는 곡 수 ÷ 곡 수).
+   실제로 나온 몫이 그 from 배를 넘으면 넘은 만큼(두 배마다 step) 깎고, max 에서 멈춘다 — 곡이 늘면 기준 몫이 줄어 따로 손댈 게 없다.
+   깎인 곡은 덜 나오고, 덜 나오면 몫이 줄어 감점도 풀린다. 검색이 적을 땐(minSearches) 우연이라 안 깎는다.
+   ponytail: 값은 평가 45개(1단계)로 고른 것 — 정답표가 낡아 크게 믿을 숫자는 아니다. 진짜 원인(두루뭉술한 곡 설명)을 고치면 줄여도 된다 */
+export const HUB = { from: 4, step: 0.02, max: 0.05, minSearches: 50 };
+export function hubPenalties(shown: Map<string, number>, searches: number, poolSize: number, show: number, hub = HUB) {
+  const out = new Map<string, number>();
+  if (searches < hub.minSearches || !poolSize) return out;
+  const fair = show / poolSize;
+  for (const [key, n] of shown) {
+    const over = n / searches / fair / hub.from;
+    if (over > 1) out.set(key, Math.min(hub.max, hub.step * Math.log2(over)));
+  }
+  return out;
+}
+
 /* 취향 가산 — 그 사람이 좋아요한 곡과 결이 가까운 곡일수록(평균 뺀 벡터 코사인, 가장 가까운 좋아요 곡 기준) 조금 앞으로(10/7).
    좋아요가 여러 결이어도 평균으로 뭉개지 않게 가장 가까운 한 곡과 잰다.
    ponytail: TASTE_BONUS 는 감으로 정한 값([핵심어] 일치와 같은 크기) — 좋아요 기록이 쌓이면 평가로 다시. 요청마다 곡 수 × 좋아요 수만큼 내적 — 좋아요는 최근 것만 넘긴다 */

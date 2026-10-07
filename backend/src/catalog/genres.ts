@@ -65,9 +65,9 @@ export const GENRES: Record<string, string[]> = {
   rock: ['rock', 'k-rock', 'indie rock', 'alternative', 'alt-rock', 'alternative rock', 'britpop', 'modern rock', 'shoegaze', 'post-rock', 'soft rock', 'punk', 'korean band'],
   ballad: ['ballad', 'korean ballad', 'acoustic', 'singer-songwriter', 'folk'],
   rnb: ['r&b', 'rnb', 'soul', 'korean rnb', 'neo-soul'],
-  hiphop: ['hip-hop', 'hip hop', 'hiphop', 'rap', 'k-hiphop', 'korean hip-hop', 'trap'],
+  hiphop: ['hip-hop', 'hip hop', 'hiphop', 'rap', 'k-hiphop', 'korean hip-hop', 'trap', 'jazz rap', 'jazz hop', 'jazz hip hop', 'lo-fi hip hop', 'chillhop'],
   house: ['house', 'deep house', 'french house', 'electronic', 'electronica', 'edm', 'dance', 'disco', 'techno', 'baltimore club'],
-  jazz: ['jazz', 'vocal jazz', 'jazz pop', 'smooth jazz', 'bossa nova'],
+  jazz: ['jazz', 'vocal jazz', 'jazz pop', 'smooth jazz', 'bossa nova', 'jazz rap', 'jazz hop', 'jazz hip hop'], // 재즈 힙합 태그는 두 장르 모두에 — "재즈 힙합" 편지에서 둘 다 가진 곡으로 맨 앞에 선다
   jpop: ['j-pop', 'jpop', 'japanese', 'city pop', 'j-rock', 'anime'],
   chanson: ['chanson', 'french', 'french pop', 'chanson francaise'],
 };

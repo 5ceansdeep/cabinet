@@ -399,6 +399,9 @@ function sameWords(a: string, b: string) {
   return x.length > 0 && y.length > 0 && (x.join('') === y.join('') || inside(x, y) || inside(y, x));
 }
 
+/** 여러 줄에서 한 곡씩 번갈아(겹쳐도 그대로 — 부르는 쪽이 한 번만 남긴다) */
+const roundRobin = <T>(lists: T[][]) => Array.from({ length: Math.max(0, ...lists.map((l) => l.length)) }, (_, i) => lists.flatMap((l) => (i < l.length ? [l[i]] : []))).flat();
+
 /** 두 줄에서 번갈아 — 겹치는 곡은 한 번만 */
 export function alternate<T extends { id: string }>(a: T[], b: T[]) {
   const out: T[] = [];
@@ -455,7 +458,11 @@ export function arrange<T extends Named & { tags: string }>(all: T[], asked: Pic
   const named = asked.artists?.length ? all.filter((t) => asked.artists!.some((a) => by(t, a))) : [];
   const want = [...new Set([...chips, ...(asked.genres ?? [])])];
   const rest = all.filter((t) => !named.includes(t));
-  const inGenre = rest.filter((t) => inGenres(JSON.parse(t.tags) as Record<string, number>, want));
+  // 장르를 둘 넘게 말하면(재즈 힙합) 점수순으로만 세우지 않는다 — 한쪽 장르가 다 차지했다(10/7 베타: 재즈만 나왔다).
+  // 말한 장르를 다 가진 곡이 먼저, 나머지는 장르마다 한 곡씩 번갈아
+  const of = (keys: string[]) => rest.filter((t) => inGenres(JSON.parse(t.tags) as Record<string, number>, keys));
+  const every = want.length > 1 ? want.map((g) => of([g])).reduce((a, b) => a.filter((t) => b.includes(t))) : [];
+  const inGenre = want.length > 1 ? [...new Set([...every, ...roundRobin(want.map((g) => of([g])))])] : of(want);
   return [...named, ...(named.length + inGenre.length >= MIN_GENRE || !want.length ? inGenre : [...inGenre, ...rest.filter((t) => !inGenre.includes(t))])];
 }
 

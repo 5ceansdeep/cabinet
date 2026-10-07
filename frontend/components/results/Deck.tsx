@@ -136,6 +136,8 @@ function Disk({
     held.current = false;
     drag.current = null;
     removeEventListener("pointermove", move);
+    removeEventListener("pointerup", up);
+    removeEventListener("pointercancel", cancel);
     setThrown(true);
     thud(150);
     if (reducedMotion()) return onDiscard();
@@ -175,7 +177,9 @@ function Disk({
     }
     // 꾹 누르는 중 — 게이지가 차오르고, 다 차면 저절로 던져진다
     if (held.current) {
-      const p = (prog.current = Math.min(1, prog.current + (dt * 1000) / HOLD_MS));
+      // 누른 때부터 잰 실제 시간으로 — dt 를 쌓으면 쉬다 깨어난 첫 프레임의 dt(쉰 시간 전부)에 게이지가 한 번에 차서,
+      // 폰에서 살짝 흔들린 탭이 던지기가 됐다(10/7 베타: 안드로이드에서 누르면 디스크가 날아감)
+      const p = (prog.current = Math.min(1, (performance.now() - start.current.t) / HOLD_MS));
       gauge.draw(p);
       gaugeRef.current.visible = true;
       gaugeRef.current.scale.setScalar(0.95 + p * 0.08);
@@ -273,6 +277,18 @@ function Disk({
     spin.current.vx = spin.current.vy = 0;
     addEventListener("pointermove", move);
     addEventListener("pointerup", up, { once: true });
+    addEventListener("pointercancel", cancel, { once: true });
+    invalidate(); // 게이지가 차오르는 걸 그린다 — 멎은 장면은 누르기만 해선 안 깨어난다
+  }
+
+  /* 브라우저가 손놀림을 가져갔다(스크롤·당겨서 새로고침 등) — pointerup 이 안 온다. 놓은 것으로 치고 아무 일도 안 한다.
+     안 치우면 꾹 누르는 중으로 남아 게이지가 다 차고 던져졌다 */
+  function cancel() {
+    removeEventListener("pointermove", move);
+    removeEventListener("pointerup", up);
+    held.current = false;
+    drag.current = null;
+    invalidate();
   }
 
   function move(e: PointerEvent) {
@@ -297,6 +313,7 @@ function Disk({
 
   function up(e: PointerEvent) {
     removeEventListener("pointermove", move);
+    removeEventListener("pointercancel", cancel);
     held.current = false;
     if (!drag.current) return;
     drag.current = null;

@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { LoginDto, SignupDto, TokenDto } from './dto.js';
 import { Mailer } from './mail.js';
+import { type Greeting, VoiceService } from '../voice/voice.js';
 
 const MAX_RESETS = 5; // 열쇠 찾기 — 같은 곳에서 CHECK_MS 동안 이만큼만
 const RESET_MS = 30 * 60 * 1000; // 재설정 링크 유효 시간
@@ -46,15 +47,18 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly mail: Mailer,
+    private readonly voice: VoiceService,
     config: ConfigService,
   ) {
     this.web = config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000';
   }
 
-  private issue(user: { id: string; email: string; nickname: string }): TokenDto {
+  /** hello = 어떻게 들어왔나 — 그 인사를 이름까지 부르는 음성 id 를 같이 준다(greet) */
+  private issue(user: { id: string; email: string; nickname: string }, hello: Greeting): TokenDto {
     return {
       accessToken: this.jwt.sign({ sub: user.id, email: user.email }),
       user: { id: user.id, email: user.email, nickname: user.nickname },
+      greet: this.voice.greet(hello, user.nickname),
     };
   }
 
@@ -66,7 +70,7 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: { email, nickname: dto.nickname, password: await bcrypt.hash(dto.password, 10) },
     });
-    return this.issue(user);
+    return this.issue(user, 'signup');
   }
 
   /** 회원가입 첫 칸에서 바로 — 이미 가입된 이메일인가. 가입 화면은 어차피 409 로 알려 주는 정보라 새로 흘리는 건 없다 */
@@ -94,7 +98,7 @@ export class AuthService {
       throw new UnauthorizedException('비밀이 틀렸네');
     }
     this.fails.delete(key);
-    return this.issue(user);
+    return this.issue(user, 'login');
   }
 
   /* 열쇠 찾기 — 계정이 있으면 30분짜리 일회용 링크를 메일로. 있든 없든 같은 대답이라 누가 가입했는지 흘리지 않는다.
@@ -125,12 +129,12 @@ export class AuthService {
       where: { id: user.id },
       data: { password: await bcrypt.hash(password, 10), resetHash: null, resetUntil: null },
     });
-    return this.issue(user);
+    return this.issue(user, 'reset');
   }
 
   async me(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException();
-    return { id: user.id, email: user.email, nickname: user.nickname };
+    return { id: user.id, email: user.email, nickname: user.nickname, greet: this.voice.greet('returning', user.nickname) }; // 또 왔군 — 이름까지 부르는 음성 id
   }
 }

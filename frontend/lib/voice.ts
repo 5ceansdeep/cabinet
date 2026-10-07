@@ -11,7 +11,8 @@ import { analyzeSpeech } from "./cues";
    false 면 mp3 를 받지도 틀지도 않고, 자막은 읽는 시간만큼 기다린다. 신의 한마디 음성은 백엔드 ELEVENLABS_ENABLED 도 켜져 있어야 한다 */
 const VOICE = true;
 
-type Job = { text: string; key?: string; lines: number; onStart?: (delays: number[] | null) => void };
+// backup — key(서버가 닉네임을 넣어 만든 인사 등)를 못 받으면 대신 틀 녹음 키
+type Job = { text: string; key?: string; lines: number; onStart?: (delays: number[] | null) => void; backup?: string };
 
 const TAIL = 0.25; // 말이 끝나고 다음 대사까지 숨 고르는 시간(초)
 const READ_CPS = 7; // 녹음 없는 대사는 자막을 읽는 시간만큼(초당 글자) 다음 대사를 기다린다
@@ -132,7 +133,8 @@ function play(job: Job, id: number) {
   if (ctx?.state === "suspended") void ctx.resume(); // 폰이 백그라운드에 갔다 오면 멈춰 있다
   current = a;
   busyUntil = untilKnown(); // 말을 언제 마치는지 알 때까지
-  a.onerror = () => silent(job, id); // 파일이 아직 없으면 자막만
+  // 파일이 아직 없으면 자막만. 대신 틀 녹음(backup)이 있으면 그걸로 — 서버가 음성을 못 만들어도(크레딧·꺼짐) 인사는 들린다
+  a.onerror = () => (job.backup ? play({ ...job, key: job.backup, backup: undefined }, id) : silent(job, id));
   // 요소를 같이 쓰니 앞 대사의 리스너가 남지 않게 속성으로 건다(덮어쓴다)
   a.onplaying = () => {
     a.onplaying = null;
@@ -169,10 +171,10 @@ function unblock() {
   setMuted(false);
 }
 
-export function speak(text: string, key?: string, lines = 1, onStart?: Job["onStart"]) {
+export function speak(text: string, key?: string, lines = 1, onStart?: Job["onStart"], backup?: string) {
   // 같은 대사가 지금 나오고 있으면 또 줄 세우지 않는다 (엔터 연타·개발 모드의 이중 실행에 되풀이되지 않게)
   if (text === playing && performance.now() < busyUntil) return;
-  pending = { text, key, lines, onStart };
+  pending = { text, key, lines, onStart, backup };
   next();
 }
 

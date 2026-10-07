@@ -31,7 +31,8 @@ export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: str
   // 이미 들어온 적 있으면 인사만 하고 곧장 편지로. "다른 이름으로" 누르면 세션을 지우고 평소대로
   // 인사는 출입증이 아직 유효한지 서버에 확인한 뒤에만 — 무효면 checkSession 이 흔적을 지워 평소 로그인으로
   const [checked, setChecked] = useState(false);
-  useEffect(() => void checkSession().finally(() => setChecked(true)), []);
+  const [hello, setHello] = useState<string | null>(null); // "또 왔군" 을 이름까지 부르는 음성 id — 확인하면서 같이 받는다(없으면 이름 없는 녹음)
+  useEffect(() => void checkSession().then(setHello).finally(() => setChecked(true)), []);
   const saved = useSyncExternalStore(subscribeSession, getSession, () => null);
   const [dismissed, setDismissed] = useState(false);
   const returning = mode === "login" && phase === "auth" && !dismissed && checked ? saved : null;
@@ -109,7 +110,7 @@ export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: str
           : await signup(email, values.nickname, values.password);
     await whenQuiet(); // "서류 정리 중이네"를 끝까지 듣고 나서 결과(환영·꾸지람)로 — 화면이 목소리를 앞지르지 않게
     if (r.ok) {
-      setFlow((as === "reset" ? LINES.resetDone : as === "login" ? LINES.welcomeBack : LINES.welcomeNew)(r.nickname));
+      setFlow((as === "reset" ? LINES.resetDone : as === "login" ? LINES.welcomeBack : LINES.welcomeNew)(r.nickname, r.greet));
       setPhase("loading");
       return null;
     }
@@ -141,7 +142,7 @@ export default function AuthFlow({ mode, token = "" }: { mode: Mode; token?: str
         locked={!!returning}
         intro={LINES.intro[mode]}
         phase={phase}
-        flow={returning ? LINES.returning(returning) : flow}
+        flow={returning ? LINES.returning(returning, hello) : flow}
         onClearFlow={() => setFlow(null)}
         onCheck={mode === "login" ? check : undefined}
         onDone={done}

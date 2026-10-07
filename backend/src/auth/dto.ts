@@ -62,6 +62,8 @@ export class MeDto {
   @ApiProperty() id!: string;
   @ApiProperty() email!: string;
   @ApiProperty() nickname!: string;
+  @ApiProperty({ required: false, nullable: true, description: '"또 왔군" 인사를 이름까지 부르는 영어 음성 id(GET /voice/:id) — /auth/me 만. 음성이 꺼져 있으면 null' })
+  greet?: string | null;
 }
 
 export class TokenDto {
@@ -70,4 +72,7 @@ export class TokenDto {
 
   @ApiProperty({ type: MeDto })
   user!: MeDto;
+
+  @ApiProperty({ nullable: true, description: '환영 인사를 이름까지 부르는 영어 음성 id(GET /voice/:id). 음성이 꺼져 있으면 null — 화면은 이름 없는 녹음을 튼다' })
+  greet!: string | null;
 }

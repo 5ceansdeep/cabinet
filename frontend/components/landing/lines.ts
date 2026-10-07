@@ -178,6 +178,10 @@ export const RESULT_DIALOGUE = {
   MISSING_ARTIST: (name: string, kin: string[]) =>
     kin.length ? `아직 ${name} 님 곡은 서류함에 없어요. 결이 비슷한 ${kin.join("·")} 곡으로 골랐어요. 곧 채워 둘게요.` : `아직 ${name} 님 곡은 서류함에 없어요. 비슷한 결로 골랐어요. 곧 채워 둘게요.`,
   MISSING_SONG: (song: string) => `「${song}」은 아직 서류함에 없어요. 결이 비슷한 곡으로 골랐어요. 곧 채워 둘게요.`,
+  // 말한 장르 곡이 서류함에 모자랄 때 — 결과가 어색한 게 곡이 없어서라는 걸 알린다(10/7 사용자)
+  GENRE: { kpop: "케이팝", pop: "팝", indie: "인디", rock: "록", ballad: "발라드", rnb: "알앤비", hiphop: "힙합", house: "일렉트로닉", jazz: "재즈", jpop: "제이팝", chanson: "샹송" } as Record<string, string>,
+  FEW_MIX: (names: string[], n: number) => `${names.join("·")} 둘 다인 곡은 서류함에 아직 ${n ? `${n}곡뿐이에요` : "없어요"}. 각 장르에서 가까운 곡으로 골랐어요. 곧 채워 둘게요.`,
+  FEW_GENRE: (name: string, n: number) => `${name} 곡은 서류함에 아직 ${n ? `${n}곡뿐이에요` : "없어요"}. 결이 가까운 곡도 함께 골랐어요. 곧 채워 둘게요.`,
   FEW_ARTIST: (name: string, kin: string[]) => `${name} 님 곡이 아직 적어서 결이 비슷한 ${kin.join("·")} 곡도 함께 골랐어요.`,
   /* 처음 결과 화면 투어 — 화면을 뿌옇게 깔고 헷갈릴 만한 곳을 차례로 비춘다(10/6 사용자: 구석 영어 한 줄 대신).
      target = 비출 DOM(data-tour), area = 3D 자리(디스크 하나·디스크 줄). touch = 터치 화면용 글 */

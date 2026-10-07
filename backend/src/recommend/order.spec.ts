@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alternate, arrange, blend, by, finalOrder, later, Limiter, pinTitled, sameTitle } from './recommend.js';
+import { alternate, arrange, blend, by, scarce, finalOrder, later, Limiter, pinTitled, sameTitle } from './recommend.js';
 
 const t = (id: string, artist: string) => ({ id, artist });
 const cands = [t('a', 'Oasis'), t('b', '아이유'), t('c', 'Oasis'), t('d', '검정치마')];
@@ -99,6 +99,9 @@ describe('섞인 장르', () => {
   it('장르를 둘 말하면 둘 다 가진 곡이 먼저, 나머지는 번갈아 — 한 장르가 다 차지하지 않는다', () => {
     const all = [t('j1', 'jazz'), t('j2', 'jazz'), t('j3', 'jazz'), t('h1', 'hip-hop'), t('both', 'jazz', 'rap'), t('r', 'rock'), ...Array.from({ length: 8 }, (_, i) => t(`j${i + 4}`, 'jazz'))];
     expect(arrange(all, { genres: ['jazz', 'hiphop'] }).slice(0, 4).map((x) => x.artist)).toEqual(['both', 'j1', 'h1', 'j2']);
+    expect(scarce(all, ['jazz', 'hiphop'])).toEqual({ genres: ['jazz', 'hiphop'], count: 1, mix: true }); // 둘 다 가진 곡이 모자라다 — 화면이 알린다
+    expect(scarce(all, ['rock'])).toEqual({ genres: ['rock'], count: 1, mix: false });
+    expect(scarce(all, [])).toBeNull();
     expect(arrange(all, { genres: ['jazz'] }).slice(0, 3).map((x) => x.artist)).toEqual(['j1', 'j2', 'j3']); // 하나면 예전대로 점수순
   });
 });

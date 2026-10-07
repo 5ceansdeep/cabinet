@@ -14,7 +14,7 @@ import CabinetWall from "./CabinetWall";
 import Playlist from "./Playlist";
 import Tour, { tourOff } from "./Tour";
 import CardReveal from "@/components/share/CardReveal";
-import { findTracks, logThrow, type Track } from "./tracks";
+import { findTracks, logThrow, type FewGenre, type Track } from "./tracks";
 import { apiUrl } from "@/lib/api";
 import { Archive, ArrowsClockwise, KeyReturn, NotePencil } from "@phosphor-icons/react";
 
@@ -55,6 +55,7 @@ export default function Results({ query }: { query: string }) {
   const [kinArtists, setKinArtists] = useState<string[]>([]); // 그래서 대신 채운 비슷한 가수(곡이 적을 때도)
   const [kinFor, setKinFor] = useState<string | null>(null); // 곡이 적은 그 가수
   const [missingSong, setMissingSong] = useState<string | null>(null); // 편지에 꼽은 곡이 서류함에 없다
+  const [fewGenre, setFewGenre] = useState<FewGenre | null>(null); // 말한 장르 곡이 서류함에 모자라다
   const [greeting, setGreeting] = useState<Line | null>(null); // 곡을 건네며 하는 신의 한마디 — 뒤질 때마다 새로
   const [kept, setKept] = useState<Track[]>([]); // 위로 던져 뺀 곡은 여기서 빠진다
   const [seen, setSeen] = useState<string[]>([]); // 지금까지 보여 준 곡
@@ -89,6 +90,7 @@ export default function Results({ query }: { query: string }) {
       setKinArtists(found.kinArtists ?? []);
       setKinFor(found.kinFor ?? null);
       setMissingSong(found.missingSong ?? null);
+      setFewGenre(found.fewGenre ?? null);
       // 신의 한마디·곡별 이유는 재정렬과 같은 호출로 곡 목록과 함께 온다(10/1 — 재정렬 순서를 쓰면서).
       // 영어 음성은 백엔드가 ElevenLabs 로 만든 mp3(켜 뒀을 때만) — 꺼져 있으면 자막만
       setGreeting(found.line ? { text: found.line.ko, voiceKey: found.line.voice ? apiUrl(`/voice/${found.line.voice}`) : undefined } : null);
@@ -288,6 +290,13 @@ export default function Results({ query }: { query: string }) {
                 </p>
               )}
               {missingSong && <p className="col-span-2 font-sans tracking-normal text-subtitle">{RESULT_DIALOGUE.MISSING_SONG(missingSong)}</p>}
+              {fewGenre && (
+                <p className="col-span-2 font-sans tracking-normal text-subtitle">
+                  {fewGenre.mix
+                    ? RESULT_DIALOGUE.FEW_MIX(fewGenre.genres.map((g) => RESULT_DIALOGUE.GENRE[g] ?? g), fewGenre.count)
+                    : RESULT_DIALOGUE.FEW_GENRE(RESULT_DIALOGUE.GENRE[fewGenre.genres[0]] ?? fewGenre.genres[0], fewGenre.count)}
+                </p>
+              )}
             </div>
             <span className="flex shrink-0 items-center gap-6 portrait:w-full portrait:flex-row-reverse portrait:gap-1">
               {phase === "discs" && kept.length > 0 && (

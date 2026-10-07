@@ -50,7 +50,7 @@ function Barcode({ seed }: { seed: string }) {
   return <img src={src} width={width} height={90} alt="" />;
 }
 
-/* 미국 마트 간판풍 로고 — 굵은 압축 고딕 CABINET 을 두꺼운 테두리 간판에, 아래 반전 띠 "SONG & FILE MARKET", 위에 별 셋.
+/* 미국 마트 간판풍 로고 — 굵은 압축 고딕 CABINET 을 두꺼운 테두리 간판에, 아래 반전 띠 "24 HR RECORDS OFFICE"(10/7 — 전엔 "SONG & FILE MARKET"), 위에 별 셋.
    display = 로고 글꼴 이름 — 카드(Satori)는 "Anton", 공유 페이지는 next/font 변수. scale = 크기 배율 */
 export function Logo({ display = "Anton", scale = 1 }: { display?: string; scale?: number }) {
   const k = (n: number) => n * scale;
@@ -59,11 +59,11 @@ export function Logo({ display = "Anton", scale = 1 }: { display?: string; scale
       <div style={{ display: "flex", fontSize: k(26), letterSpacing: k(18), marginBottom: k(6) }}>★★★</div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", border: `${k(6)}px solid ${INK}`, borderRadius: k(20), overflow: "hidden" }}>
         <div style={{ display: "flex", fontFamily: display, fontSize: k(100), lineHeight: 1, letterSpacing: k(6), padding: `${k(12)}px ${k(30)}px ${k(4)}px` }}>CABINET</div>
-        <div style={{ display: "flex", justifyContent: "center", width: "100%", background: INK, color: PAPER, fontSize: k(24), fontWeight: 600, letterSpacing: k(7), padding: `${k(8)}px 0 ${k(10)}px` }}>
-          SONG &amp; FILE MARKET
+        <div style={{ display: "flex", justifyContent: "center", width: "100%", background: INK, color: PAPER, fontSize: k(24), fontWeight: 600, letterSpacing: k(3), padding: `${k(8)}px ${k(18)}px ${k(10)}px` }}>
+          24 HR RECORDS OFFICE
         </div>
       </div>
-      <div style={{ display: "flex", marginTop: k(12), fontSize: k(22), letterSpacing: k(3) }}>STORE #001 · SEOUL · OPEN 24 HRS</div>
+      <div style={{ display: "flex", marginTop: k(12), fontSize: k(22), letterSpacing: k(3) }}>OFFICE #001 · SEOUL</div>
     </div>
   );
 }
@@ -191,7 +191,7 @@ export default function Card({ q, keywords, tracks, qr, shelf, date, no, paper }
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 26, fontSize: 22, letterSpacing: 2 }}>
           <span>ALL SALES FINAL</span>
-          <span style={{ marginTop: 4 }}>THANK YOU FOR SHOPPING AT CABINET</span>
+          <span style={{ marginTop: 4 }}>THANK YOU FOR VISITING CABINET</span>
         </div>
       </div>
       <Covers tracks={ten} side="right" />

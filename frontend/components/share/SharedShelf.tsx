@@ -135,7 +135,7 @@ export default function SharedShelf({ shelf }: { shelf: PublicShelf }) {
           </div>
           <div className="mt-4 flex flex-col items-center text-[11px] tracking-[.12em]">
             <span>ALL SALES FINAL</span>
-            <span>THANK YOU FOR SHOPPING AT CABINET</span>
+            <span>THANK YOU FOR VISITING CABINET</span>
           </div>
         </article>
 

@@ -49,6 +49,9 @@
 - **남은 B**: B-3(결만 빌린 가수 — 해석 프롬프트에 칸 추가 + 비슷한 가수 가산, 안 함) · B-6(곡 모으기 — 한국 스토어가 되는 망에서, [docs/other-pc.md](docs/other-pc.md) 2번)
 - 발표 슬라이드 설문 칸: 데이터가 덜 쌓여 아직 안 넣는다(사용자)
 
+- **간판 문구**(10/7): 공유 카드 로고 띠 "SONG & FILE MARKET" → "24 HR RECORDS OFFICE", 아래 줄 "OFFICE #001 · SEOUL", 끝줄 "THANK YOU FOR VISITING CABINET"(`share/Card.tsx`·`SharedShelf.tsx`). 발표 슬라이드 표지·마지막 장·각 장 아래 줄·영수증 스크린샷도 같이.
+  "영수증" 용어와 "ALL SALES FINAL" 줄은 그대로(마트 → 사무소로 컨셉을 옮길지는 사용자 결정 대기). 커밋만, 푸시 전
+
 ## 10/7 한 일
 - **푸시 대기(로컬 main 이 4커밋 앞)**: 랜딩 이름 음성 `36c12bd` · 편지별 기록 `ccb86fc`(마이그레이션 포함 — 푸시하면 Railway 가 돌린다) · 안내문 `94d5caf` · 이 문서
 - **편지별 기록**: `LetterLine.tracks` 에 그 편지로 꺼내 준 곡을 전부(처음·다시 찾기·더 찾기) 뒤에 붙인다 — `[{at, how, tracks}]`. 사용자: 첫 번째만 두면 헷갈리니 모든 기록.

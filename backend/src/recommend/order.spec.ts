@@ -85,4 +85,11 @@ describe('가수 다른 표기', () => {
     expect(by({ artist: '보아', artistAlt: 'BoA' }, 'Boards of Canada')).toBe(false); // 짧은 로마자 이름이 글자만 겹치는 이름에 안 걸린다
     expect(by({ artist: '에프엑스', artistAlt: 'f(x)' }, 'fx')).toBe(true);
   });
+  it('원래 표기도 낱말 단위 — 글자만 겹치는 이름엔 안 걸린다', () => {
+    expect(by({ artist: 'Kali Uchis' }, 'IU')).toBe(false);
+    expect(by({ artist: 'BoA & Beenzino' }, 'Beenzino')).toBe(true);
+    expect(by({ artist: 'JAŸ-Z' }, 'Jay-Z')).toBe(true);
+    expect(by({ artist: '방탄소년단' }, '방탄')).toBe(true);
+    expect(by({ artist: '검정치마 (The Black Skirts)' }, '검정치마')).toBe(true);
+  });
 });

@@ -40,7 +40,7 @@
 
 ## 5. 나중에
 
-- 영어 제목으로 들어간 한국 곡 → 한글 제목. 스크립트는 있다(10/1 세션 scratchpad `titles.tmp.mjs`). 이 PC 망에선 한국 스토어 0건이라 다른 망에서
+- 영어 제목으로 들어간 한국 곡 → 한글 제목. 회사 PC 망에선 한국 스토어 0건이라 다른 망에서 — 절차 [other-pc.md](other-pc.md), 스크립트 `backend/scripts/titles.mjs`
 - 곡 모으기 출처에 Deezer 추가
 - "보컬 없는 재즈" — instrumentalness(ReccoBeats) 를 소리 점수에
 - 녹음 없는 대사 7개(`docs/voice-script.csv`) — 음성을 다시 켤 때만

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alternate, blend, by, finalOrder, later, Limiter, pinTitled, sameTitle } from './recommend.js';
+import { alternate, arrange, blend, by, finalOrder, later, Limiter, pinTitled, sameTitle } from './recommend.js';
 
 const t = (id: string, artist: string) => ({ id, artist });
 const cands = [t('a', 'Oasis'), t('b', '아이유'), t('c', 'Oasis'), t('d', '검정치마')];
@@ -91,5 +91,14 @@ describe('가수 다른 표기', () => {
     expect(by({ artist: 'JAŸ-Z' }, 'Jay-Z')).toBe(true);
     expect(by({ artist: '방탄소년단' }, '방탄')).toBe(true);
     expect(by({ artist: '검정치마 (The Black Skirts)' }, '검정치마')).toBe(true);
+  });
+});
+
+describe('섞인 장르', () => {
+  const t = (artist: string, ...tags: string[]) => ({ artist, tags: JSON.stringify(Object.fromEntries(tags.map((x) => [x, 100]))) });
+  it('장르를 둘 말하면 둘 다 가진 곡이 먼저, 나머지는 번갈아 — 한 장르가 다 차지하지 않는다', () => {
+    const all = [t('j1', 'jazz'), t('j2', 'jazz'), t('j3', 'jazz'), t('h1', 'hip-hop'), t('both', 'jazz', 'rap'), t('r', 'rock'), ...Array.from({ length: 8 }, (_, i) => t(`j${i + 4}`, 'jazz'))];
+    expect(arrange(all, { genres: ['jazz', 'hiphop'] }).slice(0, 4).map((x) => x.artist)).toEqual(['both', 'j1', 'h1', 'j2']);
+    expect(arrange(all, { genres: ['jazz'] }).slice(0, 3).map((x) => x.artist)).toEqual(['j1', 'j2', 'j3']); // 하나면 예전대로 점수순
   });
 });

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Eject, Pause, Play, SkipBack, SkipForward } from "@phosphor-icons/react";
 import { logEvent } from "@/lib/api";
 import { vinyl } from "@/lib/vinyl";
+import LikeButton from "./LikeButton";
 import type { Track } from "./tracks";
 
 /* 드라이브에 꽂힌 곡의 재생 — 오른쪽 곡 목록 아래. 동그란 재생 버튼, 곡 이름, 얇은 파란 진행선(누르거나 끌어서 옮긴다), 꺼내기.
@@ -130,6 +131,7 @@ export default function PlayerBar({
                   <p className="truncate text-foreground">{track.title}</p>
                   <p className="mt-[.15em] truncate text-[.82em] text-foreground/50">{track.artist}</p>
                 </div>
+                <LikeButton trackId={track.id} query={from?.query} className="-mt-[.3em]" />
                 <button type="button" onClick={onEject} aria-label="꺼내기" className="-mt-[.3em] -mr-[.3em] grid size-[2em] shrink-0 place-items-center rounded-full text-foreground/45 transition-colors hover:text-foreground pointer-coarse:size-10">
                   <Eject aria-hidden weight="fill" className="size-[1em]" />
                 </button>

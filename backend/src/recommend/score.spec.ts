@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { A, away, display, dot, lexical, rank, soundScore, throwPenalties, throwPenalty, total } from './score.js';
+import { A, away, display, dot, lexical, rank, soundScore, TASTE_BONUS, tasteBonus, throwPenalties, throwPenalty, total } from './score.js';
 
 describe('score', () => {
+  it('좋아요한 곡과 결이 가까운 곡만 가산 — 좋아요가 없으면 빈 표', () => {
+    const pool = [
+      { id: 'a', vector: [1, 0] },
+      { id: 'b', vector: [0.96, 0.28] },
+      { id: 'c', vector: [0, 1] },
+      { id: 'd', vector: [-1, 0] },
+    ];
+    expect(tasteBonus(pool, []).size).toBe(0);
+    const m = tasteBonus(pool, ['a']);
+    expect(m.get('a')).toBeCloseTo(TASTE_BONUS);
+    expect(m.get('b')!).toBeGreaterThan(m.get('c')!);
+    expect(m.get('d')).toBe(0);
+  });
+
   it('길이 1 벡터의 내적 = 코사인', () => {
     expect(dot([1, 0], [1, 0])).toBe(1);
     expect(dot([1, 0], [0, 1])).toBe(0);

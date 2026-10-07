@@ -185,12 +185,15 @@ export class RecommendService {
     const pct = picked.map((t) => shown(t, ranked).semantic).sort((a, b) => b - a);
     const tracks = picked.map((t, i) => ({ ...shown(t, ranked), semantic: pct[i], reason: rr?.reasons[t.id] ?? null }));
     // 예전에 저장한 편지 대사(두 문장일 수 있다)도 첫 문장만 — 10/6 사용자: 한마디가 길다
-    const said1 = kept ?? rr?.line ?? null;
+    const said1 = (kept?.ko ? kept : null) ?? rr?.line ?? null; // 곡 기록만 있고 대사는 빈 줄일 수 있다(재정렬이 실패했던 편지)
     const spoken = said1 && { ko: firstSentence(said1.ko), en: firstSentence(said1.en) };
-    if (first && !kept && rr?.line)
-      void this.prisma.letterLine
-        .upsert({ where: { query: letter }, create: { query: letter, ...rr.line }, update: {} })
-        .catch((e) => this.log.warn(`편지 대사 저장 실패: ${e}`));
+    // 편지별 기록 — 이 편지에 꺼내 준 곡은 처음이든 다시 찾기든 전부 남긴다(10/7 사용자). 처음 부친 편지의 대사도 같은 줄에(대사는 한 번 정해지면 안 바뀐다)
+    if (letter && tracks.length)
+      void this.keepLetter(letter, first && !kept?.ko ? rr?.line : null, {
+        at: new Date().toISOString(),
+        how: first ? 'first' : thrown.length ? 'retry' : 'more',
+        tracks: tracks.map((t) => `${t.artist} - ${t.title}`),
+      });
     const line = spoken ? { ...spoken, en: plainLine(spoken.en), voice: this.voice.register(plainLine(spoken.en)) } : null; // 영어 음성 id — ElevenLabs 를 꺼 두면 null
 
     // 처음 뒤질 때만 남긴다("다시 찾기"·"몇 곡 더"는 같은 요청) — 실패해도 결과는 준다. 편지 글·나온 곡·신의 한마디도(10/2) — Railway 로그에도 한 줄
@@ -216,6 +219,18 @@ export class RecommendService {
     const missing = songs.find((g) => !seeds.some((t) => same(t.artist, g.artist) && sameTitle(t.title, g.title)));
     const missingSong = missing ? `${missing.artist} - ${missing.title}` : null; // 꼽은 곡이 서류함에 없다 — 화면이 알린다
     return { interpretation: shownKeywords(asked), description: readings(asked), tracks, line, missingArtist, kinArtists: kinShown, kinFor: kinShown.length && asked.artists?.length ? asked.artists[0] : null, missingSong };
+  }
+
+  /* 편지 한 줄(LetterLine)에 — 없으면 만들고, 있으면 이번에 꺼낸 곡을 기록 뒤에 붙인다. 대사는 비어 있을 때만 채운다(같은 편지면 늘 같은 대사).
+     한 문장으로 한다 — 읽고 고쳐 쓰면 같은 편지가 동시에 올 때 기록 하나가 사라진다. 실패해도 추천은 이미 나갔다 */
+  private async keepLetter(letter: string, line: { ko: string; en: string } | null | undefined, shown: { at: string; how: string; tracks: string[] }) {
+    const entry = JSON.stringify([shown]);
+    await this.prisma.$executeRaw`
+      insert into "LetterLine" (query, ko, en, tracks) values (${letter}, ${line?.ko ?? ''}, ${line?.en ?? ''}, ${entry})
+      on conflict (query) do update set
+        tracks = ("LetterLine".tracks::jsonb || ${entry}::jsonb)::text,
+        ko = case when "LetterLine".ko = '' then excluded.ko else "LetterLine".ko end,
+        en = case when "LetterLine".en = '' then excluded.en else "LetterLine".en end`.catch((e) => this.log.warn(`편지 기록 저장 실패: ${e}`));
   }
 
   /** 같은 편지로 최근 AGAIN_DAYS 일 안에 보여 준 곡("가수 - 제목") — 검색 기록에서. 실패하면 빈 칸(평소대로) */

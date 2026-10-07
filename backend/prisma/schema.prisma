@@ -129,7 +129,10 @@ model VoiceClip {
 /// 목소리도 새로 샀다. "다시 찾기"·"몇 곡 더"는 다른 곡을 건네니 여기 안 쓴다
 model LetterLine {
   query     String   @id // interpret.ts normalize(요청문)
-  ko        String
+  ko        String // 대사가 아직 없으면 빈 칸 — 재정렬이 실패한 편지도 곡 기록은 남긴다
   en        String
+  // 이 편지에 꺼내 준 곡 전부 — JSON [{at, how: first|retry|more, tracks: ["가수 - 제목", ...]}, ...] 부칠 때마다 뒤에 붙는다(10/7 사용자: 모든 기록).
+  // 같은 편지도 부칠 때마다 다른 곡이 나오니(9e0a270) 한 번 것만 두면 헷갈린다. 사용자·IP 는 없다. ponytail: 줄이 계속 길어진다 — 한 편지가 수천 번 부쳐지면 따로 표로
+  tracks    String   @default("[]")
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 }

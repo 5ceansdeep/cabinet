@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Track } from "@/components/results/tracks";
 
 /* 5.1번 — 빛바랜 종이 보고서. 디스크 한 장을 뜯어본 서브 뷰.
-   ponytail: 아키비스트 AI 문장(docs/ai-report-plan.md)은 아직 없음 — 지금은 수치와 메타데이터만 인쇄한다 */
+   ponytail: 아키비스트 AI 문장은 아직 없음 — 지금은 수치와 메타데이터만 인쇄한다 */
 
 // 종이 — 누런 바탕에 섬유결(가로세로 옅은 줄)과 얼룩
 const PAPER = [

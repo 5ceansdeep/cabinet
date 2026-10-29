@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 
 /* 움직임 줄이기(prefers-reduced-motion) — CSS 는 globals.css 가 끄지만 3D(useFrame)·캔버스 루프는 이걸 보고 직접 줄인다.
-   연출은 없애지 않고 "움직임 → 상태 변화"로: 서랍·카드는 바로 도착, 들썩임·물결·뒤지기는 멈춤 (.claude/skills/design-rules) */
+   연출은 없애지 않고 "움직임 → 상태 변화"로: 서랍·카드는 바로 도착, 들썩임·물결·뒤지기는 멈춤 */
 const QUERY = "(prefers-reduced-motion: reduce)";
 
 function subscribe(cb: () => void) {

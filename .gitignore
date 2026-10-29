@@ -26,14 +26,6 @@ coverage/
 Thumbs.db
 .vercel
 
-# 작업 컨텍스트는 루트 CONTEXT.md 하나만 — 하위 폴더에 생기는 빈 사본 제외
-/frontend/CONTEXT.md
-/backend/CONTEXT.md
-
-# Claude Code 이 PC 전용 설정 (공용 규칙·말투는 CLAUDE.md)
-.claude/
-CLAUDE.local.md
-
 # 로컬 SQLite 개발 DB
 *.db
 *.db-journal
@@ -44,4 +36,3 @@ CLAUDE.local.md
 .artists.json
 .voice-cache/
 
-# 세션 체크포인트(전역 자동 복원·/checkpoint 가 쓰는 PC 별 요약) — 원본은 루트 CONTEXT.md

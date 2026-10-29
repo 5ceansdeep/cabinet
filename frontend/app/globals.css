@@ -44,7 +44,7 @@
   --color-accent: var(--accent);
   --color-subtitle: var(--subtitle);
   --color-ui: var(--ui);
-  --radius-ui: 8px; /* 버튼·패널·시트·카드 — 모서리는 전부 8px (.claude/skills/design-rules) */
+  --radius-ui: 8px; /* 버튼·패널·시트·카드 — 모서리는 전부 8px */
   --font-sans: var(--font-inter);
   --font-mono: var(--font-mono-concept);
   --font-letter: var(--font-nanum), "Nanum Myeongjo", serif;

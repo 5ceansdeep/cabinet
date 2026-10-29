@@ -4,7 +4,6 @@
 
 - 서비스: https://cabinet-flame-zeta.vercel.app (Vercel) · API: https://cabinet-production-9cf8.up.railway.app (Railway)
 - `main` 에 푸시하면 프론트·백엔드가 자동 배포된다. 마이그레이션도 그때 돈다.
-- 처음 보는 사람이 읽을 순서: 이 문서 → [CONTEXT.md](../CONTEXT.md)(작업 상태·결정 기록) → [docs/next.md](next.md)(남은 일)
 
 ## 무엇을 하나
 
@@ -121,7 +120,7 @@ cd backend  && npm run voice             # 고정 대사 mp3 녹음(없는 것�
 ## 데이터
 
 주요 표: `User` · `Shelf`/`ShelfTrack`(서랍) · `Track`(곡, 설명·임베딩·소리 숫자·가수 다른 표기) · `Like` · `SearchLog`(편지 글·나온 곡·한마디) · `LetterLine`(편지별 한마디와 꺼내 준 곡 전부) · `ThrowLog` · `EventLog` · `VoiceClip`.
-베타 로그에는 편지 글과 나온 곡이 남지만 사용자·IP 는 남기지 않는다(안내문에 고지, [docs/beta-guide.md](beta-guide.md)). 서버 기록 보는 법은 [CONTEXT.md](../CONTEXT.md) "서버 기록 보는 법".
+베타 로그에는 편지 글과 나온 곡이 남지만 사용자·IP 는 남기지 않는다(안내문에 고지, [docs/beta-guide.md](beta-guide.md)).
 
 ## 문서
 
@@ -132,13 +131,11 @@ cd backend  && npm run voice             # 고정 대사 mp3 녹음(없는 것�
 | [docs/recommend-plan.md](recommend-plan.md) · [recommend-journey.md](recommend-journey.md) | 추천 설계, 개선 기록 |
 | [docs/deploy.md](deploy.md) | Vercel·Railway·Neon 배포 절차 |
 | [docs/beta-guide.md](beta-guide.md) | 베타 테스터 안내문 |
-| [docs/next.md](next.md) | 남은 일, 결정 대기 |
-| [docs/other-pc.md](other-pc.md) | 회사망 때문에 못 한 일(한글 제목 바꾸기, 곡 모으기)을 다른 PC 에서 하는 절차 |
-| [docs/mobile-plan.md](mobile-plan.md) · [youtube-playlist-plan.md](youtube-playlist-plan.md) · [ai-report-plan.md](ai-report-plan.md) | 모바일 대응, 유튜브 재생목록, 보고서(꺼 둠) 설계 |
+| [docs/mobile-plan.md](mobile-plan.md) · [youtube-playlist-plan.md](youtube-playlist-plan.md) | 모바일 대응, 유튜브 재생목록, 보고서(꺼 둠) 설계 |
 
 ## 기여
 
-커밋은 `[TAG] 한국어 요약 — 부연` 형식(`FEAT`·`FIX`·`DOCS`·`REFACTOR`·`PERF`·`CLEAN`·`REDESIGN`·`CHORE`·`STYLE`·`MERGE`), 기능별로 나눠서. 강제 푸시와 `.env`·`*.db` 커밋은 훅이 막는다. 규칙 전체는 [CLAUDE.md](../CLAUDE.md) 에 있다.
+커밋은 `[TAG] 한국어 요약 — 부연` 형식(`FEAT`·`FIX`·`DOCS`·`REFACTOR`·`PERF`·`CLEAN`·`REDESIGN`·`CHORE`·`STYLE`·`MERGE`), 기능별로 나눠서. 강제 푸시와 `.env`·`*.db` 커밋은 훅이 막는다.
 
 ## 스택
 

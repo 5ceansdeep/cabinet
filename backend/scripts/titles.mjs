@@ -1,5 +1,5 @@
 /* 영어 제목으로 들어간 한국 곡 → 한국 스토어의 한글 제목으로(10/7 베타: "항해"가 "Beautiful Sailing"으로 나왔다).
-   한국 iTunes 스토어가 0건을 주는 망(회사 PC)에선 못 돌린다 — 절차는 docs/other-pc.md.
+   한국 iTunes 스토어가 0건을 주는 망(회사 PC)에선 못 돌린다.
    node scripts/titles.mjs find   읽기만. 후보를 backend/.titles.json 에 쓰고 화면에 찍는다(곡당 3초 — iTunes 분당 20회)
    node scripts/titles.mjs apply  .titles.json 의 후보(ko 가 있는 줄)로 Track.title 을 바꾸고, 평가 정답표(eval.json)의 "가수 - 제목"도 같이 바꾼다
    같은 곡인지는 곡 번호로 — 한국 스토어 곡을 미국 스토어에서 조회해 영어 제목이 우리 제목과 같을 때만 후보로 친다 */
